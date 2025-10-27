@@ -1,0 +1,119 @@
+defmodule ThalamusWeb.Router do
+  use ThalamusWeb, :router
+
+  pipeline :browser do
+    plug :accepts, ["html"]
+    plug :fetch_session
+    plug :fetch_live_flash
+    plug :put_root_layout, html: {ThalamusWeb.Layouts, :root}
+    plug :protect_from_forgery
+    plug :put_secure_browser_headers
+  end
+
+  pipeline :api do
+    plug :accepts, ["json"]
+    plug ThalamusWeb.Plugs.CORS
+    plug ThalamusWeb.Plugs.SecurityHeaders
+    plug ThalamusWeb.Plugs.RateLimiter, limit: 1000, window: 60_000, key: :ip_address
+  end
+
+  # OAuth2 pipeline - no authentication required (handles its own)
+  # More strict rate limiting for OAuth2 endpoints
+  pipeline :oauth2 do
+    plug :accepts, ["json", "html"]
+    plug :fetch_session
+    plug ThalamusWeb.Plugs.CORS
+    plug ThalamusWeb.Plugs.SecurityHeaders
+    plug ThalamusWeb.Plugs.RateLimiter, limit: 20, window: 60_000, key: :ip_address
+  end
+
+  # Authenticated API pipeline
+  pipeline :authenticated_api do
+    plug :accepts, ["json"]
+    plug ThalamusWeb.Plugs.CORS
+    plug ThalamusWeb.Plugs.SecurityHeaders
+    plug ThalamusWeb.Plugs.AuthenticateToken
+    plug ThalamusWeb.Plugs.RateLimiter, limit: 5000, window: 60_000, key: :user_id
+  end
+
+  scope "/", ThalamusWeb do
+    pipe_through :browser
+
+    get "/", PageController, :home
+  end
+
+  # OAuth2 Endpoints (RFC 6749)
+  scope "/oauth", ThalamusWeb.OAuth2 do
+    pipe_through :oauth2
+
+    # Token endpoint - POST only
+    post "/token", TokenController, :create
+
+    # Token introspection endpoint (RFC 7662)
+    post "/introspect", IntrospectionController, :create
+
+    # Authorization endpoint (RFC 6749 Section 3.1)
+    get "/authorize", AuthorizationController, :new
+    post "/authorize", AuthorizationController, :create
+
+    # Token revocation endpoint (RFC 7009)
+    post "/revoke", RevocationController, :create
+  end
+
+  # Public API - no authentication required
+  scope "/api/public", ThalamusWeb.API do
+    pipe_through :api
+
+    # Health check
+    get "/health", HealthController, :index
+
+    # User registration
+    post "/register", RegistrationController, :create
+    post "/verify-email", RegistrationController, :verify_email
+    post "/resend-verification", RegistrationController, :resend_verification
+
+    # Password reset
+    post "/password/reset", PasswordController, :reset
+    post "/password/confirm-reset", PasswordController, :confirm_reset
+  end
+
+  # Management API - requires authentication
+  scope "/api", ThalamusWeb.API do
+    pipe_through :authenticated_api
+
+    # User management
+    resources "/users", UserController, except: [:new, :edit]
+
+    # Organization management
+    resources "/organizations", OrganizationController, except: [:new, :edit]
+
+    # OAuth2 Client management
+    resources "/clients", OAuth2ClientController, except: [:new, :edit]
+
+    # Password change (requires authentication)
+    put "/password/change", PasswordController, :change
+
+    # MFA (Multi-Factor Authentication) management
+    post "/mfa/totp/setup", MFAController, :setup_totp
+    post "/mfa/totp/verify", MFAController, :verify_totp
+    post "/mfa/verify", MFAController, :verify_mfa_code
+    delete "/mfa/disable", MFAController, :disable_mfa
+    post "/mfa/backup-codes/regenerate", MFAController, :regenerate_backup_codes
+  end
+
+  # Enable LiveDashboard in development
+  if Application.compile_env(:thalamus, :dev_routes) do
+    # If you want to use the LiveDashboard in production, you should put
+    # it behind authentication and allow only admins to access it.
+    # If your application does not have an admins-only section yet,
+    # you can use Plug.BasicAuth to set up some basic authentication
+    # as long as you are also using SSL (which you should anyway).
+    import Phoenix.LiveDashboard.Router
+
+    scope "/dev" do
+      pipe_through :browser
+
+      live_dashboard "/dashboard", metrics: ThalamusWeb.Telemetry
+    end
+  end
+end

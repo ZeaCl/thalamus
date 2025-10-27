@@ -1,0 +1,83 @@
+# ============================================================================
+# Docker Ignore File
+# ============================================================================
+# Excludes files and directories from Docker build context
+# This reduces build time and image size
+# ============================================================================
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Elixir Build Artifacts
+_build/
+deps/
+*.ez
+
+# Compiled Files
+erl_crash.dump
+*.beam
+/config/*.secret.exs
+.elixir_ls/
+
+# Static Assets (will be rebuilt)
+priv/static/assets/
+assets/node_modules/
+assets/vendor/
+
+# Test Coverage
+cover/
+doc/
+
+# Environment Files
+.env
+.env.*
+!.env.example
+
+# OS Files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE/Editor
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+.elixir_ls
+
+# Logs
+*.log
+log/
+logs/
+
+# Temporary Files
+tmp/
+temp/
+
+# Documentation
+*.md
+!README.md
+docs/
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Database
+*.sql
+*.sqlite
+*.db
+
+# Backup Files
+*.bak
+*.backup

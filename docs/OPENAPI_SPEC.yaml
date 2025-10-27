@@ -1,0 +1,969 @@
+openapi: 3.0.3
+info:
+  title: ZEA Thalamus OAuth2 Authentication Service
+  description: |
+    Enterprise-grade OAuth2 authentication and authorization service built with Clean Architecture.
+
+    ## Features
+    - OAuth2 2.0 Authorization Framework (RFC 6749)
+    - PKCE Support (RFC 7636)
+    - Token Introspection (RFC 7662)
+    - Token Revocation (RFC 7009)
+    - Multi-factor Authentication
+    - User Management
+    - Organization Management
+    - Client Application Management
+
+    ## Authentication
+    Most API endpoints require authentication via Bearer token:
+    ```
+    Authorization: Bearer <your_access_token>
+    ```
+
+    ## Rate Limiting
+    All endpoints are rate-limited:
+    - Public API: 1000 requests/minute per IP
+    - OAuth2 endpoints: 20 requests/minute per IP
+    - Authenticated API: 5000 requests/minute per user
+
+    Rate limit headers:
+    - `X-RateLimit-Limit`: Maximum requests allowed
+    - `X-RateLimit-Remaining`: Requests remaining
+    - `X-RateLimit-Reset`: Unix timestamp when limit resets
+
+  version: 1.0.0
+  contact:
+    name: ZEA Thalamus Support
+    email: support@thalamus.example.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:4000
+    description: Development server
+  - url: https://api.thalamus.example.com
+    description: Production server
+
+tags:
+  - name: OAuth2
+    description: OAuth2 authentication and authorization endpoints
+  - name: Users
+    description: User management operations
+  - name: Organizations
+    description: Organization management operations
+  - name: OAuth2 Clients
+    description: OAuth2 client application management
+  - name: MFA
+    description: Multi-Factor Authentication (TOTP) management
+  - name: Public
+    description: Public endpoints (no authentication required)
+
+paths:
+  # ========================================================================
+  # OAUTH2 ENDPOINTS
+  # ========================================================================
+
+  /oauth/authorize:
+    get:
+      tags: [OAuth2]
+      summary: OAuth2 Authorization Endpoint
+      description: |
+        Initiates the OAuth2 authorization code flow.
+        User must be authenticated to access this endpoint.
+      operationId: getAuthorizationRequest
+      parameters:
+        - name: response_type
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [code]
+        - name: client_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: redirect_uri
+          in: query
+          schema:
+            type: string
+            format: uri
+        - name: scope
+          in: query
+          schema:
+            type: string
+            example: "openid profile email"
+        - name: state
+          in: query
+          schema:
+            type: string
+        - name: code_challenge
+          in: query
+          description: PKCE code challenge
+          schema:
+            type: string
+        - name: code_challenge_method
+          in: query
+          schema:
+            type: string
+            enum: [S256, plain]
+            default: S256
+      responses:
+        '200':
+          description: Consent screen
+        '302':
+          description: Redirect to login or callback
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+    post:
+      tags: [OAuth2]
+      summary: Process Authorization Consent
+      description: Processes user's consent decision (approve/deny)
+      operationId: processAuthorizationConsent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision, client_id]
+              properties:
+                decision:
+                  type: string
+                  enum: [approve, deny]
+                client_id:
+                  type: string
+                  format: uuid
+                redirect_uri:
+                  type: string
+                  format: uri
+                scope:
+                  type: string
+                state:
+                  type: string
+                code_challenge:
+                  type: string
+                code_challenge_method:
+                  type: string
+                  enum: [S256, plain]
+      responses:
+        '302':
+          description: Redirect to callback with code or error
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /oauth/token:
+    post:
+      tags: [OAuth2]
+      summary: OAuth2 Token Endpoint
+      description: |
+        Exchange authorization code, refresh token, or client credentials for access token.
+        Supports all OAuth2 grant types.
+      operationId: issueToken
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/AuthorizationCodeGrant'
+                - $ref: '#/components/schemas/RefreshTokenGrant'
+                - $ref: '#/components/schemas/ClientCredentialsGrant'
+      responses:
+        '200':
+          description: Token issued successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '400':
+          $ref: '#/components/responses/OAuth2Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /oauth/introspect:
+    post:
+      tags: [OAuth2]
+      summary: Token Introspection (RFC 7662)
+      description: Validates and returns metadata about a token
+      operationId: introspectToken
+      security:
+        - ClientAuthentication: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token:
+                  type: string
+                token_type_hint:
+                  type: string
+                  enum: [access_token, refresh_token]
+      responses:
+        '200':
+          description: Token introspection result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntrospectionResponse'
+
+  /oauth/revoke:
+    post:
+      tags: [OAuth2]
+      summary: Token Revocation (RFC 7009)
+      description: Revokes an access or refresh token
+      operationId: revokeToken
+      security:
+        - ClientAuthentication: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token:
+                  type: string
+                token_type_hint:
+                  type: string
+                  enum: [access_token, refresh_token]
+      responses:
+        '200':
+          description: Token revoked successfully (always returns 200 per RFC 7009)
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  # ========================================================================
+  # PUBLIC ENDPOINTS
+  # ========================================================================
+
+  /api/public/health:
+    get:
+      tags: [Public]
+      summary: Health Check
+      description: Returns system health status
+      operationId: healthCheck
+      responses:
+        '200':
+          description: System is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [ok, degraded]
+                  version:
+                    type: string
+                  timestamp:
+                    type: string
+                    format: date-time
+                  checks:
+                    type: object
+                    properties:
+                      database:
+                        type: string
+                      cache:
+                        type: string
+        '503':
+          description: System is degraded or unavailable
+
+  /api/public/register:
+    post:
+      tags: [Public]
+      summary: User Registration
+      description: Register a new user account
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, password_confirmation]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+                  minLength: 8
+                password_confirmation:
+                  type: string
+                  format: password
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/User'
+                  message:
+                    type: string
+                  verification_token:
+                    type: string
+                    description: Only in development mode
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: Email already exists
+
+  /api/public/verify-email:
+    post:
+      tags: [Public]
+      summary: Verify Email Address
+      description: Verifies user email with token
+      operationId: verifyEmail
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, token]
+              properties:
+                email:
+                  type: string
+                  format: email
+                token:
+                  type: string
+      responses:
+        '200':
+          description: Email verified successfully
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/public/password/reset:
+    post:
+      tags: [Public]
+      summary: Request Password Reset
+      description: Sends password reset email (always returns 200 to prevent email enumeration)
+      operationId: requestPasswordReset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        '200':
+          description: If account exists, reset email sent
+
+  /api/public/password/confirm-reset:
+    post:
+      tags: [Public]
+      summary: Confirm Password Reset
+      description: Resets password with token
+      operationId: confirmPasswordReset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, password, password_confirmation]
+              properties:
+                token:
+                  type: string
+                password:
+                  type: string
+                  format: password
+                password_confirmation:
+                  type: string
+                  format: password
+      responses:
+        '200':
+          description: Password reset successful
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  # ========================================================================
+  # AUTHENTICATED ENDPOINTS
+  # ========================================================================
+
+  /api/users:
+    get:
+      tags: [Users]
+      summary: List Users
+      description: Returns list of users with optional filtering
+      operationId: listUsers
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Status'
+        - $ref: '#/components/parameters/Verified'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: Users list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/User'
+                  meta:
+                    type: object
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+
+    post:
+      tags: [Users]
+      summary: Create User
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/User'
+
+  /api/users/{id}:
+    get:
+      tags: [Users]
+      summary: Get User
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: User details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/User'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/organizations:
+    get:
+      tags: [Organizations]
+      summary: List Organizations
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Status'
+        - name: plan_type
+          in: query
+          schema:
+            type: string
+            enum: [free, starter, professional, enterprise]
+      responses:
+        '200':
+          description: Organizations list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Organization'
+
+  # ========================================================================
+  # MFA (MULTI-FACTOR AUTHENTICATION) ENDPOINTS
+  # ========================================================================
+
+  /api/mfa/totp/setup:
+    post:
+      tags: [MFA]
+      summary: Setup TOTP (Time-based One-Time Password)
+      description: Initiates TOTP setup and returns secret + QR code URI
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: TOTP setup data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      secret:
+                        type: string
+                        description: Base32-encoded secret for TOTP
+                      qr_code_uri:
+                        type: string
+                        description: otpauth:// URI for QR code generation
+                      backup_codes:
+                        type: array
+                        items:
+                          type: string
+                        description: Backup codes for account recovery
+                      instructions:
+                        type: string
+        '400':
+          description: MFA already enabled
+
+  /api/mfa/totp/verify:
+    post:
+      tags: [MFA]
+      summary: Verify TOTP Code and Enable MFA
+      description: Verifies TOTP code from authenticator app and enables MFA
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code:
+                  type: string
+                  pattern: '^\d{6}$'
+                  example: "123456"
+      responses:
+        '200':
+          description: MFA enabled successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      mfa_enabled:
+                        type: boolean
+                      method:
+                        type: string
+                        enum: [totp]
+                      backup_codes:
+                        type: array
+                        items:
+                          type: string
+                      message:
+                        type: string
+        '400':
+          description: Invalid code or no pending setup
+
+  /api/mfa/verify:
+    post:
+      tags: [MFA]
+      summary: Verify MFA Code During Login
+      description: Verifies MFA code during authentication flow
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id, code]
+              properties:
+                user_id:
+                  type: string
+                  format: uuid
+                code:
+                  type: string
+                  pattern: '^\d{6}$'
+      responses:
+        '200':
+          description: Code verified
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      verified:
+                        type: boolean
+        '400':
+          description: Invalid code
+
+  /api/mfa/disable:
+    delete:
+      tags: [MFA]
+      summary: Disable MFA
+      description: Disables MFA for the authenticated user (requires password + code)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password, code]
+              properties:
+                password:
+                  type: string
+                  format: password
+                code:
+                  type: string
+                  pattern: '^\d{6}$'
+      responses:
+        '200':
+          description: MFA disabled
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      mfa_enabled:
+                        type: boolean
+                      message:
+                        type: string
+        '400':
+          description: Invalid credentials or code
+
+  /api/mfa/backup-codes/regenerate:
+    post:
+      tags: [MFA]
+      summary: Regenerate Backup Codes
+      description: Generates new backup codes (requires password + MFA code)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password, code]
+              properties:
+                password:
+                  type: string
+                  format: password
+                code:
+                  type: string
+                  pattern: '^\d{6}$'
+      responses:
+        '200':
+          description: New backup codes generated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      backup_codes:
+                        type: array
+                        items:
+                          type: string
+                      message:
+                        type: string
+        '400':
+          description: Invalid credentials
+
+# ========================================================================
+# COMPONENTS
+# ========================================================================
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+    ClientAuthentication:
+      type: http
+      scheme: basic
+      description: Client ID and secret via Basic Auth
+
+  parameters:
+    Status:
+      name: status
+      in: query
+      schema:
+        type: string
+        enum: [pending_verification, active, suspended, inactive]
+
+    Verified:
+      name: verified
+      in: query
+      schema:
+        type: boolean
+
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 50
+
+    Offset:
+      name: offset
+      in: query
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        status:
+          type: string
+          enum: [pending_verification, active, suspended, deactivated]
+        verified:
+          type: boolean
+        verified_at:
+          type: string
+          format: date-time
+          nullable: true
+        mfa_enabled:
+          type: boolean
+        last_login_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Organization:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        owner_email:
+          type: string
+          format: email
+        status:
+          type: string
+          enum: [pending_verification, active, suspended, inactive]
+        plan_type:
+          type: string
+          enum: [free, starter, professional, enterprise]
+        max_users:
+          type: integer
+          nullable: true
+        max_api_calls_per_month:
+          type: integer
+          nullable: true
+        api_calls_current_month:
+          type: integer
+        members:
+          type: array
+          items:
+            type: object
+        created_at:
+          type: string
+          format: date-time
+
+    TokenResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+        token_type:
+          type: string
+          enum: [Bearer]
+        expires_in:
+          type: integer
+        refresh_token:
+          type: string
+        scope:
+          type: string
+
+    IntrospectionResponse:
+      type: object
+      properties:
+        active:
+          type: boolean
+        scope:
+          type: string
+        client_id:
+          type: string
+        username:
+          type: string
+        token_type:
+          type: string
+        exp:
+          type: integer
+        iat:
+          type: integer
+        sub:
+          type: string
+
+    AuthorizationCodeGrant:
+      type: object
+      required: [grant_type, code, client_id]
+      properties:
+        grant_type:
+          type: string
+          enum: [authorization_code]
+        code:
+          type: string
+        client_id:
+          type: string
+        client_secret:
+          type: string
+        redirect_uri:
+          type: string
+        code_verifier:
+          type: string
+
+    RefreshTokenGrant:
+      type: object
+      required: [grant_type, refresh_token, client_id]
+      properties:
+        grant_type:
+          type: string
+          enum: [refresh_token]
+        refresh_token:
+          type: string
+        client_id:
+          type: string
+        client_secret:
+          type: string
+        scope:
+          type: string
+
+    ClientCredentialsGrant:
+      type: object
+      required: [grant_type, client_id, client_secret]
+      properties:
+        grant_type:
+          type: string
+          enum: [client_credentials]
+        client_id:
+          type: string
+        client_secret:
+          type: string
+        scope:
+          type: string
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        error_description:
+          type: string
+        details:
+          type: object
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    RateLimitExceeded:
+      description: Rate limit exceeded
+      headers:
+        X-RateLimit-Limit:
+          schema:
+            type: integer
+        X-RateLimit-Remaining:
+          schema:
+            type: integer
+        Retry-After:
+          schema:
+            type: integer
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    OAuth2Error:
+      description: OAuth2 error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                enum: [invalid_request, invalid_client, invalid_grant, unauthorized_client, unsupported_grant_type, invalid_scope]
+              error_description:
+                type: string

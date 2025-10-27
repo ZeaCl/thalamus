@@ -1,0 +1,182 @@
+version: '3.9'
+
+# ============================================================================
+# ZEA Thalamus - Docker Compose Configuration
+# ============================================================================
+# This docker-compose file sets up the complete development environment
+# including the application, database, cache, and monitoring.
+#
+# Usage:
+#   Development: docker-compose up -d
+#   Production:  docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#   Stop:        docker-compose down
+#   Logs:        docker-compose logs -f thalamus
+# ============================================================================
+
+services:
+  # ==========================================================================
+  # PostgreSQL Database
+  # ==========================================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: thalamus_postgres
+    environment:
+      POSTGRES_DB: thalamus_dev
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./priv/repo/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - thalamus_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ==========================================================================
+  # Redis Cache
+  # ==========================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: thalamus_redis
+    command: redis-server --appendonly yes --requirepass redis_password
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - thalamus_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ==========================================================================
+  # Thalamus Application (Development)
+  # ==========================================================================
+  thalamus:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: thalamus_app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      # Database
+      DATABASE_URL: "ecto://postgres:postgres@postgres:5432/thalamus_dev"
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: thalamus_dev
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_POOL_SIZE: 10
+
+      # Redis
+      REDIS_URL: "redis://:redis_password@redis:6379/0"
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: redis_password
+
+      # Application
+      MIX_ENV: dev
+      PHX_SERVER: "true"
+      PHX_HOST: localhost
+      PHX_PORT: 4000
+      SECRET_KEY_BASE: "your-secret-key-base-at-least-64-chars-long-change-in-production"
+
+      # Security Tokens
+      VERIFICATION_TOKEN_SECRET: "change_me_in_production_verification_token_secret_key"
+      PASSWORD_RESET_SECRET: "change_me_in_production_password_reset_secret_key"
+      SESSION_SECRET: "change_me_in_production_session_secret_key"
+
+      # Email (Development)
+      EMAIL_MODE: development
+      EMAIL_FROM: noreply@localhost
+      EMAIL_FROM_NAME: "ZEA Thalamus (Dev)"
+      EMAIL_BASE_URL: "http://localhost:4000"
+
+      # CORS
+      CORS_ORIGINS: "http://localhost:3000,http://localhost:4000"
+
+      # Logging
+      LOG_LEVEL: info
+    ports:
+      - "4000:4000"
+    volumes:
+      - .:/app
+      - /app/deps
+      - /app/_build
+      - /app/assets/node_modules
+    networks:
+      - thalamus_network
+    command: >
+      sh -c "
+        mix deps.get &&
+        mix ecto.create &&
+        mix ecto.migrate &&
+        mix phx.server
+      "
+    restart: unless-stopped
+
+  # ==========================================================================
+  # Adminer (Database Management UI)
+  # ==========================================================================
+  adminer:
+    image: adminer:latest
+    container_name: thalamus_adminer
+    depends_on:
+      - postgres
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+    ports:
+      - "8080:8080"
+    networks:
+      - thalamus_network
+    restart: unless-stopped
+
+  # ==========================================================================
+  # Redis Commander (Redis Management UI)
+  # ==========================================================================
+  redis_commander:
+    image: rediscommander/redis-commander:latest
+    container_name: thalamus_redis_commander
+    depends_on:
+      - redis
+    environment:
+      REDIS_HOSTS: "local:redis:6379:0:redis_password"
+    ports:
+      - "8081:8081"
+    networks:
+      - thalamus_network
+    restart: unless-stopped
+
+# ============================================================================
+# Networks
+# ============================================================================
+networks:
+  thalamus_network:
+    driver: bridge
+    name: thalamus_network
+
+# ============================================================================
+# Volumes
+# ============================================================================
+volumes:
+  postgres_data:
+    driver: local
+    name: thalamus_postgres_data
+  redis_data:
+    driver: local
+    name: thalamus_redis_data

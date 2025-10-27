@@ -1,0 +1,385 @@
+defmodule ThalamusWeb.API.OAuth2ClientController do
+  @moduledoc """
+  OAuth2 Client Management API Controller.
+
+  Provides REST API for OAuth2 client management operations:
+  - List clients
+  - Get client details
+  - Create client
+  - Update client
+  - Delete client (soft delete)
+  - Rotate client secret
+
+  SOLID Principles Applied:
+  - Single Responsibility: Only handles HTTP OAuth2 client management requests
+  - Dependency Inversion: Depends on repositories through interfaces
+  """
+
+  use ThalamusWeb, :controller
+
+  alias Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository
+  alias Thalamus.Domain.Entities.OAuth2Client
+  alias Thalamus.Domain.ValueObjects.{ClientId, OrganizationId, ClientSecret}
+
+  @doc """
+  GET /api/clients
+
+  List all OAuth2 clients with optional filtering.
+
+  ## Query Parameters
+  - organization_id: Filter by organization
+  - client_type: Filter by type (confidential, public, m2m)
+  - status: Filter by status (active, inactive)
+  - limit: Number of results (default: 50, max: 100)
+  - offset: Pagination offset
+
+  ## Response
+  200 OK with array of client objects
+  """
+  def index(conn, params) do
+    filters = build_filters(params)
+
+    case PostgreSQLOAuth2ClientRepository.list(filters) do
+      {:ok, clients} ->
+        conn
+        |> put_status(:ok)
+        |> json(%{
+          data: Enum.map(clients, &client_to_json/1),
+          meta: %{
+            count: length(clients),
+            filters: filters
+          }
+        })
+    end
+  end
+
+  @doc """
+  GET /api/clients/:id
+
+  Get a specific OAuth2 client by ID.
+
+  ## Path Parameters
+  - id: Client UUID
+
+  ## Response
+  - 200 OK: Client found
+  - 404 Not Found: Client not found
+  """
+  def show(conn, %{"id" => id}) do
+    case ClientId.from_string(id) do
+      {:ok, client_id} ->
+        case PostgreSQLOAuth2ClientRepository.find_by_id(client_id) do
+          {:ok, client} ->
+            conn
+            |> put_status(:ok)
+            |> json(%{data: client_to_json(client)})
+
+          {:error, :not_found} ->
+            conn
+            |> put_status(:not_found)
+            |> json(%{error: "Client not found"})
+        end
+
+      {:error, _reason} ->
+        conn
+        |> put_status(:bad_request)
+        |> json(%{error: "Invalid client ID format"})
+    end
+  end
+
+  @doc """
+  POST /api/clients
+
+  Create a new OAuth2 client.
+
+  ## Request Body (JSON)
+  {
+    "name": "My Application",
+    "organization_id": "org-uuid",
+    "client_type": "confidential|public|m2m",
+    "redirect_uris": ["https://example.com/callback"],
+    "grant_types": ["authorization_code", "refresh_token"],
+    "scopes": ["openid", "profile", "email"]
+  }
+
+  ## Response
+  - 201 Created: Client created successfully (includes client_secret for confidential clients)
+  - 400 Bad Request: Invalid input
+  """
+  def create(conn, params) do
+    with {:ok, name} <- get_required_param(params, "name"),
+         {:ok, org_id_string} <- get_required_param(params, "organization_id"),
+         {:ok, org_id} <- OrganizationId.from_string(org_id_string),
+         {:ok, client} <- create_client(name, org_id, params),
+         {:ok, saved_client} <- PostgreSQLOAuth2ClientRepository.save(client) do
+      # For confidential clients, include the secret in the response (only time it's visible)
+      response_data = client_to_json(saved_client)
+
+      response_data =
+        if saved_client.client_type == :confidential and saved_client.client_secret do
+          Map.put(response_data, :client_secret, ClientSecret.to_string(saved_client.client_secret))
+        else
+          response_data
+        end
+
+      conn
+      |> put_status(:created)
+      |> json(%{
+        data: response_data,
+        message: "OAuth2 client created successfully"
+      })
+    else
+      {:error, :missing_parameter, param} ->
+        conn
+        |> put_status(:bad_request)
+        |> json(%{error: "Missing required parameter: #{param}"})
+
+      {:error, reason} when is_atom(reason) ->
+        conn
+        |> put_status(:bad_request)
+        |> json(%{error: "Invalid input", details: to_string(reason)})
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        errors = format_changeset_errors(changeset)
+
+        conn
+        |> put_status(:bad_request)
+        |> json(%{error: "Validation failed", details: errors})
+
+      {:error, reason} ->
+        conn
+        |> put_status(:internal_server_error)
+        |> json(%{error: "Failed to create client", details: inspect(reason)})
+    end
+  end
+
+  @doc """
+  PATCH /api/clients/:id
+
+  Update an OAuth2 client.
+
+  ## Path Parameters
+  - id: Client UUID
+
+  ## Request Body (JSON)
+  {
+    "name": "Updated Name",
+    "redirect_uris": ["https://example.com/callback"],
+    "status": "active|inactive"
+  }
+
+  ## Response
+  - 200 OK: Client updated
+  - 404 Not Found: Client not found
+  - 400 Bad Request: Invalid input
+  """
+  def update(conn, %{"id" => id} = params) do
+    with {:ok, client_id} <- ClientId.from_string(id),
+         {:ok, client} <- PostgreSQLOAuth2ClientRepository.find_by_id(client_id),
+         {:ok, updated_client} <- apply_updates(client, params),
+         {:ok, saved_client} <- PostgreSQLOAuth2ClientRepository.save(updated_client) do
+      conn
+      |> put_status(:ok)
+      |> json(%{
+        data: client_to_json(saved_client),
+        message: "Client updated successfully"
+      })
+    else
+      {:error, :not_found} ->
+        conn
+        |> put_status(:not_found)
+        |> json(%{error: "Client not found"})
+
+      {:error, reason} when is_atom(reason) ->
+        conn
+        |> put_status(:bad_request)
+        |> json(%{error: "Invalid input", details: to_string(reason)})
+
+      {:error, reason} ->
+        conn
+        |> put_status(:internal_server_error)
+        |> json(%{error: "Failed to update client", details: inspect(reason)})
+    end
+  end
+
+  @doc """
+  DELETE /api/clients/:id
+
+  Delete an OAuth2 client (soft delete by deactivating).
+
+  ## Path Parameters
+  - id: Client UUID
+
+  ## Response
+  - 204 No Content: Client deleted
+  - 404 Not Found: Client not found
+  """
+  def delete(conn, %{"id" => id}) do
+    with {:ok, client_id} <- ClientId.from_string(id),
+         {:ok, client} <- PostgreSQLOAuth2ClientRepository.find_by_id(client_id),
+         {:ok, _deactivated} <- OAuth2Client.deactivate(client),
+         :ok <- PostgreSQLOAuth2ClientRepository.delete(client_id) do
+      conn
+      |> put_status(:no_content)
+      |> json(%{})
+    else
+      {:error, :not_found} ->
+        conn
+        |> put_status(:not_found)
+        |> json(%{error: "Client not found"})
+
+      {:error, reason} ->
+        conn
+        |> put_status(:internal_server_error)
+        |> json(%{error: "Failed to delete client", details: inspect(reason)})
+    end
+  end
+
+  # Private helper functions
+
+  defp build_filters(params) do
+    filters = %{}
+
+    filters =
+      if org_id = params["organization_id"] do
+        case OrganizationId.from_string(org_id) do
+          {:ok, org_id_vo} -> Map.put(filters, :organization_id, org_id_vo)
+          _ -> filters
+        end
+      else
+        filters
+      end
+
+    filters =
+      if client_type = params["client_type"] do
+        Map.put(filters, :client_type, String.to_existing_atom(client_type))
+      else
+        filters
+      end
+
+    filters =
+      if status = params["status"] do
+        Map.put(filters, :status, String.to_existing_atom(status))
+      else
+        filters
+      end
+
+    filters =
+      if limit = params["limit"] do
+        limit_int = min(String.to_integer(limit), 100)
+        Map.put(filters, :limit, limit_int)
+      else
+        Map.put(filters, :limit, 50)
+      end
+
+    filters =
+      if offset = params["offset"] do
+        Map.put(filters, :offset, String.to_integer(offset))
+      else
+        filters
+      end
+
+    filters
+  end
+
+  defp client_to_json(%OAuth2Client{} = client) do
+    # Convert grant types to strings
+    grant_types =
+      Enum.map(client.grant_types, fn grant_type ->
+        to_string(grant_type.type)
+      end)
+
+    %{
+      id: ClientId.to_string(client.id),
+      name: client.name,
+      organization_id: OrganizationId.to_string(client.organization_id),
+      client_type: client.client_type,
+      redirect_uris: client.redirect_uris,
+      grant_types: grant_types,
+      scopes: client.allowed_scopes,
+      is_active: client.is_active,
+      trusted: client.trusted,
+      created_at: client.created_at,
+      updated_at: client.updated_at
+    }
+  end
+
+  defp get_required_param(params, key) do
+    case params[key] do
+      nil -> {:error, :missing_parameter, key}
+      "" -> {:error, :missing_parameter, key}
+      value -> {:ok, value}
+    end
+  end
+
+  defp create_client(name, org_id, params) do
+    client_type = String.to_existing_atom(params["client_type"] || "confidential")
+    redirect_uris = params["redirect_uris"] || []
+
+    # Parse grant types
+    grant_type_strings = params["grant_types"] || ["authorization_code", "refresh_token"]
+
+    grant_types =
+      Enum.map(grant_type_strings, fn type_string ->
+        type_atom = String.to_existing_atom(type_string)
+        {:ok, grant_type} = Thalamus.Domain.ValueObjects.GrantType.new(type_atom)
+        grant_type
+      end)
+
+    scopes = params["scopes"] || []
+    {:ok, client_id} = ClientId.generate()
+
+    OAuth2Client.new(%{
+      id: client_id,
+      organization_id: org_id,
+      name: name,
+      client_type: client_type,
+      redirect_uris: redirect_uris,
+      grant_types: grant_types,
+      allowed_scopes: scopes
+    })
+  end
+
+  defp apply_updates(client, params) do
+    # Apply name update if present
+    client =
+      if name = params["name"] do
+        %{client | name: name}
+      else
+        client
+      end
+
+    # Apply redirect URIs update if present
+    client =
+      if redirect_uris = params["redirect_uris"] do
+        %{client | redirect_uris: redirect_uris}
+      else
+        client
+      end
+
+    # Apply status update if present
+    client =
+      case params["status"] do
+        "inactive" ->
+          {:ok, updated} = OAuth2Client.deactivate(client)
+          updated
+
+        "active" ->
+          {:ok, updated} = OAuth2Client.activate(client)
+          updated
+
+        _ ->
+          client
+      end
+
+    {:ok, client}
+  end
+
+  defp format_changeset_errors(changeset) do
+    Ecto.Changeset.traverse_errors(changeset, fn {msg, opts} ->
+      Enum.reduce(opts, msg, fn {key, value}, acc ->
+        String.replace(acc, "%{#{key}}", to_string(value))
+      end)
+    end)
+  end
+end

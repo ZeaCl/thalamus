@@ -1,0 +1,159 @@
+defmodule ThalamusWeb.OAuth2.IntrospectionController do
+  @moduledoc """
+  OAuth2 Token Introspection Endpoint Controller.
+
+  Implements RFC 7662 - OAuth 2.0 Token Introspection
+
+  This endpoint allows resource servers to query the authorization server
+  to determine the state and metadata of a token.
+
+  SOLID Principles Applied:
+  - Single Responsibility: Only handles token introspection HTTP requests
+  - Dependency Inversion: Depends on Use Cases, not implementations
+  """
+
+  use ThalamusWeb, :controller
+
+  alias Thalamus.Application.UseCases.ValidateToken
+
+  # Dependencies
+  @deps %{
+    token_repository: Thalamus.Infrastructure.Repositories.PostgreSQLTokenRepository
+  }
+
+  @doc """
+  POST /oauth/introspect
+
+  Token introspection endpoint for validating and getting metadata about a token.
+
+  ## Request Parameters (form-urlencoded or JSON)
+  - token (required): The token to introspect
+  - token_type_hint (optional): hint about the type of token (access_token, refresh_token)
+
+  ## Authentication
+  Requires client authentication (client_id and client_secret in Authorization header or body)
+
+  ## Response
+  Returns token metadata including:
+  - active: boolean indicating if token is active
+  - scope: space-separated list of scopes
+  - client_id: identifier of the client
+  - username: username of the resource owner (if available)
+  - token_type: type of the token
+  - exp: expiration timestamp
+  - iat: issued at timestamp
+  - sub: subject identifier (user_id)
+
+  ## Examples
+
+      # Active token
+      {
+        "active": true,
+        "scope": "openid profile email",
+        "client_id": "client_abc123",
+        "username": "user@example.com",
+        "token_type": "Bearer",
+        "exp": 1640995200,
+        "iat": 1640991600,
+        "sub": "user_123"
+      }
+
+      # Inactive token
+      {
+        "active": false
+      }
+  """
+  def create(conn, params) do
+    token = get_param(params, "token")
+
+    # TODO: Authenticate the client making the introspection request
+    # For now, we'll allow any request (in production, this MUST be authenticated)
+
+    cond do
+      is_nil(token) or token == "" ->
+        conn
+        |> put_status(:bad_request)
+        |> json(%{
+          error: "invalid_request",
+          error_description: "Missing required parameter: token"
+        })
+
+      true ->
+        perform_introspection(conn, token)
+    end
+  end
+
+  # Private functions
+
+  defp perform_introspection(conn, token) do
+    case ValidateToken.execute(token, @deps) do
+      {:ok, validation_result} ->
+        # Convert to RFC 7662 format
+        response = build_introspection_response(validation_result)
+
+        conn
+        |> put_status(:ok)
+        |> put_resp_header("cache-control", "no-store")
+        |> put_resp_header("pragma", "no-cache")
+        |> json(response)
+
+      {:error, :invalid_token_format} ->
+        # Invalid token format - return inactive
+        conn
+        |> put_status(:ok)
+        |> json(%{active: false})
+
+      {:error, _reason} ->
+        # Any other error - return inactive
+        conn
+        |> put_status(:ok)
+        |> json(%{active: false})
+    end
+  end
+
+  defp build_introspection_response(%{valid: true, active: true} = result) do
+    response = %{
+      active: true,
+      scope: Enum.join(result.scope, " "),
+      client_id: result.client_id,
+      token_type: "Bearer"
+    }
+
+    # Add optional fields if present
+    response =
+      if result.user_id do
+        response
+        |> Map.put(:sub, result.user_id)
+        |> Map.put(:username, result.user_id)
+      else
+        response
+      end
+
+    response =
+      if result.exp do
+        Map.put(response, :exp, DateTime.to_unix(result.exp))
+      else
+        response
+      end
+
+    response =
+      if result.iat do
+        Map.put(response, :iat, DateTime.to_unix(result.iat))
+      else
+        response
+      end
+
+    response
+  end
+
+  defp build_introspection_response(_result) do
+    # Token is not active
+    %{active: false}
+  end
+
+  defp get_param(params, key) when is_map(params) do
+    params[key] || params[String.to_atom(key)]
+  end
+
+  defp get_param(_, _), do: nil
+end
