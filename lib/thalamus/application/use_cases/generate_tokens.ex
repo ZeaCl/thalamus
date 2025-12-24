@@ -12,7 +12,6 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
   # Ports are referenced via deps parameter, not direct aliases
 
   alias Thalamus.Domain.Entities.OAuth2Client
-  alias Thalamus.Domain.ValueObjects.ClientId
 
   @type deps :: %{
           oauth2_client_repository: module(),
@@ -63,11 +62,17 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
          %TokenRequest{client_id: client_id, client_secret: client_secret},
          %{oauth2_client_repository: repo}
        ) do
-    with {:ok, client_id_vo} <- ClientId.new(client_id),
-         {:ok, client} <- repo.find_by_id(client_id_vo),
-         :ok <- check_client_active(client),
-         :ok <- verify_client_secret(client, client_secret) do
-      {:ok, client}
+    # Note: client_id is the public OAuth2 client identifier (e.g., "platform_web")
+    # NOT the internal database UUID. We must use find_by_client_id(), not find_by_id()
+    case repo.find_by_client_id(client_id) do
+      {:ok, client} ->
+        with :ok <- check_client_active(client),
+             :ok <- verify_client_secret(client, client_secret) do
+          {:ok, client}
+        end
+
+      {:error, _} = error ->
+        error
     end
   end
 
@@ -184,15 +189,36 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
     end
   end
 
-  defp verify_authorization_code(_code, %{token_repository: _repo}) do
-    # TODO: Implement actual authorization code verification
-    # This would look up the code in storage and validate it
-    {:ok,
-     %{
-       user_id: nil,
-       scopes: ["openid"],
-       pkce_challenge: nil
-     }}
+  defp verify_authorization_code(code, %{token_repository: repo}) do
+    # Look up the authorization code in the repository
+    case repo.find(code) do
+      {:ok, token_data} ->
+        # Validate token type
+        if token_data.type != :authorization_code do
+          {:error, :invalid_grant}
+        else
+          # Check if expired
+          now = DateTime.utc_now()
+          if DateTime.compare(token_data.expires_at, now) == :lt do
+            {:error, :expired_authorization_code}
+          else
+            # Return the authorization code data
+            {:ok,
+             %{
+               user_id: token_data.user_id,
+               client_id: token_data.client_id,
+               scopes: token_data.scopes,
+               pkce_challenge: nil  # TODO: Get from token_data once schema is updated
+             }}
+          end
+        end
+
+      {:error, :not_found} ->
+        {:error, :invalid_grant}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
   end
 
   defp verify_pkce(_verifier, %{pkce_challenge: nil}), do: :ok
@@ -245,12 +271,19 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
   defp parse_scopes(scope_string) when is_binary(scope_string), do: String.split(scope_string, " ")
 
   defp store_tokens(token_data, %{token_repository: repo}) do
+    # Extract UUID from ClientId value object if needed (removes "client_" prefix)
+    client_uuid = if is_struct(token_data.client_id) do
+      token_data.client_id.value |> String.replace_prefix("client_", "")
+    else
+      token_data.client_id
+    end
+
     # Store access token
     repo.store(%{
       token: token_data.access_token,
       type: :access_token,
       user_id: token_data.user_id,
-      client_id: token_data.client_id,
+      client_id: client_uuid,
       scopes: parse_scopes(token_data.scope),
       expires_at: DateTime.add(DateTime.utc_now(), token_data.expires_in),
       revoked: false,
@@ -263,7 +296,7 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
         token: token_data.refresh_token,
         type: :refresh_token,
         user_id: token_data.user_id,
-        client_id: token_data.client_id,
+        client_id: client_uuid,
         scopes: parse_scopes(token_data.scope),
         expires_at: DateTime.add(DateTime.utc_now(), @refresh_token_ttl),
         revoked: false,

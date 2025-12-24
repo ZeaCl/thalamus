@@ -26,8 +26,10 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOrganizationRepository 
   @impl true
   def find_by_id(%OrganizationId{} = org_id) do
     org_id_string = OrganizationId.to_string(org_id)
+    # Extract UUID from "org_<uuid>" format for database lookup
+    org_uuid = String.replace_prefix(org_id_string, "org_", "")
 
-    case Repo.get(OrganizationSchema, org_id_string) do
+    case Repo.get(OrganizationSchema, org_uuid) do
       nil ->
         {:error, :not_found}
 
@@ -60,14 +62,52 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOrganizationRepository 
   end
 
   @doc """
+  Find organization by user ID (using the organization_id FK in users table).
+  This returns the primary organization the user belongs to.
+  """
+  def find_by_user_id(%UserId{} = user_id) do
+    alias Thalamus.Infrastructure.Persistence.Schemas.UserSchema
+
+    user_id_string = UserId.to_string(user_id)
+
+    # Query the user to get their organization_id
+    query =
+      from u in UserSchema,
+        where: u.id == ^user_id_string,
+        select: u.organization_id
+
+    case Repo.one(query) do
+      nil ->
+        # User not found or no organization
+        {:error, :not_found}
+
+      org_id_string when is_binary(org_id_string) ->
+        # User has an organization, fetch it
+        case Repo.get(OrganizationSchema, org_id_string) do
+          nil -> {:error, :not_found}
+          schema -> {:ok, schema_to_entity(schema)}
+        end
+
+      _ ->
+        # organization_id is nil
+        {:error, :not_found}
+    end
+  rescue
+    error ->
+      {:error, error}
+  end
+
+  @doc """
   Save organization (insert or update).
   """
   @impl true
   def save(%Organization{} = organization) do
     org_id_string = OrganizationId.to_string(organization.id)
+    # Extract UUID from "org_<uuid>" format for database lookup
+    org_uuid = String.replace_prefix(org_id_string, "org_", "")
 
     # Check if organization exists
-    existing = Repo.get(OrganizationSchema, org_id_string)
+    existing = Repo.get(OrganizationSchema, org_uuid)
 
     changeset =
       if existing do
@@ -93,8 +133,10 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOrganizationRepository 
   @impl true
   def delete(%OrganizationId{} = org_id) do
     org_id_string = OrganizationId.to_string(org_id)
+    # Extract UUID from "org_<uuid>" format for database lookup
+    org_uuid = String.replace_prefix(org_id_string, "org_", "")
 
-    case Repo.get(OrganizationSchema, org_id_string) do
+    case Repo.get(OrganizationSchema, org_uuid) do
       nil ->
         {:error, :not_found}
 
@@ -131,11 +173,8 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOrganizationRepository 
         {:plan_type, plan_type}, q ->
           where(q, [o], o.plan_type == ^plan_type)
 
-        {:verified, true}, q ->
-          where(q, [o], not is_nil(o.verified_at))
-
-        {:verified, false}, q ->
-          where(q, [o], is_nil(o.verified_at))
+        {:verified, verified}, q when is_boolean(verified) ->
+          where(q, [o], o.verified == ^verified)
 
         {:limit, limit}, q ->
           limit(q, ^limit)
@@ -174,7 +213,6 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOrganizationRepository 
 
   defp schema_to_entity(%OrganizationSchema{} = schema) do
     {:ok, org_id} = OrganizationId.from_string(schema.id)
-    {:ok, owner_email} = Email.new(schema.owner_email)
 
     # Convert members from JSONB to Member value objects
     members =
@@ -190,12 +228,19 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOrganizationRepository 
         }
       end)
 
+    # Extract owner email from members (owner is the first member with owner role)
+    owner_member = Enum.find(members, fn m -> m.role == :owner end)
+    owner_email = if owner_member, do: owner_member.email, else: nil
+
+    # Use verified boolean to determine verified_at (if verified, use inserted_at as proxy)
+    verified_at = if schema.verified, do: schema.inserted_at, else: nil
+
     %Organization{
       id: org_id,
       name: schema.name,
       owner_email: owner_email,
       status: schema.status,
-      verified_at: schema.verified_at,
+      verified_at: verified_at,
       plan_type: schema.plan_type,
       max_users: schema.max_users,
       max_api_calls_per_month: schema.max_api_calls_per_month,
@@ -207,12 +252,15 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOrganizationRepository 
   end
 
   defp entity_to_map(%Organization{} = org) do
+    org_id_string = OrganizationId.to_string(org.id)
+    # Extract UUID from "org_<uuid>" format for database storage
+    org_uuid = String.replace_prefix(org_id_string, "org_", "")
+
     %{
-      id: OrganizationId.to_string(org.id),
+      id: org_uuid,
       name: org.name,
-      owner_email: Email.to_string(org.owner_email),
       status: org.status,
-      verified_at: org.verified_at,
+      verified: not is_nil(org.verified_at),
       plan_type: org.plan_type,
       max_users: org.max_users,
       max_api_calls_per_month: org.max_api_calls_per_month,

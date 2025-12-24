@@ -94,7 +94,8 @@ defmodule Thalamus.Domain.Entities.Organization do
       {:ok, %Organization{name: "Acme Corp", ...}}
   """
   def new(%{id: id, name: name, owner_id: owner_id, plan: plan} = attrs) do
-    now = DateTime.utc_now()
+    # Truncate to seconds for Ecto :utc_datetime compatibility
+    now = DateTime.truncate(DateTime.utc_now(), :second)
 
     owner_member = %{
       user_id: owner_id,
@@ -141,7 +142,8 @@ defmodule Thalamus.Domain.Entities.Organization do
   def new(name, owner_email_string, plan_type \\ :free) when is_binary(name) and is_binary(owner_email_string) do
     with {:ok, org_id} <- OrganizationId.generate(),
          {:ok, owner_email} <- Email.new(owner_email_string) do
-      now = DateTime.utc_now()
+      # Truncate to seconds for Ecto :utc_datetime compatibility
+      now = DateTime.truncate(DateTime.utc_now(), :second)
 
       organization = %__MODULE__{
         id: org_id,

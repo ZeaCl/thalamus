@@ -44,24 +44,27 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository 
 
   @impl true
   def save(%OAuth2Client{} = client) do
-    client
-    |> entity_to_schema()
-    |> case do
-      %OAuth2ClientSchema{id: nil} = schema ->
-        # New client - insert
-        schema_map = Map.from_struct(schema)
-        OAuth2ClientSchema.create_changeset(schema_map)
-        |> Repo.insert()
+    schema = entity_to_schema(client)
 
-      %OAuth2ClientSchema{} = schema ->
-        # Existing client - update
-        existing = Repo.get!(OAuth2ClientSchema, schema.id)
+    # Check if client exists in database (by looking up the UUID)
+    existing = if schema.id, do: Repo.get(OAuth2ClientSchema, schema.id), else: nil
 
-        existing
-        |> OAuth2ClientSchema.update_changeset(Map.from_struct(schema))
-        |> Repo.update()
-    end
-    |> case do
+    result =
+      case existing do
+        nil ->
+          # New client - insert
+          schema_map = Map.from_struct(schema)
+          OAuth2ClientSchema.create_changeset(schema_map)
+          |> Repo.insert()
+
+        existing_schema ->
+          # Existing client - update
+          existing_schema
+          |> OAuth2ClientSchema.update_changeset(Map.from_struct(schema))
+          |> Repo.update()
+      end
+
+    case result do
       {:ok, saved_schema} -> schema_to_entity(saved_schema)
       {:error, changeset} -> {:error, changeset}
     end
@@ -70,8 +73,10 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository 
   @impl true
   def delete(%ClientId{} = client_id) do
     client_id_string = ClientId.to_string(client_id)
+    # Extract UUID from "client_<uuid>" format
+    uuid = String.replace_prefix(client_id_string, "client_", "")
 
-    case Repo.get(OAuth2ClientSchema, client_id_string) do
+    case Repo.get(OAuth2ClientSchema, uuid) do
       nil ->
         {:error, :not_found}
 
@@ -133,11 +138,16 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository 
   # Private conversion functions
 
   defp do_find_by_id(client_id_string) do
-    Repo.get(OAuth2ClientSchema, client_id_string)
+    # Extract UUID from "client_<uuid>" format
+    uuid = String.replace_prefix(client_id_string, "client_", "")
+    Repo.get(OAuth2ClientSchema, uuid)
   end
 
   defp schema_to_entity(%OAuth2ClientSchema{} = schema) do
-    with {:ok, client_id} <- ClientId.from_string(schema.id),
+    # Reconstruct ClientId with "client_" prefix (DB stores just UUID)
+    client_id_string = "client_" <> schema.id
+
+    with {:ok, client_id} <- ClientId.from_string(client_id_string),
          {:ok, grant_types} <- convert_grant_types_from_db(schema.allowed_grant_types) do
       client = %OAuth2Client{
         id: client_id,
@@ -160,9 +170,18 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository 
   defp entity_to_schema(%OAuth2Client{} = client) do
     grant_types_strings = convert_grant_types_to_db(client.grant_types)
 
+    # Extract UUID from ClientId (removes "client_" prefix)
+    # ClientId.to_string returns "client_<uuid>", but DB expects just "<uuid>"
+    client_uuid = if client.id do
+      client_id_string = ClientId.to_string(client.id)
+      String.replace_prefix(client_id_string, "client_", "")
+    else
+      nil
+    end
+
     %OAuth2ClientSchema{
-      id: if(client.id, do: ClientId.to_string(client.id), else: nil),
-      client_id_string: if(client.id, do: ClientId.to_string(client.id), else: nil),
+      id: client_uuid,
+      client_id_string: client_uuid,
       name: client.name,
       client_type: client.client_type,
       client_secret: client.client_secret,

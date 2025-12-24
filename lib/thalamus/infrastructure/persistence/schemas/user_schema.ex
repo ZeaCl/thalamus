@@ -20,6 +20,7 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.UserSchema do
 
   schema "users" do
     field :email, :string
+    field :name, :string
     field :password_hash, :string
     field :status, Ecto.Enum, values: [:pending_verification, :active, :suspended, :deactivated]
     field :verified_at, :utc_datetime
@@ -45,10 +46,21 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.UserSchema do
   """
   def create_changeset(attrs) do
     %__MODULE__{}
-    |> cast(attrs, [:email, :password_hash, :organization_id])
+    |> cast(attrs, [
+      :email,
+      :name,
+      :password_hash,
+      :organization_id,
+      :status,
+      :verified_at,
+      :last_login_at,
+      :failed_login_attempts,
+      :locked_until,
+      :mfa_methods
+    ])
     |> validate_required([:email, :password_hash])
     |> validate_email()
-    |> put_default_values()
+    |> put_default_values_if_missing()
     |> unique_constraint(:email)
   end
 
@@ -59,6 +71,7 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.UserSchema do
     user
     |> cast(attrs, [
       :email,
+      :name,
       :password_hash,
       :status,
       :verified_at,
@@ -79,7 +92,7 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.UserSchema do
     user
     |> change(%{
       status: :active,
-      verified_at: DateTime.utc_now()
+      verified_at: DateTime.truncate(DateTime.utc_now(), :second)
     })
   end
 
@@ -89,7 +102,7 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.UserSchema do
   def successful_login_changeset(user) do
     user
     |> change(%{
-      last_login_at: DateTime.utc_now(),
+      last_login_at: DateTime.truncate(DateTime.utc_now(), :second),
       failed_login_attempts: 0,
       locked_until: nil
     })
@@ -104,7 +117,7 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.UserSchema do
     # Lock account after 5 failed attempts
     changes =
       if failed_attempts >= 5 do
-        Map.put(changes, :locked_until, DateTime.add(DateTime.utc_now(), 1800, :second))
+        Map.put(changes, :locked_until, DateTime.add(DateTime.truncate(DateTime.utc_now(), :second), 1800, :second))
       else
         changes
       end
@@ -182,9 +195,16 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.UserSchema do
     |> update_change(:email, &String.downcase/1)
   end
 
-  defp put_default_values(changeset) do
+  defp put_default_values_if_missing(changeset) do
     changeset
-    |> put_change(:status, :pending_verification)
-    |> put_change(:failed_login_attempts, 0)
+    |> put_default_if_missing(:status, :pending_verification)
+    |> put_default_if_missing(:failed_login_attempts, 0)
+  end
+
+  defp put_default_if_missing(changeset, field, default_value) do
+    case get_field(changeset, field) do
+      nil -> put_change(changeset, field, default_value)
+      _ -> changeset
+    end
   end
 end

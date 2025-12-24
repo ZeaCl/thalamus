@@ -18,7 +18,8 @@ defmodule ThalamusWeb.OAuth2.IntrospectionController do
 
   # Dependencies
   @deps %{
-    token_repository: Thalamus.Infrastructure.Repositories.PostgreSQLTokenRepository
+    token_repository: Thalamus.Infrastructure.Repositories.PostgreSQLTokenRepository,
+    user_repository: Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository
   }
 
   @doc """
@@ -122,9 +123,23 @@ defmodule ThalamusWeb.OAuth2.IntrospectionController do
     # Add optional fields if present
     response =
       if result.user_id do
+        # Fetch user email if we have user_id
+        email = get_user_email(result.user_id)
+
         response
         |> Map.put(:sub, result.user_id)
+        |> Map.put(:user_id, result.user_id)
         |> Map.put(:username, result.user_id)
+        |> maybe_put(:email, email)
+      else
+        response
+      end
+
+    response =
+      if result.organization_id do
+        response
+        |> Map.put(:organization_id, result.organization_id)
+        |> Map.put(:tenant_id, result.organization_id)  # Campaigns usa ambos nombres
       else
         response
       end
@@ -145,6 +160,23 @@ defmodule ThalamusWeb.OAuth2.IntrospectionController do
 
     response
   end
+
+  defp maybe_put(map, _key, nil), do: map
+  defp maybe_put(map, key, value), do: Map.put(map, key, value)
+
+  defp get_user_email(user_id) when is_binary(user_id) do
+    alias Thalamus.Domain.ValueObjects.UserId
+    alias Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository
+
+    with {:ok, user_id_vo} <- UserId.from_string(user_id),
+         {:ok, user} <- PostgreSQLUserRepository.find_by_id(user_id_vo) do
+      Thalamus.Domain.ValueObjects.Email.to_string(user.email)
+    else
+      _ -> nil
+    end
+  end
+
+  defp get_user_email(_), do: nil
 
   defp build_introspection_response(_result) do
     # Token is not active

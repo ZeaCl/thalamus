@@ -11,9 +11,13 @@ defmodule ThalamusWeb.API.RegistrationController do
 
   use ThalamusWeb, :controller
 
-  alias Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository
-  alias Thalamus.Domain.Entities.User
-  alias Thalamus.Domain.ValueObjects.{UserId, Email}
+  alias Thalamus.Infrastructure.Repositories.{
+    PostgreSQLUserRepository,
+    PostgreSQLOrganizationRepository,
+    PostgreSQLTokenRepository
+  }
+  alias Thalamus.Domain.Entities.{User, Organization}
+  alias Thalamus.Domain.ValueObjects.{UserId, Email, OrganizationId, ClientId}
 
   # TODO: Inject EmailService dependency
   # For now, we'll skip email sending
@@ -27,7 +31,9 @@ defmodule ThalamusWeb.API.RegistrationController do
   {
     "email": "user@example.com",
     "password": "SecurePassword123!",
-    "password_confirmation": "SecurePassword123!"
+    "password_confirmation": "SecurePassword123!",
+    "name": "User Full Name",
+    "organization_name": "Company Name" // Optional
   }
 
   ## Response
@@ -66,24 +72,28 @@ defmodule ThalamusWeb.API.RegistrationController do
          :ok <- validate_password_confirmation(password, password_confirmation),
          {:ok, email_vo} <- Email.new(email_string),
          {:ok, nil} <- check_email_available(email_vo),
-         {:ok, user} <- User.register(email_string, password),
-         {:ok, saved_user} <- PostgreSQLUserRepository.save(user) do
+         # Create user first (without organization)
+         {:ok, user} <- create_user(email_string, password, params),
+         {:ok, saved_user} <- PostgreSQLUserRepository.save(user),
+         # Now create organization with user as owner (if organization_name provided)
+         {:ok, organization} <- create_organization_if_provided(params, saved_user),
+         # Associate user with organization if created
+         :ok <- associate_user_with_organization(saved_user, organization),
+         # Auto-verify user for Campaigns integration (skip email verification for MVP)
+         {:ok, verified_user} <- User.verify_email(saved_user),
+         {:ok, final_user} <- PostgreSQLUserRepository.save(verified_user),
+         {:ok, tokens} <- generate_tokens_for_user(final_user, organization) do
 
-      # Generate verification token
-      verification_token = generate_verification_token(user.id)
-
-      # TODO: Send verification email
-      # EmailService.send_verification_email(email_vo, verification_token)
-
-      # For now, include the token in the response (ONLY FOR DEVELOPMENT)
-      # In production, this should ONLY be sent via email
+      # Build response with user, organization, and tokens
       conn
       |> put_status(:created)
       |> json(%{
-        data: user_to_json(saved_user),
-        message: "Registration successful. Please check your email to verify your account.",
-        # DEVELOPMENT ONLY - remove in production
-        verification_token: verification_token
+        user: user_to_json(final_user),
+        organization: if(organization, do: organization_to_json(organization), else: nil),
+        access_token: tokens.access_token,
+        token_type: tokens.token_type,
+        expires_in: tokens.expires_in,
+        refresh_token: tokens.refresh_token
       })
     else
       {:error, :missing_parameter, param} ->
@@ -359,14 +369,173 @@ defmodule ThalamusWeb.API.RegistrationController do
     end
   end
 
+  defp create_organization_if_provided(params, user) do
+    require Logger
+    Logger.debug("create_organization_if_provided called with params: #{inspect(params)}, user_id: #{inspect(user.id)}")
+
+    case params["organization_name"] do
+      nil ->
+        Logger.debug("No organization_name provided")
+        {:ok, nil}
+      "" ->
+        Logger.debug("Empty organization_name provided")
+        {:ok, nil}
+      org_name when is_binary(org_name) ->
+        Logger.debug("Creating organization with name: #{org_name}, owner_email: #{inspect(user.email)}")
+        # Create new organization with user as owner
+        # Use the convenience function that takes strings
+        with {:ok, organization} <- Organization.new(org_name, Email.to_string(user.email)),
+             {:ok, saved_org} <- PostgreSQLOrganizationRepository.save(organization) do
+          Logger.debug("Organization created successfully: #{inspect(saved_org)}")
+          {:ok, saved_org}
+        else
+          {:error, reason} = error ->
+            Logger.error("Failed to create organization: #{inspect(reason)}")
+            error
+        end
+    end
+  end
+
+  defp create_user(email_string, password, params) do
+    name = params["name"]
+
+    require Logger
+    Logger.debug("create_user called with email=#{email_string}, name=#{inspect(name)}")
+
+    with {:ok, user_id} <- UserId.generate(),
+         {:ok, email} <- Email.new(email_string),
+         {:ok, password_hash} <- Thalamus.Domain.ValueObjects.PasswordHash.from_password(password) do
+
+      Logger.debug("About to call User.new with id=#{inspect(user_id)}, email=#{inspect(email)}, name=#{inspect(name)}")
+
+      result = User.new(%{
+        id: user_id,
+        email: email,
+        name: name,
+        password_hash: password_hash
+      })
+
+      # Debug logging
+      case result do
+        {:error, reason} ->
+          Logger.error("User.new failed: #{inspect(reason)}, inputs: id=#{inspect(user_id)}, email=#{inspect(email)}, name=#{inspect(name)}, password_hash=present")
+        {:ok, user} ->
+          Logger.debug("User.new succeeded: #{inspect(user)}")
+      end
+
+      result
+    else
+      {:error, reason} = error ->
+        Logger.error("create_user failed in with: #{inspect(reason)}")
+        error
+    end
+  end
+
+  defp associate_user_with_organization(_user, nil), do: :ok
+  defp associate_user_with_organization(user, organization) do
+    alias Thalamus.Infrastructure.Persistence.Schemas.UserSchema
+
+    # Get the UUID without prefix
+    user_id_string = UserId.to_string(user.id)
+    user_uuid = String.replace_prefix(user_id_string, "user_", "")
+    org_id_string = OrganizationId.to_string(organization.id)
+
+    # Update the user schema directly with organization_id
+    case Thalamus.Repo.get(UserSchema, user_uuid) do
+      nil -> {:error, :user_not_found}
+      user_schema ->
+        user_schema
+        |> Ecto.Changeset.change(%{organization_id: org_id_string})
+        |> Thalamus.Repo.update()
+        |> case do
+          {:ok, _} -> :ok
+          {:error, reason} -> {:error, reason}
+        end
+    end
+  end
+
+  defp generate_tokens_for_user(user, organization) do
+    # Generate tokens
+    access_token = generate_access_token()
+    refresh_token = generate_refresh_token()
+
+    organization_id = if organization, do: organization.id, else: nil
+
+    # Use a fixed UUID for internal client (without "client_" prefix for DB storage)
+    internal_client_uuid = "00000000-0000-0000-0000-000000000001"
+
+    # Store access token
+    PostgreSQLTokenRepository.store(%{
+      token: access_token,
+      type: :access_token,
+      user_id: user.id,
+      client_id: internal_client_uuid,
+      organization_id: organization_id,
+      scopes: get_default_user_scopes(),
+      expires_at: DateTime.add(DateTime.utc_now(), 3600),  # 1 hour
+      revoked: false
+    })
+
+    # Store refresh token
+    PostgreSQLTokenRepository.store(%{
+      token: refresh_token,
+      type: :refresh_token,
+      user_id: user.id,
+      client_id: internal_client_uuid,
+      organization_id: organization_id,
+      scopes: get_default_user_scopes(),
+      expires_at: DateTime.add(DateTime.utc_now(), 2_592_000),  # 30 days
+      revoked: false
+    })
+
+    {:ok, %{
+      access_token: access_token,
+      token_type: "Bearer",
+      expires_in: 3600,
+      refresh_token: refresh_token
+    }}
+  end
+
+  defp generate_access_token do
+    "at_" <> (:crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false))
+  end
+
+  defp generate_refresh_token do
+    "rt_" <> (:crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false))
+  end
+
+  defp get_default_user_scopes do
+    # Default scopes for authenticated users including Campaigns scopes
+    [
+      "openid",
+      "profile",
+      "email",
+      "campaigns:read",
+      "campaigns:write",
+      "campaigns:sync",
+      "leads:read",
+      "leads:write",
+      "meta:read",
+      "meta:write"
+    ]
+  end
+
   defp user_to_json(%User{} = user) do
     %{
       id: UserId.to_string(user.id),
       email: Email.to_string(user.email),
-      status: user.status,
+      name: user.name,
       verified: !is_nil(user.verified_at),
-      verified_at: user.verified_at,
       created_at: user.created_at
+    }
+  end
+
+  defp organization_to_json(nil), do: nil
+  defp organization_to_json(organization) do
+    %{
+      id: OrganizationId.to_string(organization.id),
+      name: organization.name,
+      created_at: organization.created_at
     }
   end
 

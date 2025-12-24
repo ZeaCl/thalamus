@@ -7,6 +7,8 @@ defmodule Thalamus.Application do
 
   @impl true
   def start(_type, _args) do
+    print_banner()
+
     children = [
       ThalamusWeb.Telemetry,
       Thalamus.Repo,
@@ -30,5 +32,22 @@ defmodule Thalamus.Application do
   def config_change(changed, _new, removed) do
     ThalamusWeb.Endpoint.config_change(changed, removed)
     :ok
+  end
+
+  defp print_banner do
+    IO.puts("")
+    IO.puts("╔═══════════════════════════════════════════════════════════════════════════╗")
+    IO.puts("║                                                                           ║")
+    IO.puts("║  ████████╗██╗░░██╗░█████╗░██╗░░░░░░█████╗░███╗░░░███╗██╗░░░██╗░██████╗  ║")
+    IO.puts("║  ╚══██╔══╝██║░░██║██╔══██╗██║░░░░░██╔══██╗████╗░████║██║░░░██║██╔════╝  ║")
+    IO.puts("║  ░░░██║░░░███████║███████║██║░░░░░███████║██╔████╔██║██║░░░██║╚█████╗░  ║")
+    IO.puts("║  ░░░██║░░░██╔══██║██╔══██║██║░░░░░██╔══██║██║╚██╔╝██║██║░░░██║░╚═══██╗  ║")
+    IO.puts("║  ░░░██║░░░██║░░██║██║░░██║███████╗██║░░██║██║░╚═╝░██║╚██████╔╝██████╔╝  ║")
+    IO.puts("║  ░░░╚═╝░░░╚═╝░░╚═╝╚═╝░░╚═╝╚══════╝╚═╝░░╚═╝╚═╝░░░░░╚═╝░╚═════╝░╚═════╝░  ║")
+    IO.puts("║                                                                           ║")
+    IO.puts("║              OAuth2 & Identity Provider v1.0.0                           ║")
+    IO.puts("║                Secure Authentication Core                                ║")
+    IO.puts("╚═══════════════════════════════════════════════════════════════════════════╝")
+    IO.puts("")
   end
 end

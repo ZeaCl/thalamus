@@ -1,0 +1,67 @@
+<div class="min-h-screen flex items-center justify-center bg-base-100 py-12 px-4 sm:px-6 lg:px-8">
+  <div class="max-w-md w-full space-y-8">
+    <div>
+      <h2 class="mt-6 text-center text-3xl font-extrabold text-base-content">
+        Authorize Access
+      </h2>
+      <p class="mt-2 text-center text-sm text-gray-400">
+        <strong><%= @client_name %></strong> is requesting access to your account
+      </p>
+    </div>
+
+    <div class="bg-gray-800 shadow rounded-lg p-6">
+      <h3 class="text-lg font-medium text-gray-200 mb-4">
+        This application will be able to:
+      </h3>
+
+      <ul class="space-y-3 mb-6">
+        <%= for scope <- @scopes do %>
+          <li class="flex items-start">
+            <svg class="h-6 w-6 text-green-400 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
+            <span class="text-gray-300">
+              <%= scope_description(scope) %>
+            </span>
+          </li>
+        <% end %>
+      </ul>
+
+      <form action={~p"/oauth/authorize"} method="post" class="space-y-4">
+        <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
+        <input type="hidden" name="client_id" value={@form_data.client_id} />
+        <input type="hidden" name="redirect_uri" value={@form_data.redirect_uri} />
+        <input type="hidden" name="scope" value={@form_data.scope} />
+        <input type="hidden" name="state" value={@form_data.state} />
+        <%= if @form_data.code_challenge do %>
+          <input type="hidden" name="code_challenge" value={@form_data.code_challenge} />
+          <input type="hidden" name="code_challenge_method" value={@form_data.code_challenge_method} />
+        <% end %>
+
+        <div class="flex space-x-4">
+          <button
+            type="submit"
+            name="decision"
+            value="approve"
+            class="flex-1 py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            Authorize
+          </button>
+
+          <button
+            type="submit"
+            name="decision"
+            value="deny"
+            class="flex-1 py-2 px-4 border border-gray-600 text-sm font-medium rounded-md text-gray-300 bg-gray-700 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+          >
+            Deny
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <p class="mt-4 text-center text-xs text-gray-500">
+      By authorizing, you allow <%= @client_name %> to access your information according to their privacy policy.
+    </p>
+  </div>
+</div>

@@ -46,24 +46,27 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository do
 
   @impl true
   def save(%User{} = user) do
-    user
-    |> entity_to_schema()
-    |> case do
-      %UserSchema{id: nil} = schema ->
-        # New user - insert
-        schema_map = Map.from_struct(schema)
-        UserSchema.create_changeset(schema_map)
-        |> Repo.insert()
+    schema = entity_to_schema(user)
 
-      %UserSchema{} = schema ->
-        # Existing user - update
-        existing = Repo.get!(UserSchema, schema.id)
+    # Check if user exists in database (by looking up the UUID)
+    existing = if schema.id, do: Repo.get(UserSchema, schema.id), else: nil
 
-        existing
-        |> UserSchema.update_changeset(Map.from_struct(schema))
-        |> Repo.update()
-    end
-    |> case do
+    result =
+      case existing do
+        nil ->
+          # New user - insert
+          schema_map = Map.from_struct(schema)
+          UserSchema.create_changeset(schema_map)
+          |> Repo.insert()
+
+        existing_schema ->
+          # Existing user - update
+          existing_schema
+          |> UserSchema.update_changeset(Map.from_struct(schema))
+          |> Repo.update()
+      end
+
+    case result do
       {:ok, saved_schema} -> schema_to_entity(saved_schema)
       {:error, changeset} -> {:error, changeset}
     end
@@ -72,8 +75,10 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository do
   @impl true
   def delete(%UserId{} = user_id) do
     user_id_string = UserId.to_string(user_id)
+    # Extract UUID from "user_<uuid>" format
+    uuid = String.replace_prefix(user_id_string, "user_", "")
 
-    case Repo.get(UserSchema, user_id_string) do
+    case Repo.get(UserSchema, uuid) do
       nil ->
         {:error, :not_found}
 
@@ -134,17 +139,23 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository do
   # Private conversion functions
 
   defp do_find_by_id(user_id_string) do
-    Repo.get(UserSchema, user_id_string)
+    # Extract UUID from "user_<uuid>" format
+    uuid = String.replace_prefix(user_id_string, "user_", "")
+    Repo.get(UserSchema, uuid)
   end
 
   defp schema_to_entity(%UserSchema{} = schema) do
-    with {:ok, user_id} <- UserId.from_string(schema.id),
+    # Reconstruct UserId with "user_" prefix (DB stores just UUID)
+    user_id_string = "user_" <> schema.id
+
+    with {:ok, user_id} <- UserId.from_string(user_id_string),
          {:ok, email} <- Email.new(schema.email),
          {:ok, password_hash} <- PasswordHash.from_hash(schema.password_hash),
          {:ok, mfa_methods} <- convert_mfa_methods_from_db(schema.mfa_methods) do
       user = %User{
         id: user_id,
         email: email,
+        name: schema.name,
         password_hash: password_hash,
         status: schema.status,
         verified_at: schema.verified_at,
@@ -163,9 +174,19 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository do
   defp entity_to_schema(%User{} = user) do
     mfa_methods_maps = convert_mfa_methods_to_db(user.mfa_methods)
 
+    # Extract UUID from UserId (removes "user_" prefix)
+    # UserId.to_string returns "user_<uuid>", but DB expects just "<uuid>"
+    user_uuid = if user.id do
+      user_id_string = UserId.to_string(user.id)
+      String.replace_prefix(user_id_string, "user_", "")
+    else
+      nil
+    end
+
     %UserSchema{
-      id: if(user.id, do: UserId.to_string(user.id), else: nil),
+      id: user_uuid,
       email: Email.to_string(user.email),
+      name: user.name,
       password_hash: PasswordHash.to_string(user.password_hash),
       status: user.status,
       verified_at: user.verified_at,

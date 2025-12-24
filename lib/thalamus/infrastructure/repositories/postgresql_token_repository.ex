@@ -126,6 +126,7 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLTokenRepository do
       type: token_data.type,
       user_id: prepare_user_id(token_data.user_id),
       client_id: prepare_client_id(token_data.client_id),
+      organization_id: prepare_organization_id(Map.get(token_data, :organization_id)),
       scopes: token_data.scopes || [],
       expires_at: token_data.expires_at,
       code_challenge: Map.get(token_data, :code_challenge),
@@ -137,13 +138,28 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLTokenRepository do
   end
 
   defp prepare_user_id(nil), do: nil
-  defp prepare_user_id(%UserId{} = user_id), do: UserId.to_string(user_id)
-  defp prepare_user_id(user_id) when is_binary(user_id), do: user_id
+  defp prepare_user_id(%UserId{} = user_id) do
+    # Extract UUID without "user_" prefix for DB storage
+    user_id_string = UserId.to_string(user_id)
+    String.replace_prefix(user_id_string, "user_", "")
+  end
+  defp prepare_user_id(user_id) when is_binary(user_id) do
+    # If already a string, check if it has the prefix and remove it
+    String.replace_prefix(user_id, "user_", "")
+  end
 
   defp prepare_client_id(%ClientId{} = client_id), do: ClientId.to_string(client_id)
   defp prepare_client_id(client_id) when is_binary(client_id), do: client_id
 
+  defp prepare_organization_id(nil), do: nil
+  defp prepare_organization_id(%Thalamus.Domain.ValueObjects.OrganizationId{} = org_id) do
+    Thalamus.Domain.ValueObjects.OrganizationId.to_string(org_id)
+  end
+  defp prepare_organization_id(org_id) when is_binary(org_id), do: org_id
+
   defp schema_to_token_data(%TokenSchema{} = schema) do
+    alias Thalamus.Domain.ValueObjects.OrganizationId
+
     # Reconstruct the user_id as UserId value object if present
     user_id =
       if schema.user_id do
@@ -162,11 +178,23 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLTokenRepository do
         _ -> nil
       end
 
+    # Reconstruct the organization_id as OrganizationId value object if present
+    organization_id =
+      if schema.organization_id do
+        case OrganizationId.from_string(schema.organization_id) do
+          {:ok, org_id} -> org_id
+          _ -> nil
+        end
+      else
+        nil
+      end
+
     %{
       token: schema.token,
       type: schema.type,
       user_id: user_id,
       client_id: client_id,
+      organization_id: organization_id,
       scopes: schema.scopes || [],
       expires_at: schema.expires_at,
       revoked: schema.revoked,

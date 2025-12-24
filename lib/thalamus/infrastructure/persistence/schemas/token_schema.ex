@@ -36,6 +36,7 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.TokenSchema do
     # Relationships
     belongs_to :user, UserSchema
     belongs_to :client, OAuth2ClientSchema, foreign_key: :client_id
+    belongs_to :organization, Thalamus.Infrastructure.Persistence.Schemas.OrganizationSchema
 
     timestamps(type: :utc_datetime, updated_at: false)
   end
@@ -56,6 +57,7 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.TokenSchema do
       :type,
       :user_id,
       :client_id,
+      :organization_id,
       :scopes,
       :expires_at,
       :code_challenge,
@@ -76,7 +78,7 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.TokenSchema do
     token
     |> change(%{
       revoked: true,
-      revoked_at: DateTime.utc_now()
+      revoked_at: DateTime.truncate(DateTime.utc_now(), :second)
     })
   end
 

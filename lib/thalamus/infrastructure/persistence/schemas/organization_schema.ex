@@ -20,10 +20,8 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.OrganizationSchema do
 
   schema "organizations" do
     field :name, :string
-    field :owner_email, :string
     field :status, Ecto.Enum, values: [:trial, :active, :suspended, :cancelled]
     field :verified, :boolean, default: false
-    field :verified_at, :utc_datetime
 
     # Plan fields (embedded)
     field :plan_type, Ecto.Enum,
@@ -35,7 +33,7 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.OrganizationSchema do
     field :mfa_required, :boolean, default: false
     field :sso_enabled, :boolean, default: false
     field :audit_logs_retention_days, :integer, default: 30
-    field :support_level, Ecto.Enum, values: [:community, :email, :priority, :dedicated]
+    field :support_level, Ecto.Enum, values: [:community, :email, :priority, :dedicated, :enterprise]
 
     # Usage tracking
     field :current_user_count, :integer, default: 0
@@ -62,10 +60,9 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.OrganizationSchema do
   """
   def create_changeset(attrs) do
     %__MODULE__{}
-    |> cast(attrs, [:name, :owner_email, :plan_type])
-    |> validate_required([:name, :owner_email])
+    |> cast(attrs, [:name, :plan_type])
+    |> validate_required([:name])
     |> validate_name()
-    |> validate_format(:owner_email, ~r/@/)
     |> put_plan_defaults()
     |> put_default_values()
   end
@@ -77,16 +74,13 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.OrganizationSchema do
     organization
     |> cast(attrs, [
       :name,
-      :owner_email,
       :status,
       :verified,
-      :verified_at,
       :current_user_count,
       :api_calls_current_month,
       :members
     ])
     |> validate_name()
-    |> validate_format(:owner_email, ~r/@/)
   end
 
   @doc """
@@ -190,7 +184,7 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.OrganizationSchema do
     organization
     |> change(%{
       api_calls_current_month: 0,
-      api_calls_reset_at: DateTime.utc_now()
+      api_calls_reset_at: DateTime.truncate(DateTime.utc_now(), :second)
     })
   end
 
@@ -209,7 +203,7 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.OrganizationSchema do
     |> put_change(:verified, false)
     |> put_change(:current_user_count, 0)
     |> put_change(:api_calls_current_month, 0)
-    |> put_change(:api_calls_reset_at, DateTime.utc_now())
+    |> put_change(:api_calls_reset_at, DateTime.truncate(DateTime.utc_now(), :second))
   end
 
   defp put_plan_defaults(changeset) do

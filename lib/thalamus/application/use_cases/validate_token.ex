@@ -19,6 +19,8 @@ defmodule Thalamus.Application.UseCases.ValidateToken do
           scope: [String.t()],
           client_id: String.t() | nil,
           user_id: String.t() | nil,
+          organization_id: String.t() | nil,
+          email: String.t() | nil,
           exp: DateTime.t() | nil,
           iat: DateTime.t() | nil
         }
@@ -87,11 +89,22 @@ defmodule Thalamus.Application.UseCases.ValidateToken do
       scope: token_data.scopes,
       client_id: to_string(token_data.client_id),
       user_id: if(token_data.user_id, do: to_string(token_data.user_id), else: nil),
+      organization_id: if(token_data.organization_id, do: to_string(token_data.organization_id), else: nil),
+      email: get_user_email(token_data),
       exp: token_data.expires_at,
       iat: token_data.created_at,
       revoked: token_data.revoked,
       expired: is_expired
     }
+  end
+
+  defp get_user_email(%{user_id: nil}), do: nil
+  defp get_user_email(%{user_id: user_id}) when not is_nil(user_id) do
+    # We need to fetch the user to get their email
+    # This requires accessing the user repository
+    # For now, we'll return nil and handle this in the controller
+    # TODO: Inject user_repository dependency
+    nil
   end
 
   defp invalid_token_result do
@@ -101,6 +114,8 @@ defmodule Thalamus.Application.UseCases.ValidateToken do
       scope: [],
       client_id: nil,
       user_id: nil,
+      organization_id: nil,
+      email: nil,
       exp: nil,
       iat: nil
     }

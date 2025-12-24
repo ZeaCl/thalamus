@@ -17,14 +17,25 @@ defmodule ThalamusWeb.Router do
     plug ThalamusWeb.Plugs.RateLimiter, limit: 1000, window: 60_000, key: :ip_address
   end
 
-  # OAuth2 pipeline - no authentication required (handles its own)
-  # More strict rate limiting for OAuth2 endpoints
-  pipeline :oauth2 do
-    plug :accepts, ["json", "html"]
+  # OAuth2 Browser pipeline - for authorization endpoint (needs CSRF protection)
+  pipeline :oauth2_browser do
+    plug :accepts, ["html", "json"]
     plug :fetch_session
+    plug :fetch_live_flash
+    plug :put_root_layout, html: {ThalamusWeb.Layouts, :root}
+    plug :protect_from_forgery
+    plug :put_secure_browser_headers
     plug ThalamusWeb.Plugs.CORS
     plug ThalamusWeb.Plugs.SecurityHeaders
     plug ThalamusWeb.Plugs.RateLimiter, limit: 20, window: 60_000, key: :ip_address
+  end
+
+  # OAuth2 API pipeline - for token/introspect/revoke endpoints (NO CSRF protection)
+  pipeline :oauth2_api do
+    plug :accepts, ["json"]
+    plug ThalamusWeb.Plugs.CORS
+    plug ThalamusWeb.Plugs.SecurityHeaders
+    plug ThalamusWeb.Plugs.RateLimiter, limit: 100, window: 60_000, key: :ip_address
   end
 
   # Authenticated API pipeline
@@ -40,21 +51,34 @@ defmodule ThalamusWeb.Router do
     pipe_through :browser
 
     get "/", PageController, :home
+
+    # Session management
+    get "/login", SessionController, :new
+    post "/login", SessionController, :create
+    delete "/logout", SessionController, :delete
   end
 
-  # OAuth2 Endpoints (RFC 6749)
+  # OAuth2 Authorization Endpoints (Browser-based, needs CSRF protection)
   scope "/oauth", ThalamusWeb.OAuth2 do
-    pipe_through :oauth2
-
-    # Token endpoint - POST only
-    post "/token", TokenController, :create
-
-    # Token introspection endpoint (RFC 7662)
-    post "/introspect", IntrospectionController, :create
+    pipe_through :oauth2_browser
 
     # Authorization endpoint (RFC 6749 Section 3.1)
     get "/authorize", AuthorizationController, :new
     post "/authorize", AuthorizationController, :create
+  end
+
+  # OAuth2 Token Endpoints (API-based, NO CSRF protection)
+  scope "/oauth", ThalamusWeb.OAuth2 do
+    pipe_through :oauth2_api
+
+    # Token endpoint - POST only
+    post "/token", TokenController, :create
+
+    # UserInfo endpoint (OpenID Connect)
+    get "/userinfo", UserinfoController, :show
+
+    # Token introspection endpoint (RFC 7662)
+    post "/introspect", IntrospectionController, :create
 
     # Token revocation endpoint (RFC 7009)
     post "/revoke", RevocationController, :create
@@ -66,6 +90,9 @@ defmodule ThalamusWeb.Router do
 
     # Health check
     get "/health", HealthController, :index
+
+    # Authentication
+    post "/login", LoginController, :create
 
     # User registration
     post "/register", RegistrationController, :create

@@ -326,7 +326,11 @@ defmodule Thalamus.Domain.Entities.OAuth2Client do
       true
   """
   def valid_redirect_uri?(%__MODULE__{redirect_uris: uris}, uri_string) do
-    Enum.any?(uris, fn uri -> RedirectUri.to_string(uri) == uri_string end)
+    # redirect_uris can be either strings (from DB) or RedirectUri structs (from domain)
+    Enum.any?(uris, fn
+      %RedirectUri{} = uri -> RedirectUri.to_string(uri) == uri_string
+      uri when is_binary(uri) -> uri == uri_string
+    end)
   end
 
   @doc """

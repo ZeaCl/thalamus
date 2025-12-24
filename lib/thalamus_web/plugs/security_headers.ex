@@ -64,10 +64,11 @@ defmodule ThalamusWeb.Plugs.SecurityHeaders do
   style-src 'self' 'unsafe-inline'; \
   img-src 'self' data: https:; \
   font-src 'self' data:; \
-  connect-src 'self'; \
+  connect-src 'self' ws://localhost:* wss://localhost:*; \
+  frame-src 'self'; \
   frame-ancestors 'none'; \
   base-uri 'self'; \
-  form-action 'self'
+  form-action 'self' http://localhost:*
   """
   |> String.replace(~r/\s+/, " ")
   |> String.trim()
@@ -94,15 +95,9 @@ defmodule ThalamusWeb.Plugs.SecurityHeaders do
   # Private functions
 
   defp put_csp_header(conn, policy) do
-    # Only add CSP for HTML responses
-    case get_resp_header(conn, "content-type") do
-      ["text/html" <> _] ->
-        put_resp_header(conn, "content-security-policy", policy)
-
-      _ ->
-        # For JSON APIs, use a more relaxed CSP
-        put_resp_header(conn, "content-security-policy", "default-src 'none'; frame-ancestors 'none'")
-    end
+    # Apply the configured CSP policy to all responses
+    # The default policy is permissive enough for HTML and secure enough for APIs
+    put_resp_header(conn, "content-security-policy", policy)
   end
 
   defp maybe_put_hsts_header(conn, max_age) do

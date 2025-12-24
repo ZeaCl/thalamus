@@ -19,7 +19,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationController do
   use ThalamusWeb, :controller
 
   alias Thalamus.Infrastructure.Repositories.{PostgreSQLOAuth2ClientRepository, PostgreSQLTokenRepository}
-  alias Thalamus.Domain.ValueObjects.{ClientId, UserId, Scope, AuthorizationCode, PKCEChallenge}
+  alias Thalamus.Domain.ValueObjects.{ClientId, UserId, Scope, AuthorizationCode, PKCEChallenge, RedirectUri}
 
   @doc """
   GET /oauth/authorize
@@ -56,8 +56,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationController do
     # Validate required OAuth2 parameters
     with {:ok, response_type} <- validate_response_type(params["response_type"]),
          {:ok, client_id_string} <- validate_client_id_param(params["client_id"]),
-         {:ok, client_id} <- ClientId.from_string(client_id_string),
-         {:ok, client} <- PostgreSQLOAuth2ClientRepository.find_by_id(client_id),
+         {:ok, client} <- PostgreSQLOAuth2ClientRepository.find_by_client_id(client_id_string),
          {:ok, redirect_uri} <- validate_redirect_uri(params["redirect_uri"], client),
          {:ok, scopes} <- parse_scopes(params["scope"]),
          {:ok, pkce_params} <- extract_pkce_params(params) do
@@ -68,6 +67,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationController do
           # User is authenticated - show consent screen
           render_consent_screen(conn, %{
             client: client,
+            client_id_string: client_id_string,
             scopes: scopes,
             redirect_uri: redirect_uri,
             state: params["state"],
@@ -138,8 +138,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationController do
     decision = params["decision"]
 
     with {:ok, client_id_string} <- validate_client_id_param(params["client_id"]),
-         {:ok, client_id} <- ClientId.from_string(client_id_string),
-         {:ok, client} <- PostgreSQLOAuth2ClientRepository.find_by_id(client_id),
+         {:ok, client} <- PostgreSQLOAuth2ClientRepository.find_by_client_id(client_id_string),
          {:ok, redirect_uri} <- validate_redirect_uri(params["redirect_uri"], client),
          {:ok, scopes} <- parse_scopes(params["scope"]),
          {:ok, user_id} <- get_authenticated_user(conn) do
@@ -148,7 +147,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationController do
         "approve" ->
           # User approved - generate authorization code
           generate_authorization_code(conn, %{
-            client_id: client_id,
+            client_id: client.id,
             user_id: user_id,
             redirect_uri: redirect_uri,
             scopes: scopes,
@@ -263,30 +262,21 @@ defmodule ThalamusWeb.OAuth2.AuthorizationController do
   end
 
   defp render_consent_screen(conn, data) do
-    # In a real implementation, this would render an HTML page
-    # For now, we'll return JSON with the consent request details
-    conn
-    |> put_status(:ok)
-    |> json(%{
-      message: "Authorization consent required",
+    # Render HTML consent screen
+    render(conn, :consent,
       client_name: data.client.name,
       scopes: Enum.map(data.scopes, &Scope.to_string/1),
       redirect_uri: data.redirect_uri,
       state: data.state,
-      # Include hidden form fields for POST
       form_data: %{
-        client_id: ClientId.to_string(data.client.id),
+        client_id: data.client_id_string,
         redirect_uri: data.redirect_uri,
         scope: Enum.map(data.scopes, &Scope.to_string/1) |> Enum.join(" "),
         state: data.state,
         code_challenge: data.pkce_params.code_challenge,
         code_challenge_method: data.pkce_params.code_challenge_method
-      },
-      actions: [
-        %{action: "approve", method: "POST", url: "/oauth/authorize"},
-        %{action: "deny", method: "POST", url: "/oauth/authorize"}
-      ]
-    })
+      }
+    )
   end
 
   defp generate_authorization_code(conn, data) do
@@ -311,10 +301,14 @@ defmodule ThalamusWeb.OAuth2.AuthorizationController do
          ) do
       {:ok, auth_code} ->
         # Store authorization code in database
+        # Extract UUID from client_id value object (removes "client_" prefix)
+        client_uuid = auth_code.client_id.value
+          |> String.replace_prefix("client_", "")
+
         token_data = %{
           token: AuthorizationCode.to_string(auth_code),
           type: :authorization_code,
-          client_id: ClientId.to_string(data.client_id),
+          client_id: client_uuid,
           user_id: UserId.to_string(data.user_id),
           scopes: Enum.map(data.scopes, &Scope.to_string/1),
           expires_at: auth_code.expires_at,
@@ -327,11 +321,15 @@ defmodule ThalamusWeb.OAuth2.AuthorizationController do
             # Redirect back to client with authorization code
             redirect_with_code(conn, data.redirect_uri, auth_code.code, data.state)
 
-          {:error, _reason} ->
+          {:error, reason} ->
+            require Logger
+            Logger.error("Failed to store authorization code: #{inspect(reason)}")
             redirect_with_error(conn, data.redirect_uri, "server_error", "Failed to generate authorization code", data.state)
         end
 
-      {:error, _reason} ->
+      {:error, reason} ->
+        require Logger
+        Logger.error("Failed to generate authorization code entity: #{inspect(reason)}")
         redirect_with_error(conn, data.redirect_uri, "server_error", "Failed to generate authorization code", data.state)
     end
   end
@@ -383,8 +381,10 @@ defmodule ThalamusWeb.OAuth2.AuthorizationController do
   end
 
   defp build_redirect_uri_vo(uri_string) do
-    # This is a simplified version - in production you'd use the RedirectUri value object
-    # For now, create a simple struct
-    %{value: uri_string}
+    # Create a RedirectUri value object
+    case RedirectUri.new(uri_string) do
+      {:ok, redirect_uri} -> redirect_uri
+      {:error, _} -> %RedirectUri{value: uri_string}  # Fallback to struct if validation fails
+    end
   end
 end
