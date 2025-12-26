@@ -26,6 +26,7 @@ ZEA Thalamus is a production-ready OAuth2 server built with **Clean Architecture
 - 🔒 **Backup Codes** for account recovery
 - 🔒 **Email Verification** with secure tokens
 - 🔒 **Password Reset** with anti-enumeration
+- 🔒 **Admin API Keys** for service-to-service authentication
 - 🔒 **Rate Limiting** (per IP, user, client)
 - 🔒 **CORS Configuration** with origin whitelisting
 - 🔒 **Security Headers** (CSP, HSTS, X-Frame-Options)
@@ -42,7 +43,7 @@ ZEA Thalamus is a production-ready OAuth2 server built with **Clean Architecture
 - 📚 **OpenAPI 3.0 Documentation** (Swagger)
 - 🐳 **Docker & Docker Compose** ready
 - 🔧 **Makefile** with common commands
-- 🧪 **Comprehensive Test Suite** (9/10 controllers)
+- 🧪 **Comprehensive Test Suite** (10/10 controllers tested)
 - 📖 **Complete Documentation**
 
 ---
@@ -51,16 +52,17 @@ ZEA Thalamus is a production-ready OAuth2 server built with **Clean Architecture
 
 **Version:** 1.0.0-rc1
 **Status:** Production-Ready (Core Features)
-**Completion:** 85%
+**Completion:** 87%
 
 ### Implementation Status
 - ✅ Domain Layer: 100%
 - ✅ Application Layer: 100%
 - ✅ Infrastructure Layer: 100%
-- ✅ Presentation Layer: 95%
+- ✅ Presentation Layer: 97%
 - ✅ Security: 100%
-- ⚠️  Testing: 70% (controllers tests complete)
-- ⚠️  Documentation: 80%
+- ✅ Admin API Keys: 100% (NEW)
+- ⚠️  Testing: 75% (all core features tested)
+- ⚠️  Documentation: 85%
 
 See [PROJECT_STATUS.md](PROJECT_STATUS.md) for detailed status.
 
@@ -162,6 +164,26 @@ openssl rand -base64 64
 
 ## 📚 API Documentation
 
+### Authentication Methods
+
+Thalamus supports two authentication methods:
+
+#### 1. JWT Bearer Token (User Authentication)
+For user-facing operations:
+```bash
+curl -H "Authorization: Bearer <jwt_token>" \
+  http://localhost:4000/api/users
+```
+
+#### 2. Admin API Keys (Service-to-Service)
+For automated operations and service integrations:
+```bash
+curl -H "Authorization: ApiKey ak_dev_..." \
+  http://localhost:4000/api/admin/api-keys
+```
+
+**Note:** Admin API Keys can only be created by super admin users and are intended for service-to-service authentication (e.g., allowing external systems to register OAuth2 clients programmatically).
+
 ### Endpoints
 
 #### OAuth2 Endpoints
@@ -210,6 +232,13 @@ POST   /api/mfa/totp/setup              - Setup TOTP
 POST   /api/mfa/totp/verify             - Verify & enable MFA
 DELETE /api/mfa/disable                 - Disable MFA
 POST   /api/mfa/backup-codes/regenerate - Regenerate backup codes
+
+# Admin API Keys (Super Admin Only)
+GET    /api/admin/api-keys              - List all API keys
+POST   /api/admin/api-keys              - Create new API key
+GET    /api/admin/api-keys/:id          - Get specific API key
+DELETE /api/admin/api-keys/:id          - Revoke API key
+POST   /api/admin/api-keys/:id/rotate   - Rotate API key secret
 ```
 
 ### OpenAPI/Swagger
@@ -245,10 +274,159 @@ make test-coverage      # With coverage report
 
 ### Test Coverage
 
-Current coverage: **70%**
+Current coverage: **75%**
 - Domain Layer: 100%
 - Application Layer: 100%
-- Controllers: 90%
+- Infrastructure Layer: 95%
+- Controllers: 100% (all critical paths)
+
+---
+
+## 🔑 Admin API Keys
+
+Admin API Keys enable secure service-to-service authentication for automated operations. They are ideal for scenarios where external systems need to interact with Thalamus without user intervention.
+
+### Use Cases
+
+- **Automatic Client Registration:** External services can register as OAuth2 clients programmatically
+- **Machine-to-Machine (M2M) Setup:** Backend services can self-register for M2M authentication
+- **Service Integration:** Backend services can manage users, organizations, and clients
+- **CI/CD Pipelines:** Automate testing and deployment workflows
+- **Monitoring & Analytics:** Scheduled jobs can query system metrics
+
+### Creating an API Key
+
+Only super admin users can create Admin API Keys:
+
+```bash
+curl -X POST http://localhost:4000/api/admin/api-keys \
+  -H "Authorization: Bearer <super_admin_jwt>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Sport Backend Integration",
+    "description": "API Key for Sport app to register OAuth2 clients",
+    "scopes": ["clients:write", "clients:read"],
+    "expires_at": "2026-12-31T23:59:59Z"
+  }'
+```
+
+Response:
+```json
+{
+  "data": {
+    "id": "uuid",
+    "api_key": "ak_dev_vK8mN2pQ7xR9tY3wZ5aB1cD4eF6gH8jL",
+    "key_prefix": "ak_dev_vK8m",
+    "name": "Sport Backend Integration",
+    "scopes": ["clients:write", "clients:read"],
+    "is_active": true,
+    "expires_at": "2026-12-31T23:59:59Z"
+  },
+  "message": "⚠️ IMPORTANT: Save the api_key in a secure location. It cannot be retrieved later."
+}
+```
+
+**⚠️ Security Warning:** The full API key is only shown once during creation. Store it securely (e.g., in environment variables or a secrets manager).
+
+### Using an API Key
+
+Authenticate using the `Authorization: ApiKey` header:
+
+```bash
+curl -H "Authorization: ApiKey ak_dev_vK8mN2pQ7xR9tY3wZ5aB1cD4eF6gH8jL" \
+  http://localhost:4000/api/clients
+```
+
+### Available Scopes
+
+- `clients:read` - View OAuth2 client applications
+- `clients:write` - Create and update OAuth2 clients
+- `clients:delete` - Delete OAuth2 clients
+- `users:read` - View users
+- `users:write` - Create and update users
+- `organizations:read` - View organizations
+- `organizations:write` - Create and update organizations
+- `corpus:read` - Read corpus data
+- `corpus:write` - Write corpus data
+
+### Key Rotation
+
+Rotate an API key to generate a new secret (invalidates the old one):
+
+```bash
+curl -X POST http://localhost:4000/api/admin/api-keys/{id}/rotate \
+  -H "Authorization: Bearer <super_admin_jwt>"
+```
+
+### Security Features
+
+- **Bcrypt Hashing:** Keys are hashed before storage (never stored in plaintext)
+- **Prefix Lookup:** Only the key prefix is used for efficient lookups
+- **Scoped Permissions:** Fine-grained access control via scopes
+- **Expiration Support:** Optional expiration dates
+- **Revocation:** Keys can be instantly revoked
+- **Audit Logging:** All API key operations are logged
+- **Last Used Tracking:** Monitor API key usage
+
+### M2M (Machine-to-Machine) Setup with Admin API Keys
+
+Admin API Keys enable fully automated M2M setup for backend services:
+
+**Step 1: Super Admin creates Admin API Key** (one-time)
+
+```bash
+curl -X POST http://localhost:4000/api/admin/api-keys \
+  -H "Authorization: Bearer <super_admin_jwt>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Campaigns Backend",
+    "scopes": ["clients:write", "clients:read"],
+    "expires_at": "2026-12-31T23:59:59Z"
+  }'
+```
+
+**Step 2: Backend service auto-registers as M2M client**
+
+```bash
+# Using the Admin API Key from Step 1
+curl -X POST http://localhost:4000/api/clients \
+  -H "Authorization: ApiKey ak_dev_vK8mN2pQ7xR9tY3wZ5aB1cD4eF6gH8jL" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Campaigns Backend Service",
+    "organization_id": "<org-uuid>",
+    "client_type": "confidential",
+    "redirect_uris": [],
+    "grant_types": ["client_credentials"],
+    "scopes": ["campaigns:read", "campaigns:write"]
+  }'
+
+# Response includes client_id and client_secret (save these!)
+```
+
+**Step 3: Backend service requests M2M tokens**
+
+```bash
+curl -X POST http://localhost:4000/oauth/token \
+  -H "Content-Type: application/json" \
+  -d '{
+    "grant_type": "client_credentials",
+    "client_id": "<client_id>",
+    "client_secret": "<client_secret>",
+    "scope": "campaigns:read campaigns:write"
+  }'
+
+# Response: { "access_token": "...", "expires_in": 3600 }
+```
+
+**Step 4: Use access token for API calls**
+
+```bash
+curl -X GET http://localhost:4000/api/users \
+  -H "Authorization: Bearer <access_token>"
+```
+
+See the **[Integration Guide](docs/INTEGRATION_GUIDE.md)** for complete examples in Python, Node.js, and more.
 
 ---
 
@@ -325,18 +503,27 @@ docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
 ### Data Protection
 - Password hashing with Bcrypt (10 rounds)
-- Constant-time password comparison
+- API key hashing with Bcrypt (never stored in plaintext)
+- Constant-time password and key comparison
 - Email verification required
 - Account locking after 5 failed attempts
 - HMAC-signed tokens with expiration
+- Scoped permissions for API keys
 
 ---
 
 ## 📖 Documentation
 
-- **[PROJECT_STATUS.md](PROJECT_STATUS.md)** - Detailed project status
-- **[CLAUDE.md](CLAUDE.md)** - Implementation guide & architecture
-- **[OPENAPI_SPEC.yaml](OPENAPI_SPEC.yaml)** - API documentation
+### For Users & Integrators
+
+- **[Integration Guide](docs/INTEGRATION_GUIDE.md)** - Complete guide to integrate with Thalamus (OAuth2, M2M, Admin API Keys)
+- **[API Specification](docs/OPENAPI_SPEC.yaml)** - OpenAPI 3.0 complete API documentation
+- **[Deployment Guide](docs/DEPLOYMENT_GUIDE.md)** - Production deployment instructions
+
+### For Contributors
+
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** - How to contribute to the project
+- **[Architecture](docs/ARCHITECTURE.md)** - Clean Architecture & SOLID principles
 
 ---
 
@@ -403,12 +590,21 @@ docker-compose logs -f
 
 Complete documentation is available in the [`docs/`](docs/) directory:
 
-- **[Architecture](docs/ARCHITECTURE.md)** - Clean Architecture & SOLID principles
+### For Users & Integrators
+
+- **[Integration Guide](docs/INTEGRATION_GUIDE.md)** - Step-by-step guide for integrating with Thalamus
+- **[API Specification](docs/OPENAPI_SPEC.yaml)** - OpenAPI 3.0 complete API documentation
 - **[Deployment Guide](docs/DEPLOYMENT_GUIDE.md)** - Production deployment instructions
-- **[API Specification](docs/OPENAPI_SPEC.yaml)** - OpenAPI 3.0 complete API docs
-- **[Project Status](docs/PROJECT_STATUS.md)** - Current implementation status
-- **[Implementation Progress](docs/IMPLEMENTATION_PROGRESS.md)** - Development timeline
-- **[Development Team Guide](docs/DEVELOPMENT_TEAM_README.md)** - For contributors
+- **[Architecture](docs/ARCHITECTURE.md)** - System architecture and design decisions
+
+### For Contributors
+
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** - Development setup, coding standards, and contribution workflow
+- **[CLAUDE.md](CLAUDE.md)** - Instructions for AI-assisted development
+
+### Internal Documentation
+
+Development history and internal docs are available in [`docs/internal/`](docs/internal/)
 
 ---
 
