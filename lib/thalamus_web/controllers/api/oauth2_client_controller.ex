@@ -107,7 +107,9 @@ defmodule ThalamusWeb.API.OAuth2ClientController do
   - 400 Bad Request: Invalid input
   """
   def create(conn, params) do
-    with {:ok, name} <- get_required_param(params, "name"),
+    # Verify API Key scopes if authenticated with API Key
+    with :ok <- verify_api_key_scopes(conn),
+         {:ok, name} <- get_required_param(params, "name"),
          {:ok, org_id_string} <- get_required_param(params, "organization_id"),
          {:ok, org_id} <- OrganizationId.from_string(org_id_string),
          {:ok, client} <- create_client(name, org_id, params),
@@ -129,6 +131,14 @@ defmodule ThalamusWeb.API.OAuth2ClientController do
         message: "OAuth2 client created successfully"
       })
     else
+      {:error, :insufficient_scopes} ->
+        conn
+        |> put_status(:forbidden)
+        |> json(%{
+          error: "Insufficient permissions",
+          details: "API key requires 'clients:write' scope to create OAuth2 clients"
+        })
+
       {:error, :missing_parameter, param} ->
         conn
         |> put_status(:bad_request)
@@ -381,5 +391,22 @@ defmodule ThalamusWeb.API.OAuth2ClientController do
         String.replace(acc, "%{#{key}}", to_string(value))
       end)
     end)
+  end
+
+  defp verify_api_key_scopes(conn) do
+    case conn.assigns do
+      %{auth_type: :api_key, api_key_scopes: scopes} ->
+        if "clients:write" in scopes do
+          :ok
+        else
+          {:error, :insufficient_scopes}
+        end
+
+      %{auth_type: :jwt} ->
+        :ok
+
+      _ ->
+        :ok
+    end
   end
 end

@@ -38,13 +38,32 @@ defmodule ThalamusWeb.Router do
     plug ThalamusWeb.Plugs.RateLimiter, limit: 100, window: 60_000, key: :ip_address
   end
 
-  # Authenticated API pipeline
+  # Authenticated API pipeline (JWT only)
   pipeline :authenticated_api do
     plug :accepts, ["json"]
     plug ThalamusWeb.Plugs.CORS
     plug ThalamusWeb.Plugs.SecurityHeaders
     plug ThalamusWeb.Plugs.AuthenticateToken
     plug ThalamusWeb.Plugs.RateLimiter, limit: 5000, window: 60_000, key: :user_id
+  end
+
+  # API Auth pipeline - accepts both JWT and API Keys
+  pipeline :api_auth do
+    plug :accepts, ["json"]
+    plug ThalamusWeb.Plugs.CORS
+    plug ThalamusWeb.Plugs.SecurityHeaders
+    plug ThalamusWeb.Plugs.APIAuth
+    plug ThalamusWeb.Plugs.RateLimiter, limit: 5000, window: 60_000, key: :user_id
+  end
+
+  # Super Admin pipeline - requires JWT auth + super_admin role
+  pipeline :super_admin do
+    plug :accepts, ["json"]
+    plug ThalamusWeb.Plugs.CORS
+    plug ThalamusWeb.Plugs.SecurityHeaders
+    plug ThalamusWeb.Plugs.APIAuth
+    plug ThalamusWeb.Plugs.RequireSuperAdmin
+    plug ThalamusWeb.Plugs.RateLimiter, limit: 1000, window: 60_000, key: :user_id
   end
 
   scope "/", ThalamusWeb do
@@ -104,7 +123,7 @@ defmodule ThalamusWeb.Router do
     post "/password/confirm-reset", PasswordController, :confirm_reset
   end
 
-  # Management API - requires authentication
+  # Management API - requires authentication (JWT only)
   scope "/api", ThalamusWeb.API do
     pipe_through :authenticated_api
 
@@ -113,9 +132,6 @@ defmodule ThalamusWeb.Router do
 
     # Organization management
     resources "/organizations", OrganizationController, except: [:new, :edit]
-
-    # OAuth2 Client management
-    resources "/clients", OAuth2ClientController, except: [:new, :edit]
 
     # Password change (requires authentication)
     put "/password/change", PasswordController, :change
@@ -126,6 +142,23 @@ defmodule ThalamusWeb.Router do
     post "/mfa/verify", MFAController, :verify_mfa_code
     delete "/mfa/disable", MFAController, :disable_mfa
     post "/mfa/backup-codes/regenerate", MFAController, :regenerate_backup_codes
+  end
+
+  # OAuth2 Client Management API - accepts both JWT and API Keys
+  scope "/api", ThalamusWeb.API do
+    pipe_through :api_auth
+
+    # OAuth2 Client management (now accepts API Key authentication)
+    resources "/clients", OAuth2ClientController, except: [:new, :edit]
+  end
+
+  # Admin API - requires super_admin role
+  scope "/api/admin", ThalamusWeb.Admin do
+    pipe_through :super_admin
+
+    # Admin API Key management
+    resources "/api-keys", AdminApiKeyController, only: [:index, :create, :show, :delete]
+    post "/api-keys/:id/rotate", AdminApiKeyController, :rotate
   end
 
   # Enable LiveDashboard in development
