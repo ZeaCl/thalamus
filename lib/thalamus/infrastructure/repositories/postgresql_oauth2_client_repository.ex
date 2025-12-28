@@ -33,8 +33,11 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository 
 
   @impl true
   def find_by_client_id(client_id_string) when is_binary(client_id_string) do
+    # Remove "client_" prefix if present (OAuth endpoints send with prefix, DB stores without)
+    uuid_only = String.replace_prefix(client_id_string, "client_", "")
+
     OAuth2ClientSchema
-    |> where([c], c.client_id_string == ^client_id_string)
+    |> where([c], c.client_id_string == ^uuid_only)
     |> Repo.one()
     |> case do
       nil -> {:error, :not_found}
@@ -147,13 +150,22 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository 
     # Reconstruct ClientId with "client_" prefix (DB stores just UUID)
     client_id_string = "client_" <> schema.id
 
+    # Convert client_secret from hash string to ClientSecret value object if present
+    client_secret = if schema.client_secret do
+      Thalamus.Domain.ValueObjects.ClientSecret.from_hash(schema.client_secret)
+    else
+      nil
+    end
+
     with {:ok, client_id} <- ClientId.from_string(client_id_string),
+         {:ok, org_id} <- OrganizationId.from_string(schema.organization_id),
          {:ok, grant_types} <- convert_grant_types_from_db(schema.allowed_grant_types) do
       client = %OAuth2Client{
         id: client_id,
+        organization_id: org_id,
         name: schema.name,
         client_type: schema.client_type,
-        client_secret: schema.client_secret,
+        client_secret: client_secret,
         grant_types: grant_types,
         allowed_scopes: schema.allowed_scopes || [],
         redirect_uris: schema.redirect_uris || [],
@@ -179,12 +191,31 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository 
       nil
     end
 
+    # Extract organization_id string (could have "org_" prefix or be pure UUID)
+    org_id_string = if client.organization_id do
+      OrganizationId.to_string(client.organization_id)
+    else
+      nil
+    end
+
+    # Extract client_secret hash for database storage
+    # Handle both string (plain secret) and ClientSecret value object
+    client_secret_hash = case client.client_secret do
+      nil -> nil
+      %Thalamus.Domain.ValueObjects.ClientSecret{} = secret ->
+        Thalamus.Domain.ValueObjects.ClientSecret.to_string(secret)
+      secret when is_binary(secret) ->
+        # Plain text secret - hash it before storing
+        Bcrypt.hash_pwd_salt(secret)
+    end
+
     %OAuth2ClientSchema{
       id: client_uuid,
       client_id_string: client_uuid,
       name: client.name,
       client_type: client.client_type,
-      client_secret: client.client_secret,
+      client_secret: client_secret_hash,
+      organization_id: org_id_string,
       allowed_grant_types: grant_types_strings,
       allowed_scopes: client.allowed_scopes,
       redirect_uris: client.redirect_uris,

@@ -67,6 +67,7 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.OAuth2ClientSchema do
   def create_changeset(attrs) do
     %__MODULE__{}
     |> cast(attrs, [
+      :id,
       :client_id_string,
       :name,
       :client_type,
@@ -74,7 +75,10 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.OAuth2ClientSchema do
       :organization_id,
       :description,
       :logo_url,
-      :pkce_required
+      :pkce_required,
+      :allowed_grant_types,
+      :allowed_scopes,
+      :redirect_uris
     ])
     |> validate_required([:client_id_string, :name, :client_type, :organization_id])
     |> validate_client_type()

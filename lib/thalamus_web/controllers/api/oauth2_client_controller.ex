@@ -113,13 +113,16 @@ defmodule ThalamusWeb.API.OAuth2ClientController do
          {:ok, org_id_string} <- get_required_param(params, "organization_id"),
          {:ok, org_id} <- OrganizationId.from_string(org_id_string),
          {:ok, client} <- create_client(name, org_id, params),
+         # Save the plain secret BEFORE saving to database (where it gets hashed)
+         plain_secret <- client.client_secret,
          {:ok, saved_client} <- PostgreSQLOAuth2ClientRepository.save(client) do
       # For confidential clients, include the secret in the response (only time it's visible)
       response_data = client_to_json(saved_client)
 
       response_data =
-        if saved_client.client_type == :confidential and saved_client.client_secret do
-          Map.put(response_data, :client_secret, ClientSecret.to_string(saved_client.client_secret))
+        if saved_client.client_type == :confidential and plain_secret do
+          # Use the plain secret from BEFORE database save
+          Map.put(response_data, :client_secret, plain_secret)
         else
           response_data
         end
@@ -331,12 +334,27 @@ defmodule ThalamusWeb.API.OAuth2ClientController do
 
     grant_types =
       Enum.map(grant_type_strings, fn type_string ->
-        type_atom = String.to_existing_atom(type_string)
-        {:ok, grant_type} = Thalamus.Domain.ValueObjects.GrantType.new(type_atom)
-        grant_type
+        # Convert string to atom safely (validate against known grant types)
+        type_atom = case type_string do
+          "authorization_code" -> :authorization_code
+          "client_credentials" -> :client_credentials
+          "refresh_token" -> :refresh_token
+          "implicit" -> :implicit
+          "password" -> :password
+          _ -> nil
+        end
+
+        if type_atom do
+          {:ok, grant_type} = Thalamus.Domain.ValueObjects.GrantType.new(type_atom)
+          grant_type
+        else
+          raise ArgumentError, "Invalid grant type: #{type_string}"
+        end
       end)
 
+    # Convert scope strings to Scope value objects (keep as strings for now)
     scopes = params["scopes"] || []
+
     {:ok, client_id} = ClientId.generate()
 
     OAuth2Client.new(%{

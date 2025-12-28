@@ -209,8 +209,19 @@ defmodule Thalamus.Domain.Entities.OAuth2Client do
     {:error, :public_client_no_secret}
   end
 
-  def verify_secret(%__MODULE__{client_secret: stored_secret}, provided_secret)
+  def verify_secret(%__MODULE__{client_secret: %Thalamus.Domain.ValueObjects.ClientSecret{} = stored_secret}, provided_secret)
       when is_binary(provided_secret) do
+    # Use ClientSecret value object's verify method for bcrypt comparison
+    if Thalamus.Domain.ValueObjects.ClientSecret.verify(stored_secret, provided_secret) do
+      :ok
+    else
+      {:error, :invalid_client_secret}
+    end
+  end
+
+  def verify_secret(%__MODULE__{client_secret: stored_secret}, provided_secret)
+      when is_binary(stored_secret) and is_binary(provided_secret) do
+    # Fallback for legacy string-based secrets (for backward compatibility)
     if secure_compare(stored_secret, provided_secret) do
       :ok
     else
@@ -451,8 +462,9 @@ defmodule Thalamus.Domain.Entities.OAuth2Client do
       Enum.empty?(client.grant_types) ->
         {:error, :missing_grant_types}
 
-      Enum.empty?(client.allowed_scopes) ->
-        {:error, :missing_scopes}
+      # Allow clients without scopes for M2M scenarios
+      # Enum.empty?(client.allowed_scopes) ->
+      #   {:error, :missing_scopes}
 
       client.client_type == :confidential and is_nil(client.client_secret) ->
         {:error, :confidential_client_requires_secret}
