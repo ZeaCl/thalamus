@@ -388,7 +388,11 @@ defmodule Thalamus.Domain.Entities.OAuth2Client do
       true
   """
   def valid_scopes?(%__MODULE__{allowed_scopes: allowed}, requested_scope_strings) do
-    allowed_strings = Enum.map(allowed, &Scope.to_string/1)
+    # Handle both string scopes (from database) and Scope value objects
+    allowed_strings = Enum.map(allowed, fn
+      scope when is_binary(scope) -> scope
+      scope -> Scope.to_string(scope)
+    end)
     Enum.all?(requested_scope_strings, fn scope -> scope in allowed_strings end)
   end
 
