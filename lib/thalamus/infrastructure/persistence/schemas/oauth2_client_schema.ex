@@ -264,11 +264,19 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.OAuth2ClientSchema do
   defp put_default_values(changeset) do
     changeset
     |> put_change(:is_active, true)
-    |> put_change(:allowed_grant_types, ["client_credentials"])
-    |> put_change(:allowed_scopes, [])
-    |> put_change(:redirect_uris, [])
+    # Only set defaults if values are not provided
+    |> put_default_if_missing(:allowed_grant_types, ["client_credentials"])
+    |> put_default_if_missing(:allowed_scopes, [])
+    |> put_default_if_missing(:redirect_uris, [])
     |> put_change(:access_token_lifetime, 3600)
     |> put_change(:refresh_token_lifetime, 2_592_000)
     |> put_change(:authorization_code_lifetime, 600)
+  end
+
+  defp put_default_if_missing(changeset, field, default_value) do
+    case get_change(changeset, field) do
+      nil -> put_change(changeset, field, default_value)
+      _value -> changeset
+    end
   end
 end
