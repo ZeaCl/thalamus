@@ -514,9 +514,14 @@ docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
 ## 📖 Documentation
 
+**New to Thalamus?** 👉 **[Getting Started Guide](docs/GETTING_STARTED.md)** - 4-step integration guide
+
 ### For Users & Integrators
 
-- **[Integration Guide](docs/INTEGRATION_GUIDE.md)** - Complete guide to integrate with Thalamus (OAuth2, M2M, Admin API Keys)
+- **[Getting Started](docs/GETTING_STARTED.md)** - Quick integration guide (start here!)
+- **[Documentation Index](docs/README.md)** - Complete documentation catalog
+- **[Integration Guide](docs/INTEGRATION_GUIDE.md)** - Complete technical reference
+- **[Admin API Keys](docs/guides/admin-api-keys.md)** - Service-to-service authentication
 - **[API Specification](docs/OPENAPI_SPEC.yaml)** - OpenAPI 3.0 complete API documentation
 - **[Deployment Guide](docs/DEPLOYMENT_GUIDE.md)** - Production deployment instructions
 
@@ -588,14 +593,27 @@ docker-compose logs -f
 
 ## 📚 Documentation
 
-Complete documentation is available in the [`docs/`](docs/) directory:
+Complete documentation is available in the [`docs/`](docs/) directory.
+
+### 🚀 Quick Start
+
+**New to Thalamus?** Start here:
+
+👉 **[Getting Started Guide](docs/GETTING_STARTED.md)** - 4-step integration guide
 
 ### For Users & Integrators
 
-- **[Integration Guide](docs/INTEGRATION_GUIDE.md)** - Step-by-step guide for integrating with Thalamus
+- **[Getting Started](docs/GETTING_STARTED.md)** - Quick integration guide (start here!)
+- **[Documentation Index](docs/README.md)** - Complete documentation catalog
+- **[Integration Guide](docs/INTEGRATION_GUIDE.md)** - Complete technical reference
 - **[API Specification](docs/OPENAPI_SPEC.yaml)** - OpenAPI 3.0 complete API documentation
 - **[Deployment Guide](docs/DEPLOYMENT_GUIDE.md)** - Production deployment instructions
 - **[Architecture](docs/ARCHITECTURE.md)** - System architecture and design decisions
+
+### Specific Guides
+
+- **[Admin API Keys](docs/guides/admin-api-keys.md)** - Service-to-service authentication
+- More guides available in [docs/guides/](docs/guides/)
 
 ### For Contributors
 

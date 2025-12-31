@@ -150,6 +150,9 @@ defmodule ThalamusWeb.Router do
 
     # OAuth2 Client management (now accepts API Key authentication)
     resources "/clients", OAuth2ClientController, except: [:new, :edit]
+
+    # Rotate OAuth2 client secret
+    post "/clients/:client_id/rotate-secret", OAuth2ClientController, :rotate_secret
   end
 
   # Admin API - requires super_admin role

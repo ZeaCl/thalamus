@@ -62,9 +62,21 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository 
 
         existing_schema ->
           # Existing client - update
-          existing_schema
-          |> OAuth2ClientSchema.update_changeset(Map.from_struct(schema))
-          |> Repo.update()
+          schema_map = Map.from_struct(schema)
+
+          # Check if client_secret has changed - if so, use rotate_secret_changeset
+          changeset = if schema_map[:client_secret] && schema_map[:client_secret] != existing_schema.client_secret do
+            # Secret has changed - use rotate_secret_changeset and update other fields
+            existing_schema
+            |> OAuth2ClientSchema.rotate_secret_changeset(schema_map[:client_secret])
+            |> Ecto.Changeset.change(Map.take(schema_map, [:name, :description, :logo_url, :terms_of_service_url, :privacy_policy_url, :is_active, :pkce_required, :allowed_grant_types, :allowed_scopes, :redirect_uris, :access_token_lifetime, :refresh_token_lifetime]))
+          else
+            # Normal update
+            existing_schema
+            |> OAuth2ClientSchema.update_changeset(schema_map)
+          end
+
+          Repo.update(changeset)
       end
 
     case result do

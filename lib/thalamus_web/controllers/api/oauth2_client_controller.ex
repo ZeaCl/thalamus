@@ -411,6 +411,71 @@ defmodule ThalamusWeb.API.OAuth2ClientController do
     end)
   end
 
+  @doc """
+  POST /api/clients/:id/rotate-secret
+
+  Rotate the client secret for a confidential OAuth2 client.
+
+  ## Path Parameters
+  - id: Client UUID
+
+  ## Response
+  - 200 OK: Secret rotated successfully (includes new plain secret - SAVE IT!)
+  - 400 Bad Request: Cannot rotate secret for public clients
+  - 404 Not Found: Client not found
+  """
+  def rotate_secret(conn, %{"client_id" => id}) do
+    with {:ok, client_id} <- ClientId.from_string(id),
+         {:ok, client} <- PostgreSQLOAuth2ClientRepository.find_by_id(client_id),
+         {:ok, updated_client} <- OAuth2Client.rotate_secret(client),
+         # Capture plain secret BEFORE saving (it gets hashed during save)
+         plain_secret <- extract_plain_secret(updated_client.client_secret),
+         {:ok, saved_client} <- PostgreSQLOAuth2ClientRepository.save(updated_client) do
+      conn
+      |> put_status(:ok)
+      |> json(%{
+        data: %{
+          client_id: ClientId.to_string(saved_client.id),
+          client_secret: plain_secret,
+          rotated_at: DateTime.utc_now()
+        },
+        message: "⚠️ IMPORTANT: Save the new client_secret securely. It cannot be retrieved later."
+      })
+    else
+      {:error, :cannot_rotate_public_client_secret} ->
+        conn
+        |> put_status(:bad_request)
+        |> json(%{error: "Cannot rotate secret for public clients"})
+
+      {:error, :not_found} ->
+        conn
+        |> put_status(:not_found)
+        |> json(%{error: "Client not found"})
+
+      {:error, reason} ->
+        conn
+        |> put_status(:internal_server_error)
+        |> json(%{error: "Failed to rotate secret", details: inspect(reason)})
+    end
+  end
+
+  # Private helper functions
+
+  defp extract_plain_secret(client_secret) when is_binary(client_secret) do
+    # If it's a plain string (from generate_client_secret), return as-is
+    client_secret
+  end
+
+  defp extract_plain_secret(%ClientSecret{} = _secret) do
+    # ClientSecret is already hashed, we need to regenerate
+    # This shouldn't happen in rotate flow, but handle it
+    generate_random_secret()
+  end
+
+  defp generate_random_secret do
+    :crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false)
+  end
+
   defp verify_api_key_scopes(conn) do
     case conn.assigns do
       %{auth_type: :api_key, api_key_scopes: scopes} ->

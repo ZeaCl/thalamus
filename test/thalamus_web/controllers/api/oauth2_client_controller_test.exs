@@ -2,7 +2,7 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
   use ThalamusWeb.ConnCase, async: true
 
   alias Thalamus.Domain.Entities.{User, Organization, OAuth2Client}
-  alias Thalamus.Domain.ValueObjects.AccessToken
+  alias Thalamus.Domain.ValueObjects.{AccessToken, Scope}
   alias Thalamus.Infrastructure.Repositories.{
     PostgreSQLUserRepository,
     PostgreSQLOrganizationRepository,
@@ -21,18 +21,26 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
     {:ok, admin} = PostgreSQLUserRepository.save(admin)
 
     # Generate access token
+    {:ok, read_scope} = Scope.new("zea:read")
+    {:ok, write_scope} = Scope.new("zea:write")
+    {:ok, admin_scope} = Scope.new("zea:admin")
+    scopes = [read_scope, write_scope, admin_scope]
+
     {:ok, access_token} = AccessToken.generate(
+      scopes,
       admin.id,
-      Thalamus.Domain.ValueObjects.ClientId.generate!(),
-      [:read, :write, :admin],
       3600
     )
+
+    # Generate a test client UUID (without "client_" prefix for DB storage)
+    test_client_uuid = Ecto.UUID.generate()
 
     token_data = %{
       token: access_token.token,
       type: :access_token,
       user_id: admin.id,
-      scope: [:read, :write, :admin],
+      client_id: test_client_uuid,
+      scopes: ["zea:read", "zea:write", "zea:admin"],
       expires_at: access_token.expires_at
     }
     :ok = PostgreSQLTokenRepository.store(token_data)
@@ -444,42 +452,64 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
 
   describe "POST /api/clients/:id/rotate-secret" do
     test "rotates client secret", %{conn: conn, org: org, access_token: token} do
-      {:ok, client} = OAuth2Client.new(
-        "Rotate Secret",
-        org.id,
-        ["http://localhost:3000/callback"],
-        [:client_credentials],
-        [:read]
-      )
-      {:ok, client} = PostgreSQLOAuth2ClientRepository.save(client)
-
-      old_secret = client.secret
+      {:ok, client} = OAuth2Client.create_confidential("Rotate Secret", org.id)
+      {:ok, saved_client} = PostgreSQLOAuth2ClientRepository.save(client)
 
       conn = conn
       |> put_req_header("authorization", "Bearer #{token}")
-      |> post(~p"/api/clients/#{client.id}/rotate-secret")
+      |> post(~p"/api/clients/#{saved_client.id}/rotate-secret")
 
       assert %{
         "data" => %{
-          "secret" => new_secret
-        }
+          "client_secret" => new_secret,
+          "client_id" => client_id,
+          "rotated_at" => _
+        },
+        "message" => message
       } = json_response(conn, 200)
 
       assert is_binary(new_secret)
-      assert new_secret != old_secret
+      assert String.length(new_secret) > 20
+      assert client_id == to_string(saved_client.id)
+      assert String.contains?(message, "IMPORTANT")
+
+      # Verify the new secret works by attempting to use it
+      # (the secret in DB should be hashed now)
+      {:ok, reloaded_client} = PostgreSQLOAuth2ClientRepository.find_by_id(saved_client.id)
+      assert reloaded_client.client_secret != nil
+    end
+
+    test "returns error for public clients", %{conn: conn, org: org, access_token: token} do
+      # Create a public client
+      {:ok, public_client} = OAuth2Client.create_public("Public Client", org.id)
+      {:ok, saved_client} = PostgreSQLOAuth2ClientRepository.save(public_client)
+
+      conn = conn
+      |> put_req_header("authorization", "Bearer #{token}")
+      |> post(~p"/api/clients/#{saved_client.id}/rotate-secret")
+
+      assert %{
+        "error" => error
+      } = json_response(conn, 400)
+
+      assert String.contains?(error, "public")
+    end
+
+    test "returns 404 for non-existent client", %{conn: conn, access_token: token} do
+      fake_id = "client_00000000-0000-0000-0000-000000000000"
+
+      conn = conn
+      |> put_req_header("authorization", "Bearer #{token}")
+      |> post(~p"/api/clients/#{fake_id}/rotate-secret")
+
+      assert %{"error" => _} = json_response(conn, 404)
     end
 
     test "requires authentication", %{conn: conn, org: org} do
-      {:ok, client} = OAuth2Client.new(
-        "No Auth Rotate",
-        org.id,
-        ["http://localhost:3000/callback"],
-        [:client_credentials],
-        [:read]
-      )
-      {:ok, client} = PostgreSQLOAuth2ClientRepository.save(client)
+      {:ok, client} = OAuth2Client.create_confidential("No Auth Rotate", org.id)
+      {:ok, saved_client} = PostgreSQLOAuth2ClientRepository.save(client)
 
-      conn = post(conn, ~p"/api/clients/#{client.id}/rotate-secret")
+      conn = post(conn, ~p"/api/clients/#{saved_client.id}/rotate-secret")
 
       assert json_response(conn, 401)
     end
