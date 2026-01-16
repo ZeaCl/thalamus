@@ -12,9 +12,7 @@ FROM elixir:1.17-alpine AS deps
 # Install build dependencies
 RUN apk add --no-cache \
     build-base \
-    git \
-    nodejs \
-    npm
+    git
 
 # Create app directory
 WORKDIR /app
@@ -45,18 +43,13 @@ COPY priv ./priv
 # Copy assets
 COPY assets ./assets
 
-# Install asset dependencies and compile assets
-WORKDIR /app/assets
-RUN npm ci --production
-WORKDIR /app
-
 # Compile dependencies
 RUN mix deps.compile
 
 # Compile application
 RUN mix compile
 
-# Build assets
+# Build assets (uses esbuild and tailwind)
 RUN mix assets.deploy
 
 # Build release
@@ -65,14 +58,13 @@ RUN mix release
 # ============================================================================
 # STAGE 3: Runtime
 # ============================================================================
-FROM alpine:3.19 AS runtime
+FROM elixir:1.17-alpine AS runtime
 
 # Install runtime dependencies
 RUN apk add --no-cache \
-    ncurses-libs \
-    openssl \
-    libstdc++ \
-    bash
+    bash \
+    ca-certificates \
+    wget
 
 # Create non-root user for security
 RUN addgroup -g 1000 thalamus && \

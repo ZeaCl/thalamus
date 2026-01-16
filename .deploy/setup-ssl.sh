@@ -24,10 +24,10 @@ print_step "DNS apuntando correctamente a ${VPS_IP}"
 
 # Verificar que la API responda por HTTP
 print_info "Verificando que Thalamus responda..."
-HTTP_CHECK=$(curl -s -o /dev/null -w "%{http_code}" http://${DOMAIN}/health)
+HTTP_CHECK=$(curl -s -o /dev/null -w "%{http_code}" http://${DOMAIN}/)
 
 if [ "$HTTP_CHECK" != "200" ]; then
-    print_error "Thalamus no responde en http://${DOMAIN}/health (HTTP ${HTTP_CHECK})"
+    print_error "Thalamus no responde en http://${DOMAIN}/ (HTTP ${HTTP_CHECK})"
     exit 1
 fi
 
@@ -110,14 +110,13 @@ if [ $? -eq 0 ]; then
     print_step "SSL configurado correctamente"
     echo ""
     print_info "Thalamus ahora está disponible en HTTPS:"
-    echo -e "  ${GREEN}https://${DOMAIN}/health${NC}"
     echo -e "  ${GREEN}https://${DOMAIN}/${NC}"
     echo ""
     print_info "Verificando HTTPS..."
 
     sleep 3
 
-    HTTPS_CHECK=$(curl -s -o /dev/null -w "%{http_code}" https://${DOMAIN}/health)
+    HTTPS_CHECK=$(curl -s -o /dev/null -w "%{http_code}" https://${DOMAIN}/)
 
     if [ "$HTTPS_CHECK" = "200" ]; then
         print_step "HTTPS funcionando correctamente"
@@ -127,7 +126,7 @@ if [ $? -eq 0 ]; then
         ssh -i "${SSH_KEY_PATH}" "${VPS_USER}@${VPS_IP}" "certbot certificates"
     else
         print_warning "HTTPS no responde inmediatamente (HTTP ${HTTPS_CHECK})"
-        print_info "Puede tomar unos segundos. Intenta: curl https://${DOMAIN}/health"
+        print_info "Puede tomar unos segundos. Intenta: curl https://${DOMAIN}/"
     fi
 
     echo ""
