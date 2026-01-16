@@ -46,29 +46,79 @@
         <h3>1. Install the SDK</h3>
 
         <div class="mockup-code mb-6">
-          <pre data-prefix="$"><code>npm install @zea/thalamus-js</code></pre>
+          <pre data-prefix="$"><code>npm install @zea.cl/thalamus-js</code></pre>
+          <pre data-prefix="$"><code># or with yarn</code></pre>
+          <pre data-prefix="$"><code>yarn add @zea.cl/thalamus-js</code></pre>
+        </div>
+
+        <div class="alert alert-info mb-6">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          <div>
+            <p class="font-bold mb-1">📦 Package Information</p>
+            <p class="text-sm">
+              TypeScript SDK for Thalamus OAuth2 - Published on npm as <code>@zea.cl/thalamus-js</code>
+            </p>
+            <p class="text-sm mt-2">
+              <a href="https://www.npmjs.com/package/@zea.cl/thalamus-js" target="_blank" class="link link-primary">
+                View on npm →
+              </a>
+            </p>
+          </div>
         </div>
 
         <h3>2. Configure Your Client</h3>
 
-        <p>Create a Thalamus client instance with your OAuth2 credentials (client_id, client_secret, redirect_uri, and base_url).</p>
+        <p>Create a Thalamus client instance with your OAuth2 credentials:</p>
+
+        <div class="mockup-code mb-6">
+          <pre data-prefix=""><code>import { ThalamusClient } from '@zea.cl/thalamus-js';</code></pre>
+          <pre data-prefix=""><code></code></pre>
+          <pre data-prefix=""><code>const thalamus = new ThalamusClient({</code></pre>
+          <pre data-prefix=""><code>  authUrl: 'https://auth.zea.cl',</code></pre>
+          <pre data-prefix=""><code>  clientId: process.env.OAUTH2_CLIENT_ID,</code></pre>
+          <pre data-prefix=""><code>  clientSecret: process.env.OAUTH2_CLIENT_SECRET,</code></pre>
+          <pre data-prefix=""><code>  redirectUri: 'https://myapp.com/auth/callback'</code></pre>
+          <pre data-prefix=""><code>});</code></pre>
+        </div>
 
         <h3>3. Add Authentication to Your App</h3>
 
         <p>The SDK provides simple methods:</p>
 
         <ul>
-          <li><code>thalamus.auth.getAuthorizationUrl()</code> - Generate login URL</li>
-          <li><code>thalamus.auth.exchangeCode()</code> - Exchange code for tokens</li>
-          <li><code>thalamus.tokens.introspect()</code> - Validate tokens</li>
-          <li><code>thalamus.auth.refreshToken()</code> - Renew access tokens</li>
+          <li><code>thalamus.auth.getAuthorizationUrl()</code> - Generate login URL with PKCE</li>
+          <li><code>thalamus.auth.exchangeCode()</code> - Exchange authorization code for tokens</li>
+          <li><code>thalamus.auth.refreshToken()</code> - Refresh expired access tokens</li>
+          <li><code>thalamus.tokens.introspect()</code> - Validate and inspect token metadata</li>
+          <li><code>thalamus.tokens.revoke()</code> - Revoke access or refresh tokens</li>
         </ul>
+
+        <p class="mt-4"><strong>Example: Login Flow</strong></p>
+
+        <div class="mockup-code mb-6">
+          <pre data-prefix=""><code>// 1. Generate login URL and redirect user</code></pre>
+          <pre data-prefix=""><code>const { url, state, codeVerifier } = </code></pre>
+          <pre data-prefix=""><code>  await thalamus.auth.getAuthorizationUrl();</code></pre>
+          <pre data-prefix=""><code></code></pre>
+          <pre data-prefix=""><code>// 2. After callback, exchange code for tokens</code></pre>
+          <pre data-prefix=""><code>const tokens = await thalamus.auth.exchangeCode({</code></pre>
+          <pre data-prefix=""><code>  code: authorizationCode,</code></pre>
+          <pre data-prefix=""><code>  codeVerifier: codeVerifier</code></pre>
+          <pre data-prefix=""><code>});</code></pre>
+          <pre data-prefix=""><code></code></pre>
+          <pre data-prefix=""><code>// 3. Validate token</code></pre>
+          <pre data-prefix=""><code>const info = await thalamus.tokens.introspect(</code></pre>
+          <pre data-prefix=""><code>  tokens.access_token</code></pre>
+          <pre data-prefix=""><code>);</code></pre>
+        </div>
 
         <div class="alert alert-info mb-8">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
           </svg>
-          <span>Check out our complete Next.js example app in the <code>examples/</code> directory for a full working implementation.</span>
+          <span>Check out our complete <strong>Next.js 14 App Router example</strong> in the SDK package for a full working implementation with TypeScript.</span>
         </div>
 
         <div class="divider my-12"></div>

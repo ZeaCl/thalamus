@@ -42,6 +42,11 @@ npm-debug.log
 .env.production
 .env.staging
 
+# Deployment scripts with sensitive data
+.deploy/config.sh
+.deploy/.env
+!.deploy/config.sh.example
+
 # Database files
 *.db
 *.sqlite
