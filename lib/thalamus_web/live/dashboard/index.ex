@@ -31,24 +31,46 @@ defmodule ThalamusWeb.Dashboard.Index do
   end
 
   defp load_stats(socket) do
+    # Get current user's organization ID for filtering
+    org_id = get_organization_id(socket)
+
     socket
-    |> assign(:total_users, count_users())
-    |> assign(:total_clients, count_clients())
-    |> assign(:active_tokens, count_active_tokens())
-    |> assign(:active_agent_tokens, count_active_agent_tokens())
+    |> assign(:total_users, count_users(org_id))
+    |> assign(:total_clients, count_clients(org_id))
+    |> assign(:active_tokens, count_active_tokens(org_id))
+    |> assign(:active_agent_tokens, count_active_agent_tokens(org_id))
     |> assign(:total_organizations, count_organizations())
-    |> assign(:recent_activity, load_recent_activity())
+    |> assign(:recent_activity, load_recent_activity(org_id))
   end
 
-  defp count_users do
-    case PostgreSQLUserRepository.count() do
+  defp get_organization_id(socket) do
+    case socket.assigns[:current_organization] do
+      %{id: org_id} -> org_id
+      _ -> nil
+    end
+  end
+
+  defp count_users(nil), do: 0
+
+  defp count_users(org_id) do
+    # Filter users by organization_id
+    org_uuid = extract_uuid(org_id)
+
+    case PostgreSQLUserRepository.count(%{organization_id: org_uuid}) do
       {:ok, count} -> count
       _ -> 0
     end
   end
 
-  defp count_clients do
-    Repo.aggregate(OAuth2ClientSchema, :count, :id)
+  defp count_clients(nil), do: 0
+
+  defp count_clients(org_id) do
+    # Filter OAuth2 clients by organization_id
+    org_uuid = extract_uuid(org_id)
+
+    OAuth2ClientSchema
+    |> where([c], c.organization_id == ^org_uuid)
+    |> Repo.aggregate(:count, :id)
   end
 
   defp count_organizations do
@@ -58,28 +80,42 @@ defmodule ThalamusWeb.Dashboard.Index do
     end
   end
 
-  defp count_active_tokens do
+  defp count_active_tokens(nil), do: 0
+
+  defp count_active_tokens(org_id) do
     now = DateTime.utc_now()
+    org_uuid = extract_uuid(org_id)
 
     TokenSchema
     |> where([t], t.revoked == false)
     |> where([t], t.expires_at > ^now)
+    |> where([t], t.organization_id == ^org_uuid)
     |> Repo.aggregate(:count, :id)
   end
 
-  defp count_active_agent_tokens do
+  defp count_active_agent_tokens(nil), do: 0
+
+  defp count_active_agent_tokens(org_id) do
     now = DateTime.utc_now()
+    org_uuid = extract_uuid(org_id)
 
     TokenSchema
     |> where([t], t.revoked == false)
     |> where([t], t.expires_at > ^now)
     |> where([t], not is_nil(t.agent_type))
+    |> where([t], t.organization_id == ^org_uuid)
     |> Repo.aggregate(:count, :id)
   end
 
-  defp load_recent_activity do
+  defp load_recent_activity(nil), do: []
+
+  defp load_recent_activity(org_id) do
     # Get last 10 tokens created with user and client information
+    # Filtered by organization_id
+    org_uuid = extract_uuid(org_id)
+
     TokenSchema
+    |> where([t], t.organization_id == ^org_uuid)
     |> order_by([t], desc: t.inserted_at)
     |> limit(10)
     |> Repo.all()
@@ -97,6 +133,17 @@ defmodule ThalamusWeb.Dashboard.Index do
       }
     end)
   end
+
+  # Helper to extract UUID from OrganizationId value object
+  defp extract_uuid(%{value: value}) when is_binary(value) do
+    String.replace_prefix(value, "org_", "")
+  end
+
+  defp extract_uuid(value) when is_binary(value) do
+    String.replace_prefix(value, "org_", "")
+  end
+
+  defp extract_uuid(_), do: nil
 
   @impl true
   def render(assigns) do
