@@ -60,7 +60,7 @@ export default function Home() {
               Example application demonstrating seamless OAuth2 integration with ZEA Thalamus using the TypeScript SDK. Built with Next.js 14 and React Server Components.
             </p>
 
-            <div className="mt-10 flex items-center gap-x-6">
+            <div className="mt-10 flex flex-wrap items-center gap-4">
               <a href="/api/auth/login" className="btn btn-primary btn-lg">
                 <svg className="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
@@ -71,6 +71,17 @@ export default function Home() {
                   />
                 </svg>
                 Sign In with Thalamus
+              </a>
+              <a href="/docs" className="btn btn-secondary btn-lg">
+                <svg className="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
+                </svg>
+                Documentation
               </a>
               <a
                 href="https://github.com/zea/thalamus"
