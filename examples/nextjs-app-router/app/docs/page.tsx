@@ -34,7 +34,7 @@ export default async function DocsPage() {
               </svg>
               <div>
                 <h1 className="text-2xl font-bold text-base-content">SDK Documentation</h1>
-                <p className="text-sm text-primary font-medium">@zea/thalamus-js</p>
+                <p className="text-sm text-primary font-medium">@zea.cl/thalamus-js</p>
               </div>
             </div>
             <div className="flex gap-3">
@@ -190,7 +190,7 @@ export default async function DocsPage() {
                   Get Help
                 </a>
                 <a
-                  href="https://www.npmjs.com/package/@zea/thalamus-js"
+                  href="https://www.npmjs.com/package/@zea.cl/thalamus-js"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="btn btn-outline btn-sm"

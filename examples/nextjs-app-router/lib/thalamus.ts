@@ -4,7 +4,7 @@
  * This file configures the Thalamus SDK for authentication
  */
 
-import ThalamusClient from '@zea/thalamus-js'
+import ThalamusClient from '@zea.cl/thalamus-js'
 
 if (!process.env.THALAMUS_CLIENT_ID) {
   throw new Error('Missing THALAMUS_CLIENT_ID environment variable')

@@ -9,7 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@zea/thalamus-js": "file:../../packages/thalamus-js",
+    "@zea.cl/thalamus-js": "^1.0.0",
     "highlight.js": "^11.11.1",
     "next": "14.2.0",
     "react": "^18.2.0",

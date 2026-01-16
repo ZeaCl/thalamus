@@ -245,7 +245,7 @@ export default function Home() {
 
           <div className="mx-auto mt-16 max-w-3xl">
             <div className="mockup-code bg-neutral text-neutral-content shadow-2xl">
-              <pre data-prefix="1"><code>import {'{'} ThalamusClient {'}'} from '@zea/thalamus-js'</code></pre>
+              <pre data-prefix="1"><code>import {'{'} ThalamusClient {'}'} from '@zea.cl/thalamus-js'</code></pre>
               <pre data-prefix="2"><code></code></pre>
               <pre data-prefix="3"><code>const thalamus = new ThalamusClient({'{'}</code></pre>
               <pre data-prefix="4"><code>  clientId: process.env.THALAMUS_CLIENT_ID,</code></pre>
@@ -307,7 +307,7 @@ export default function Home() {
         <div className="mx-auto max-w-7xl px-6 py-12 md:flex md:items-center md:justify-between lg:px-8">
           <div className="flex justify-center space-x-6 md:order-2">
             <span className="text-xs text-base-content/70">
-              Built with Next.js 14 & @zea/thalamus-js SDK
+              Built with Next.js 14 & @zea.cl/thalamus-js SDK
             </span>
           </div>
           <div className="mt-8 md:order-1 md:mt-0">
