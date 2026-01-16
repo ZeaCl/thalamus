@@ -72,6 +72,7 @@
 
         <p>Create a Thalamus client instance with your OAuth2 credentials:</p>
 
+        <%= Phoenix.HTML.raw("""
         <div class="mockup-code mb-6">
           <pre data-prefix=""><code>import { ThalamusClient } from "@zea.cl/thalamus-js";</code></pre>
           <pre data-prefix=""><code></code></pre>
@@ -82,6 +83,7 @@
           <pre data-prefix=""><code>  redirectUri: "https://myapp.com/auth/callback"</code></pre>
           <pre data-prefix=""><code>});</code></pre>
         </div>
+        """) %>
 
         <h3>3. Add Authentication to Your App</h3>
 
@@ -97,6 +99,7 @@
 
         <p class="mt-4"><strong>Example: Login Flow</strong></p>
 
+        <%= Phoenix.HTML.raw("""
         <div class="mockup-code mb-6">
           <pre data-prefix=""><code>// 1. Generate login URL and redirect user</code></pre>
           <pre data-prefix=""><code>const { url, state, codeVerifier } = </code></pre>
@@ -113,6 +116,7 @@
           <pre data-prefix=""><code>  tokens.access_token</code></pre>
           <pre data-prefix=""><code>);</code></pre>
         </div>
+        """) %>
 
         <div class="alert alert-info mb-8">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
