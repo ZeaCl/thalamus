@@ -88,6 +88,18 @@ defmodule ThalamusWeb.Router do
     post "/logout", SessionController, :delete
   end
 
+  # Documentation (Public)
+  scope "/docs", ThalamusWeb do
+    pipe_through :browser
+
+    get "/", DocsController, :index
+    get "/getting-started", DocsController, :getting_started
+    get "/integration", DocsController, :integration
+    get "/api-reference", DocsController, :api_reference
+    get "/deployment", DocsController, :deployment
+    get "/agent-tokens", DocsController, :agent_tokens
+  end
+
   # Dashboard (Admin Panel)
   scope "/dashboard", ThalamusWeb.Dashboard do
     pipe_through :dashboard

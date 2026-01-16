@@ -1,0 +1,299 @@
+<div class="min-h-screen bg-base-200 py-8">
+  <div class="container mx-auto px-4 max-w-5xl">
+    <%!-- Back button --%>
+    <div class="mb-6">
+      <a href={~p"/docs"} class="btn btn-ghost btn-sm gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+        </svg>
+        Back to Documentation
+      </a>
+    </div>
+
+    <%!-- Header --%>
+    <div class="text-center mb-12">
+      <h1 class="text-5xl font-bold mb-4 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+        API Reference
+      </h1>
+      <p class="text-xl text-base-content/70">
+        Complete OAuth2 and REST API endpoint documentation
+      </p>
+    </div>
+
+    <%!-- Main content card --%>
+    <div class="card bg-base-100 shadow-xl">
+      <div class="card-body prose prose-lg max-w-none">
+
+        <div class="alert alert-info mb-8">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          <div>
+            <h3 class="font-bold mt-0">Base URL</h3>
+            <div class="text-sm">All endpoints are relative to: <code>https://your-thalamus-instance.com</code></div>
+          </div>
+        </div>
+
+        <h2>OAuth2 Endpoints</h2>
+
+        <div class="space-y-6">
+          <%!-- Authorization --%>
+          <div class="card bg-base-200">
+            <div class="card-body">
+              <div class="flex items-center gap-2">
+                <div class="badge badge-success">GET</div>
+                <code>/oauth/authorize</code>
+              </div>
+              <p class="text-sm">OAuth2 authorization endpoint - redirects users to login and returns authorization code.</p>
+              <div class="text-xs text-base-content/70">
+                Parameters: response_type, client_id, redirect_uri, scope, state
+              </div>
+            </div>
+          </div>
+
+          <%!-- Token --%>
+          <div class="card bg-base-200">
+            <div class="card-body">
+              <div class="flex items-center gap-2">
+                <div class="badge badge-warning">POST</div>
+                <code>/oauth/token</code>
+              </div>
+              <p class="text-sm">Exchange authorization code, client credentials, or refresh token for access tokens.</p>
+              <div class="text-xs text-base-content/70">
+                Supports grant_type: authorization_code, client_credentials, refresh_token
+              </div>
+            </div>
+          </div>
+
+          <%!-- Introspection --%>
+          <div class="card bg-base-200">
+            <div class="card-body">
+              <div class="flex items-center gap-2">
+                <div class="badge badge-warning">POST</div>
+                <code>/oauth/introspect</code>
+              </div>
+              <p class="text-sm">Token introspection (RFC 7662) - validate token and retrieve metadata.</p>
+              <div class="text-xs text-base-content/70">
+                Returns: active, scope, client_id, user_id, organization_id, exp, iat
+              </div>
+            </div>
+          </div>
+
+          <%!-- Revocation --%>
+          <div class="card bg-base-200">
+            <div class="card-body">
+              <div class="flex items-center gap-2">
+                <div class="badge badge-warning">POST</div>
+                <code>/oauth/revoke</code>
+              </div>
+              <p class="text-sm">Token revocation (RFC 7009) - revoke access or refresh token.</p>
+            </div>
+          </div>
+
+          <%!-- Userinfo --%>
+          <div class="card bg-base-200">
+            <div class="card-body">
+              <div class="flex items-center gap-2">
+                <div class="badge badge-success">GET</div>
+                <code>/oauth/userinfo</code>
+              </div>
+              <p class="text-sm">OpenID Connect userinfo endpoint - returns user profile information.</p>
+              <div class="text-xs text-base-content/70">
+                Requires: Authorization: Bearer token
+              </div>
+            </div>
+          </div>
+
+          <%!-- Agent Token --%>
+          <div class="card bg-base-200">
+            <div class="card-body">
+              <div class="flex items-center gap-2">
+                <div class="badge badge-warning">POST</div>
+                <code>/oauth/agent-token</code>
+              </div>
+              <p class="text-sm">Generate agent token for AI agents in the agentic economy.</p>
+              <div class="text-xs text-base-content/70">
+                See Agent Tokens documentation for details
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="divider my-12"></div>
+
+        <h2>Public API Endpoints</h2>
+
+        <div class="space-y-6">
+          <div class="card bg-base-200">
+            <div class="card-body">
+              <div class="flex items-center gap-2">
+                <div class="badge badge-success">GET</div>
+                <code>/api/public/health</code>
+              </div>
+              <p class="text-sm">Health check endpoint for monitoring and load balancers.</p>
+            </div>
+          </div>
+
+          <div class="card bg-base-200">
+            <div class="card-body">
+              <div class="flex items-center gap-2">
+                <div class="badge badge-warning">POST</div>
+                <code>/api/public/register</code>
+              </div>
+              <p class="text-sm">Create new user account.</p>
+              <div class="text-xs text-base-content/70">
+                Requires: email, password, full_name, organization_id
+              </div>
+            </div>
+          </div>
+
+          <div class="card bg-base-200">
+            <div class="card-body">
+              <div class="flex items-center gap-2">
+                <div class="badge badge-warning">POST</div>
+                <code>/api/public/login</code>
+              </div>
+              <p class="text-sm">User login (returns JWT).</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="divider my-12"></div>
+
+        <h2>Authenticated API Endpoints</h2>
+
+        <div class="alert alert-warning mb-6">
+          <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <span>All endpoints require <code>Authorization: Bearer &lt;token&gt;</code> or <code>Authorization: ApiKey &lt;key&gt;</code></span>
+        </div>
+
+        <div class="space-y-6">
+          <div class="card bg-base-200">
+            <div class="card-body">
+              <div class="flex items-center gap-2">
+                <div class="badge badge-warning">POST</div>
+                <code>/api/clients</code>
+              </div>
+              <p class="text-sm">Create OAuth2 client application.</p>
+              <div class="text-xs text-base-content/70">
+                Requires: name, organization_id, client_type, redirect_uris, grant_types, scopes
+              </div>
+            </div>
+          </div>
+
+          <div class="card bg-base-200">
+            <div class="card-body">
+              <div class="flex items-center gap-2">
+                <div class="badge badge-success">GET</div>
+                <code>/api/clients</code>
+              </div>
+              <p class="text-sm">List all OAuth2 clients for organization.</p>
+            </div>
+          </div>
+
+          <div class="card bg-base-200">
+            <div class="card-body">
+              <div class="flex items-center gap-2">
+                <div class="badge badge-success">GET</div>
+                <code>/api/users</code>
+              </div>
+              <p class="text-sm">List users in organization.</p>
+            </div>
+          </div>
+
+          <div class="card bg-base-200">
+            <div class="card-body">
+              <div class="flex items-center gap-2">
+                <div class="badge badge-success">GET</div>
+                <code>/api/organizations</code>
+              </div>
+              <p class="text-sm">List organizations.</p>
+            </div>
+          </div>
+
+          <div class="card bg-base-200">
+            <div class="card-body">
+              <div class="flex items-center gap-2">
+                <div class="badge badge-warning">POST</div>
+                <code>/api/admin/api-keys</code>
+              </div>
+              <p class="text-sm">Create admin API key (super admin only).</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="divider my-12"></div>
+
+        <h2>Available Scopes</h2>
+
+        <div class="overflow-x-auto mb-8">
+          <table class="table table-zebra">
+            <thead>
+              <tr>
+                <th>Scope</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td><code>openid</code></td><td>OpenID Connect authentication</td></tr>
+              <tr><td><code>profile</code></td><td>User profile information</td></tr>
+              <tr><td><code>email</code></td><td>User email address</td></tr>
+              <tr><td><code>offline_access</code></td><td>Request refresh token</td></tr>
+              <tr><td><code>zea:read</code></td><td>Read access to ZEA platform</td></tr>
+              <tr><td><code>zea:write</code></td><td>Write access to ZEA platform</td></tr>
+              <tr><td><code>zea:admin</code></td><td>Administrative access</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="divider my-12"></div>
+
+        <h2>Error Responses</h2>
+
+        <p>All API errors return JSON with error and error_description fields.</p>
+
+        <div class="overflow-x-auto mb-8">
+          <table class="table table-zebra">
+            <thead>
+              <tr>
+                <th>HTTP Status</th>
+                <th>Error Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>400</td><td><code>invalid_request</code></td><td>Missing or invalid parameters</td></tr>
+              <tr><td>401</td><td><code>invalid_client</code></td><td>Client authentication failed</td></tr>
+              <tr><td>401</td><td><code>invalid_token</code></td><td>Token is invalid or expired</td></tr>
+              <tr><td>403</td><td><code>insufficient_scope</code></td><td>Token lacks required permissions</td></tr>
+              <tr><td>400</td><td><code>invalid_grant</code></td><td>Authorization code invalid</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <%!-- Next Steps --%>
+        <div class="divider my-12"></div>
+
+        <h2>Next Steps</h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 not-prose">
+          <a href={~p"/docs/integration"} class="card bg-base-200 hover:bg-base-300 transition-colors cursor-pointer">
+            <div class="card-body">
+              <h3 class="card-title text-base">Integration Guide</h3>
+              <p class="text-sm text-base-content/70">Detailed code examples and OAuth2 flows</p>
+            </div>
+          </a>
+
+          <a href={~p"/docs/getting-started"} class="card bg-base-200 hover:bg-base-300 transition-colors cursor-pointer">
+            <div class="card-body">
+              <h3 class="card-title text-base">Getting Started</h3>
+              <p class="text-sm text-base-content/70">Quick start guide</p>
+            </div>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

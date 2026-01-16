@@ -1,0 +1,385 @@
+<div class="min-h-screen bg-base-200 py-8">
+  <div class="container mx-auto px-4 max-w-5xl">
+    <%!-- Back button --%>
+    <div class="mb-6">
+      <a href={~p"/docs"} class="btn btn-ghost btn-sm gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+        </svg>
+        Back to Documentation
+      </a>
+    </div>
+
+    <%!-- Header --%>
+    <div class="text-center mb-12">
+      <h1 class="text-5xl font-bold mb-4 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+        Deployment Guide
+      </h1>
+      <p class="text-xl text-base-content/70">
+        Production deployment and configuration best practices
+      </p>
+    </div>
+
+    <%!-- Main content card --%>
+    <div class="card bg-base-100 shadow-xl">
+      <div class="card-body prose prose-lg max-w-none">
+
+        <h2>Prerequisites</h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 not-prose mb-6">
+          <div class="card bg-base-200">
+            <div class="card-body">
+              <h3 class="card-title text-base">Required</h3>
+              <ul class="text-sm list-disc ml-4">
+                <li>Linux (Ubuntu 20.04+, Debian 11+)</li>
+                <li>Elixir 1.17+ and Erlang 26+</li>
+                <li>PostgreSQL 16+</li>
+                <li>SSL Certificate (Let's Encrypt)</li>
+                <li>Domain Name with DNS</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="card bg-base-200">
+            <div class="card-body">
+              <h3 class="card-title text-base">Recommended</h3>
+              <ul class="text-sm list-disc ml-4">
+                <li>RAM: 4GB+</li>
+                <li>CPU: 2+ cores</li>
+                <li>Storage: 20GB+ SSD</li>
+                <li>Redis 7+</li>
+                <li>Nginx reverse proxy</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <h2>Quick Start with Docker</h2>
+
+        <div class="alert alert-success mb-6">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          <span><strong>Recommended:</strong> Docker deployment is the easiest and most reliable method for production.</span>
+        </div>
+
+        <h3>Step 1: Clone Repository</h3>
+
+        <div class="mockup-code mb-4">
+          <pre data-prefix="$"><code>git clone &lt;repository_url&gt;</code></pre>
+          <pre data-prefix="$"><code>cd thalamus</code></pre>
+        </div>
+
+        <h3>Step 2: Configure Environment</h3>
+
+        <div class="mockup-code mb-4">
+          <pre data-prefix="$"><code>cp .env.production.example .env.production</code></pre>
+          <pre data-prefix="$"><code>nano .env.production</code></pre>
+        </div>
+
+        <h4>Essential Environment Variables</h4>
+
+        <div class="mockup-code mb-4">
+          <pre><code># Application
+PHX_HOST=your-domain.com
+PHX_PORT=4000
+SECRET_KEY_BASE=your-64-char-secret
+
+# Database
+DATABASE_URL=ecto://user:pass@localhost:5432/thalamus_prod
+DB_POOL_SIZE=20
+
+# Redis (optional but recommended)
+REDIS_URL=redis://:password@localhost:6379/0
+
+# Email (SendGrid, Mailgun, or AWS SES)
+SMTP_RELAY=smtp.sendgrid.net
+SMTP_USERNAME=apikey
+SMTP_PASSWORD=YOUR_SENDGRID_API_KEY
+FROM_EMAIL=noreply@your-domain.com
+
+# Security
+ENABLE_SSL=true
+FORCE_SSL=true</code></pre>
+        </div>
+
+        <div class="alert alert-warning mb-6">
+          <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <span><strong>Security:</strong> Generate strong secrets using <code>mix phx.gen.secret 64</code> or <code>openssl rand -base64 64</code></span>
+        </div>
+
+        <h3>Step 3: Start Services</h3>
+
+        <div class="mockup-code mb-4">
+          <pre data-prefix="$"><code>docker-compose up -d</code></pre>
+          <pre data-prefix="$"><code>docker-compose exec thalamus bin/thalamus eval "Thalamus.Release.migrate()"</code></pre>
+          <pre data-prefix="$"><code>docker-compose logs -f thalamus</code></pre>
+        </div>
+
+        <h3>Step 4: Verify Deployment</h3>
+
+        <div class="mockup-code mb-4">
+          <pre data-prefix="$"><code>curl https://your-domain.com/api/public/health</code></pre>
+        </div>
+
+        <p>Expected response: JSON with status=ok, version, and checks for database and cache.</p>
+
+        <div class="divider my-12"></div>
+
+        <h2>Manual Deployment</h2>
+
+        <p>
+          For full control over your deployment, follow these steps to deploy Thalamus manually on a Linux server.
+        </p>
+
+        <h3>Step 1: Install Dependencies</h3>
+
+        <div class="mockup-code mb-4">
+          <pre data-prefix="$"><code>sudo apt update</code></pre>
+          <pre data-prefix="$"><code>sudo apt install -y build-essential git postgresql-16 nginx certbot</code></pre>
+        </div>
+
+        <h3>Step 2: Setup PostgreSQL</h3>
+
+        <div class="mockup-code mb-4">
+          <pre data-prefix="$"><code>sudo -u postgres createuser -P thalamus_user</code></pre>
+          <pre data-prefix="$"><code>sudo -u postgres createdb -O thalamus_user thalamus_prod</code></pre>
+        </div>
+
+        <h3>Step 3: Deploy Application</h3>
+
+        <div class="mockup-code mb-4">
+          <pre data-prefix="$"><code>git clone &lt;repository_url&gt; ~/thalamus</code></pre>
+          <pre data-prefix="$"><code>cd ~/thalamus</code></pre>
+          <pre data-prefix="$"><code>mix deps.get --only prod</code></pre>
+          <pre data-prefix="$"><code>MIX_ENV=prod mix assets.deploy</code></pre>
+          <pre data-prefix="$"><code>MIX_ENV=prod mix release</code></pre>
+        </div>
+
+        <h3>Step 4: Create Systemd Service</h3>
+
+        <p>Create <code>/etc/systemd/system/thalamus.service</code>:</p>
+
+        <div class="mockup-code mb-4">
+          <pre><code>[Unit]
+Description=ZEA Thalamus OAuth2 Server
+After=network.target postgresql.service
+
+[Service]
+Type=exec
+User=thalamus
+WorkingDirectory=/home/thalamus/thalamus
+Environment=MIX_ENV=prod
+EnvironmentFile=/home/thalamus/thalamus/.env.production
+
+ExecStart=/home/thalamus/thalamus/_build/prod/rel/thalamus/bin/thalamus start
+ExecStop=/home/thalamus/thalamus/_build/prod/rel/thalamus/bin/thalamus stop
+
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target</code></pre>
+        </div>
+
+        <h3>Step 5: Start Service</h3>
+
+        <div class="mockup-code mb-4">
+          <pre data-prefix="$"><code>sudo systemctl daemon-reload</code></pre>
+          <pre data-prefix="$"><code>sudo systemctl enable thalamus</code></pre>
+          <pre data-prefix="$"><code>sudo systemctl start thalamus</code></pre>
+          <pre data-prefix="$"><code>sudo systemctl status thalamus</code></pre>
+        </div>
+
+        <div class="divider my-12"></div>
+
+        <h2>SSL/TLS Configuration</h2>
+
+        <h3>Using Let's Encrypt (Free)</h3>
+
+        <div class="mockup-code mb-4">
+          <pre data-prefix="$"><code>sudo apt install certbot python3-certbot-nginx</code></pre>
+          <pre data-prefix="$"><code>sudo certbot --nginx -d your-domain.com</code></pre>
+        </div>
+
+        <p>Certbot will automatically configure Nginx with SSL and set up auto-renewal.</p>
+
+        <h3>Nginx Configuration</h3>
+
+        <p>Create <code>/etc/nginx/sites-available/thalamus</code> with:</p>
+        <ul>
+          <li>SSL certificate configuration</li>
+          <li>Security headers (HSTS, X-Frame-Options, etc.)</li>
+          <li>Proxy pass to localhost:4000</li>
+          <li>HTTP to HTTPS redirect</li>
+        </ul>
+        <p class="text-sm text-base-content/70">See DEPLOYMENT_GUIDE.md in the repository for complete Nginx configuration.</p>
+
+        <div class="divider my-12"></div>
+
+        <h2>Email Configuration</h2>
+
+        <p>
+          Thalamus requires email configuration for user verification, password reset, and notifications.
+        </p>
+
+        <h3>Recommended Providers</h3>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 not-prose mb-6">
+          <div class="card bg-base-200">
+            <div class="card-body">
+              <h3 class="card-title text-sm">SendGrid</h3>
+              <p class="text-xs">100 emails/day free</p>
+              <p class="text-xs text-base-content/70">Easy setup, reliable</p>
+            </div>
+          </div>
+
+          <div class="card bg-base-200">
+            <div class="card-body">
+              <h3 class="card-title text-sm">Mailgun</h3>
+              <p class="text-xs">100 emails/day free</p>
+              <p class="text-xs text-base-content/70">Developer-friendly</p>
+            </div>
+          </div>
+
+          <div class="card bg-base-200">
+            <div class="card-body">
+              <h3 class="card-title text-sm">AWS SES</h3>
+              <p class="text-xs">62k emails/month free</p>
+              <p class="text-xs text-base-content/70">AWS account required</p>
+            </div>
+          </div>
+        </div>
+
+        <h3>SendGrid Configuration</h3>
+
+        <div class="mockup-code mb-6">
+          <pre><code>SMTP_RELAY=smtp.sendgrid.net
+SMTP_USERNAME=apikey
+SMTP_PASSWORD=SG.your-api-key-here
+SMTP_PORT=587
+SMTP_TLS=always
+FROM_EMAIL=noreply@your-domain.com
+FROM_NAME="ZEA Thalamus"</code></pre>
+        </div>
+
+        <div class="divider my-12"></div>
+
+        <h2>Security Checklist</h2>
+
+        <div class="overflow-x-auto">
+          <table class="table table-zebra">
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Status</th>
+                <th>Priority</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>SSL/TLS enabled (HTTPS)</td>
+                <td><input type="checkbox" class="checkbox checkbox-sm" /></td>
+                <td><div class="badge badge-error">Critical</div></td>
+              </tr>
+              <tr>
+                <td>SECRET_KEY_BASE is 64+ characters</td>
+                <td><input type="checkbox" class="checkbox checkbox-sm" /></td>
+                <td><div class="badge badge-error">Critical</div></td>
+              </tr>
+              <tr>
+                <td>Firewall configured (ports 80, 443 only)</td>
+                <td><input type="checkbox" class="checkbox checkbox-sm" /></td>
+                <td><div class="badge badge-error">Critical</div></td>
+              </tr>
+              <tr>
+                <td>Database password is strong (16+ chars)</td>
+                <td><input type="checkbox" class="checkbox checkbox-sm" /></td>
+                <td><div class="badge badge-warning">High</div></td>
+              </tr>
+              <tr>
+                <td>Redis password configured</td>
+                <td><input type="checkbox" class="checkbox checkbox-sm" /></td>
+                <td><div class="badge badge-warning">High</div></td>
+              </tr>
+              <tr>
+                <td>Automated database backups</td>
+                <td><input type="checkbox" class="checkbox checkbox-sm" /></td>
+                <td><div class="badge badge-warning">High</div></td>
+              </tr>
+              <tr>
+                <td>Email sending tested</td>
+                <td><input type="checkbox" class="checkbox checkbox-sm" /></td>
+                <td><div class="badge badge-info">Medium</div></td>
+              </tr>
+              <tr>
+                <td>Monitoring and alerts configured</td>
+                <td><input type="checkbox" class="checkbox checkbox-sm" /></td>
+                <td><div class="badge badge-info">Medium</div></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="divider my-12"></div>
+
+        <h2>Monitoring & Maintenance</h2>
+
+        <h3>Health Check</h3>
+
+        <p>Monitor your Thalamus instance with:</p>
+
+        <div class="mockup-code mb-6">
+          <pre data-prefix="$"><code>curl https://your-domain.com/api/public/health</code></pre>
+        </div>
+
+        <h3>Application Logs</h3>
+
+        <div class="mockup-code mb-6">
+          <pre data-prefix="$"><code># Docker</code></pre>
+          <pre data-prefix="$"><code>docker-compose logs -f thalamus</code></pre>
+          <pre data-prefix=""><code></code></pre>
+          <pre data-prefix="$"><code># Systemd</code></pre>
+          <pre data-prefix="$"><code>sudo journalctl -u thalamus -f</code></pre>
+        </div>
+
+        <h3>Database Backups</h3>
+
+        <p>Create a daily backup script:</p>
+
+        <div class="mockup-code mb-6">
+          <pre><code>#!/bin/bash
+DATE=$(date +%Y%m%d_%H%M%S)
+pg_dump -U thalamus_user thalamus_prod | \
+  gzip > /backup/thalamus_$DATE.sql.gz
+
+# Keep last 30 days
+find /backup -name "thalamus_*.sql.gz" -mtime +30 -delete</code></pre>
+        </div>
+
+        <%!-- Next Steps --%>
+        <div class="divider my-12"></div>
+
+        <h2>Next Steps</h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 not-prose">
+          <a href={~p"/docs/getting-started"} class="card bg-base-200 hover:bg-base-300 transition-colors cursor-pointer">
+            <div class="card-body">
+              <h3 class="card-title text-base">Getting Started</h3>
+              <p class="text-sm text-base-content/70">Quick start guide for integration</p>
+            </div>
+          </a>
+
+          <a href={~p"/docs/api-reference"} class="card bg-base-200 hover:bg-base-300 transition-colors cursor-pointer">
+            <div class="card-body">
+              <h3 class="card-title text-base">API Reference</h3>
+              <p class="text-sm text-base-content/70">Complete API documentation</p>
+            </div>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

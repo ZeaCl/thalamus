@@ -1,0 +1,338 @@
+<div class="min-h-screen bg-base-200 py-8">
+  <div class="container mx-auto px-4 max-w-5xl">
+    <%!-- Back button --%>
+    <div class="mb-6">
+      <a href={~p"/docs"} class="btn btn-ghost btn-sm gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+        </svg>
+        Back to Documentation
+      </a>
+    </div>
+
+    <%!-- Header --%>
+    <div class="text-center mb-12">
+      <h1 class="text-5xl font-bold mb-4 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+        Agent Tokens
+      </h1>
+      <p class="text-xl text-base-content/70">
+        Specialized tokens for AI agents in the agentic economy
+      </p>
+      <div class="badge badge-primary badge-lg mt-4">Advanced Feature</div>
+    </div>
+
+    <%!-- Main content card --%>
+    <div class="card bg-base-100 shadow-xl">
+      <div class="card-body prose prose-lg max-w-none">
+
+        <h2>What are Agent Tokens?</h2>
+
+        <p>
+          Agent Tokens are specialized OAuth2 access tokens designed for AI agents operating in the agentic economy.
+          They extend standard OAuth2 tokens with features for task-scoping, delegation tracking, and compliance-ready audit trails.
+        </p>
+
+        <div class="alert alert-info mb-6">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          <div>
+            <h3 class="font-bold mt-0">EU AI Act Compliant</h3>
+            <div class="text-sm">Agent tokens include built-in compliance features for EU AI Act Article 13 (transparency and documentation).</div>
+          </div>
+        </div>
+
+        <h2>Key Features</h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 not-prose mb-8">
+          <div class="card bg-base-200">
+            <div class="card-body">
+              <h3 class="card-title text-base flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Task-Scoped Tokens
+              </h3>
+              <p class="text-sm">Tokens limited to specific tasks with operation count limits</p>
+            </div>
+          </div>
+
+          <div class="card bg-base-200">
+            <div class="card-body">
+              <h3 class="card-title text-base flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                </svg>
+                Delegation Tracking
+              </h3>
+              <p class="text-sm">Full chain of authorization from human to agent(s)</p>
+            </div>
+          </div>
+
+          <div class="card bg-base-200">
+            <div class="card-body">
+              <h3 class="card-title text-base flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 00-1.883 2.542l.857 6a2.25 2.25 0 002.227 1.932H19.05a2.25 2.25 0 002.227-1.932l.857-6a2.25 2.25 0 00-1.883-2.542m-16.5 0V6A2.25 2.25 0 016 3.75h3a2.25 2.25 0 012.25 2.25v3.776m0 0c.07.01.14.023.21.04a2.25 2.25 0 003.796 0c.07-.017.14-.03.21-.04m0 0V6A2.25 2.25 0 0116.5 3.75h3A2.25 2.25 0 0121.75 6v3.776" />
+                </svg>
+                Audit Trails
+              </h3>
+              <p class="text-sm">Compliance-ready logging for regulatory requirements</p>
+            </div>
+          </div>
+
+          <div class="card bg-base-200">
+            <div class="card-body">
+              <h3 class="card-title text-base flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+                </svg>
+                High Performance
+              </h3>
+              <p class="text-sm">&lt; 3ms introspection latency with Redis cache</p>
+            </div>
+          </div>
+        </div>
+
+        <h2>Agent Types</h2>
+
+        <div class="overflow-x-auto mb-8">
+          <table class="table table-zebra">
+            <thead>
+              <tr>
+                <th>Type</th>
+                <th>Description</th>
+                <th>Use Case</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>autonomous</code></td>
+                <td>Agent operates independently without human approval per action</td>
+                <td>Long-running tasks, automated workflows</td>
+              </tr>
+              <tr>
+                <td><code>supervised</code></td>
+                <td>Agent requires human approval for critical actions</td>
+                <td>High-risk operations, GDPR Article 22 compliance</td>
+              </tr>
+              <tr>
+                <td><code>ephemeral</code></td>
+                <td>Short-lived agent for single task execution</td>
+                <td>One-time operations, quick tasks</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2>Generating Agent Tokens</h2>
+
+        <h3>Endpoint</h3>
+
+        <div class="flex items-center gap-2 mb-4">
+          <div class="badge badge-warning">POST</div>
+          <code class="text-lg">/oauth/agent-token</code>
+        </div>
+
+        <h3>Request</h3>
+
+        <div class="mockup-code mb-4">
+          <pre><code><%!-- JSON request example --%>
+POST /oauth/agent-token
+Content-Type: application/json
+Body: JSON with client_id, client_secret, delegated_by_user_id,
+      agent_type, scope, task_id, max_operations, etc.</code></pre>
+        </div>
+
+        <p>See API Reference for complete parameter list.</p>
+
+        <h3>Response</h3>
+
+        <p>Returns JSON with access_token, token_type, expires_in, scope, agent_type, task_id, max_operations, and expires_on_completion fields.</p>
+
+        <h2>Request Parameters</h2>
+
+        <div class="overflow-x-auto mb-8">
+          <table class="table table-zebra">
+            <thead>
+              <tr>
+                <th>Parameter</th>
+                <th>Type</th>
+                <th>Required</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>client_id</code></td>
+                <td>string</td>
+                <td>Yes</td>
+                <td>OAuth2 client identifier</td>
+              </tr>
+              <tr>
+                <td><code>client_secret</code></td>
+                <td>string</td>
+                <td>Yes</td>
+                <td>OAuth2 client secret</td>
+              </tr>
+              <tr>
+                <td><code>delegated_by_user_id</code></td>
+                <td>string</td>
+                <td>Yes</td>
+                <td>User ID of human authorizer</td>
+              </tr>
+              <tr>
+                <td><code>agent_type</code></td>
+                <td>string</td>
+                <td>Yes</td>
+                <td>autonomous | supervised | ephemeral</td>
+              </tr>
+              <tr>
+                <td><code>scope</code></td>
+                <td>string</td>
+                <td>Yes</td>
+                <td>Space-separated scopes (subset of client allowed_scopes)</td>
+              </tr>
+              <tr>
+                <td><code>task_id</code></td>
+                <td>string</td>
+                <td>No</td>
+                <td>External task identifier</td>
+              </tr>
+              <tr>
+                <td><code>max_operations</code></td>
+                <td>integer</td>
+                <td>No</td>
+                <td>Maximum number of token uses</td>
+              </tr>
+              <tr>
+                <td><code>expires_on_completion</code></td>
+                <td>boolean</td>
+                <td>No</td>
+                <td>Auto-revoke when max_operations reached</td>
+              </tr>
+              <tr>
+                <td><code>intent_description</code></td>
+                <td>string</td>
+                <td>No</td>
+                <td>Human-readable intent for compliance</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2>Token Introspection (Extended)</h2>
+
+        <p>
+          When introspecting an agent token, the response includes additional agent-specific metadata such as:
+          agent_type, delegated_by, delegation_chain, delegation_depth, task_id, max_operations, operations_remaining,
+          expires_on_completion, intent_description, orchestrator_id, and environment.
+        </p>
+
+        <p class="text-sm text-base-content/70">See API Reference for complete introspection response format.</p>
+
+        <h2>Use Cases</h2>
+
+        <h3>1. Autonomous Data Processing</h3>
+
+        <p>
+          An AI agent processes customer data with a token limited to 1000 operations.
+          Configure with agent_type=autonomous, max_operations=1000, expires_on_completion=true.
+        </p>
+
+        <h3>2. Supervised Decision Making</h3>
+
+        <p>
+          An AI agent makes decisions that require human oversight.
+          Configure with agent_type=supervised for high-risk operations.
+        </p>
+
+        <h3>3. Ephemeral Task Execution</h3>
+
+        <p>
+          A short-lived agent for a one-time operation.
+          Configure with agent_type=ephemeral, max_operations=10, expires_in=300 seconds.
+        </p>
+
+        <h2>Compliance Features</h2>
+
+        <div class="alert alert-success mb-6">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          <div>
+            <h3 class="font-bold mt-0">Built for Compliance</h3>
+            <div class="text-sm">Agent tokens automatically create audit trails that satisfy EU AI Act Article 13 requirements for transparency and documentation.</div>
+          </div>
+        </div>
+
+        <h3>Audit Trail Example</h3>
+
+        <p>
+          All agent token operations are logged with timestamp, event_type, user_id, organization_id, and metadata including
+          agent_type, task_id, task_scopes, max_operations, intent_description, and orchestrator_id.
+        </p>
+
+        <h2>Best Practices</h2>
+
+        <div class="grid grid-cols-1 gap-4 not-prose mb-8">
+          <div class="card bg-base-200">
+            <div class="card-body">
+              <h3 class="card-title text-sm">✅ DO: Use Task-Scoped Tokens</h3>
+              <p class="text-xs">Always set <code>task_id</code> and <code>max_operations</code> to limit token usage to specific tasks.</p>
+            </div>
+          </div>
+
+          <div class="card bg-base-200">
+            <div class="card-body">
+              <h3 class="card-title text-sm">✅ DO: Provide Intent Descriptions</h3>
+              <p class="text-xs">Include clear <code>intent_description</code> for compliance and audit purposes.</p>
+            </div>
+          </div>
+
+          <div class="card bg-base-200">
+            <div class="card-body">
+              <h3 class="card-title text-sm">✅ DO: Enable Auto-Revocation</h3>
+              <p class="text-xs">Set <code>expires_on_completion: true</code> for ephemeral tasks.</p>
+            </div>
+          </div>
+
+          <div class="card bg-base-200">
+            <div class="card-body">
+              <h3 class="card-title text-sm">❌ DON'T: Use Long-Lived Agent Tokens</h3>
+              <p class="text-xs">Keep agent token TTL short (default 15 minutes, max 1 hour).</p>
+            </div>
+          </div>
+
+          <div class="card bg-base-200">
+            <div class="card-body">
+              <h3 class="card-title text-sm">❌ DON'T: Grant Excessive Scopes</h3>
+              <p class="text-xs">Only grant the minimum scopes required for the specific task.</p>
+            </div>
+          </div>
+        </div>
+
+        <%!-- Next Steps --%>
+        <div class="divider my-12"></div>
+
+        <h2>Next Steps</h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 not-prose">
+          <a href={~p"/docs/api-reference"} class="card bg-base-200 hover:bg-base-300 transition-colors cursor-pointer">
+            <div class="card-body">
+              <h3 class="card-title text-base">API Reference</h3>
+              <p class="text-sm text-base-content/70">Complete API documentation</p>
+            </div>
+          </a>
+
+          <a href={~p"/docs/integration"} class="card bg-base-200 hover:bg-base-300 transition-colors cursor-pointer">
+            <div class="card-body">
+              <h3 class="card-title text-base">Integration Guide</h3>
+              <p class="text-sm text-base-content/70">Learn OAuth2 integration patterns</p>
+            </div>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,210 @@
+<div class="min-h-screen bg-base-200 py-8">
+  <div class="container mx-auto px-4 max-w-5xl">
+    <%!-- Back button --%>
+    <div class="mb-6">
+      <a href={~p"/docs"} class="btn btn-ghost btn-sm gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+        </svg>
+        Back to Documentation
+      </a>
+    </div>
+
+    <%!-- Header --%>
+    <div class="text-center mb-12">
+      <h1 class="text-5xl font-bold mb-4 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+        Integration Guide
+      </h1>
+      <p class="text-xl text-base-content/70">
+        OAuth2 integration made easy with our JavaScript SDK
+      </p>
+    </div>
+
+    <%!-- Main content card --%>
+    <div class="card bg-base-100 shadow-xl">
+      <div class="card-body prose prose-lg max-w-none">
+
+        <div class="alert alert-success mb-8">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          <div>
+            <h3 class="font-bold mt-0">Recommended: Use our SDK</h3>
+            <div class="text-sm">Skip manual OAuth2 implementation. Our JavaScript/TypeScript SDK handles everything automatically.</div>
+          </div>
+        </div>
+
+        <h2>Quick Start with SDK</h2>
+
+        <div class="steps steps-vertical lg:steps-horizontal mb-8">
+          <div class="step step-primary">Install SDK</div>
+          <div class="step step-primary">Configure</div>
+          <div class="step step-primary">Add Auth</div>
+          <div class="step">Deploy</div>
+        </div>
+
+        <h3>1. Install the SDK</h3>
+
+        <div class="mockup-code mb-6">
+          <pre data-prefix="$"><code>npm install @zea/thalamus-js</code></pre>
+        </div>
+
+        <h3>2. Configure Your Client</h3>
+
+        <p>Create a Thalamus client instance with your OAuth2 credentials (client_id, client_secret, redirect_uri, and base_url).</p>
+
+        <h3>3. Add Authentication to Your App</h3>
+
+        <p>The SDK provides simple methods:</p>
+
+        <ul>
+          <li><code>thalamus.auth.getAuthorizationUrl()</code> - Generate login URL</li>
+          <li><code>thalamus.auth.exchangeCode()</code> - Exchange code for tokens</li>
+          <li><code>thalamus.tokens.introspect()</code> - Validate tokens</li>
+          <li><code>thalamus.auth.refreshToken()</code> - Renew access tokens</li>
+        </ul>
+
+        <div class="alert alert-info mb-8">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          <span>Check out our complete Next.js example app in the <code>examples/</code> directory for a full working implementation.</span>
+        </div>
+
+        <div class="divider my-12"></div>
+
+        <h2>OAuth2 Flows Explained</h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 not-prose mb-8">
+          <div class="card bg-base-200">
+            <div class="card-body">
+              <h3 class="card-title text-base">Authorization Code</h3>
+              <p class="text-sm">For web apps with user login</p>
+              <div class="badge badge-primary mt-2">Recommended</div>
+            </div>
+          </div>
+
+          <div class="card bg-base-200">
+            <div class="card-body">
+              <h3 class="card-title text-base">Client Credentials</h3>
+              <p class="text-sm">For machine-to-machine (M2M)</p>
+              <div class="badge badge-secondary mt-2">Backend Services</div>
+            </div>
+          </div>
+
+          <div class="card bg-base-200">
+            <div class="card-body">
+              <h3 class="card-title text-base">Refresh Token</h3>
+              <p class="text-sm">Renew expired access tokens</p>
+              <div class="badge badge-accent mt-2">Automatic</div>
+            </div>
+          </div>
+        </div>
+
+        <h3>Authorization Code Flow</h3>
+
+        <p>The standard OAuth2 flow for web applications:</p>
+
+        <ol>
+          <li><strong>User clicks "Login"</strong> - Redirect to /oauth/authorize</li>
+          <li><strong>User authenticates</strong> - Enters credentials on Thalamus</li>
+          <li><strong>Authorization code returned</strong> - Thalamus redirects to your callback URL</li>
+          <li><strong>Exchange code for tokens</strong> - Your backend calls /oauth/token</li>
+          <li><strong>Store tokens securely</strong> - Use httpOnly cookies or secure storage</li>
+        </ol>
+
+        <h3 class="mt-8">Client Credentials (M2M)</h3>
+
+        <p>
+          For backend services that need to authenticate without a user, use the <code>getClientCredentialsToken()</code> method
+          with desired scopes.
+        </p>
+
+        <h3 class="mt-8">Token Introspection</h3>
+
+        <p>
+          Use <code>thalamus.tokens.introspect(token)</code> to validate tokens and retrieve metadata like user_id, scope, and expiration.
+        </p>
+
+        <div class="divider my-12"></div>
+
+        <h2>Framework Examples</h2>
+
+        <div class="tabs tabs-boxed mb-6">
+          <a class="tab tab-active">Next.js 14</a>
+          <a class="tab">Express</a>
+          <a class="tab">Direct API</a>
+        </div>
+
+        <div class="alert alert-info">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          <div>
+            <p class="font-bold">Complete Examples Available</p>
+            <ul class="text-sm mt-2">
+              <li>• Next.js 14 App Router - <code>examples/nextjs-app-router/</code></li>
+              <li>• Express.js API - <code>examples/express-api/</code></li>
+              <li>• Direct API calls - <code>examples/direct-api/</code></li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="divider my-12"></div>
+
+        <h2>Security Best Practices</h2>
+
+        <div class="grid grid-cols-1 gap-4 not-prose mb-8">
+          <div class="card bg-base-200">
+            <div class="card-body">
+              <h3 class="card-title text-sm">✅ Use PKCE</h3>
+              <p class="text-xs">Our SDK includes PKCE (code_challenge) by default for enhanced security.</p>
+            </div>
+          </div>
+
+          <div class="card bg-base-200">
+            <div class="card-body">
+              <h3 class="card-title text-sm">✅ Store Tokens Securely</h3>
+              <p class="text-xs">Use httpOnly cookies for web apps. Never expose tokens in localStorage or client-side code.</p>
+            </div>
+          </div>
+
+          <div class="card bg-base-200">
+            <div class="card-body">
+              <h3 class="card-title text-sm">✅ Validate State Parameter</h3>
+              <p class="text-xs">Always verify the state parameter matches to prevent CSRF attacks.</p>
+            </div>
+          </div>
+
+          <div class="card bg-base-200">
+            <div class="card-body">
+              <h3 class="card-title text-sm">✅ Use HTTPS Only</h3>
+              <p class="text-xs">Never use OAuth2 over HTTP in production. Always require HTTPS.</p>
+            </div>
+          </div>
+        </div>
+
+        <%!-- Next Steps --%>
+        <div class="divider my-12"></div>
+
+        <h2>Next Steps</h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 not-prose">
+          <a href={~p"/docs/api-reference"} class="card bg-base-200 hover:bg-base-300 transition-colors cursor-pointer">
+            <div class="card-body">
+              <h3 class="card-title text-base">API Reference</h3>
+              <p class="text-sm text-base-content/70">Complete endpoint documentation</p>
+            </div>
+          </a>
+
+          <a href={~p"/docs/deployment"} class="card bg-base-200 hover:bg-base-300 transition-colors cursor-pointer">
+            <div class="card-body">
+              <h3 class="card-title text-base">Deployment Guide</h3>
+              <p class="text-sm text-base-content/70">Production setup and configuration</p>
+            </div>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

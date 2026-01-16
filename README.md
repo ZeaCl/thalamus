@@ -40,7 +40,9 @@ ZEA Thalamus is a production-ready OAuth2 server built with **Clean Architecture
 - 🏢 **Flexible Plans** (Free, Starter, Professional, Enterprise)
 
 ### Developer Experience
+- 📦 **TypeScript SDK** (`@zea/thalamus-js`) - Zero dependencies, fully typed
 - 📚 **OpenAPI 3.0 Documentation** (Swagger)
+- 🎯 **Complete Examples** (Next.js 14, Direct API integration)
 - 🐳 **Docker & Docker Compose** ready
 - 🔧 **Makefile** with common commands
 - 🧪 **Comprehensive Test Suite** (189 tests passing)
@@ -80,6 +82,48 @@ ZEA Thalamus is a production-ready OAuth2 server built with **Clean Architecture
 - ⚠️  Documentation: 90%
 
 See [STATUS.md](STATUS.md) for detailed status.
+
+---
+
+## 📦 SDK & Examples
+
+### TypeScript SDK
+
+```bash
+npm install @zea/thalamus-js
+```
+
+```typescript
+import { ThalamusClient } from '@zea/thalamus-js'
+
+const thalamus = new ThalamusClient({
+  clientId: 'your_client_id',
+  clientSecret: 'your_client_secret',
+  redirectUri: 'http://localhost:3000/auth/callback',
+  baseUrl: 'http://localhost:4000',
+})
+
+// OAuth2 Authorization Code flow
+const authUrl = thalamus.auth.getAuthorizationUrl({ state: 'random-state' })
+const tokens = await thalamus.auth.exchangeCode('authorization_code')
+const user = await thalamus.tokens.getUserInfo(tokens.access_token)
+```
+
+**Features:**
+- ✅ Zero dependencies
+- ✅ Full TypeScript support
+- ✅ OAuth2 2.0 compliant
+- ✅ All grant types supported
+- ✅ Token introspection & revocation
+
+[View SDK Documentation →](./packages/thalamus-js/README.md)
+
+### Examples
+
+- **[Next.js 14 App Router](./examples/nextjs-app-router)** - Complete OAuth2 integration with React Server Components
+- **[Direct API Example](./examples/direct-api)** - Integration without SDK using vanilla `fetch()`
+
+[View All Examples →](./examples/README.md)
 
 ---
 

@@ -1,0 +1,424 @@
+<div class="min-h-screen bg-base-100">
+  <!-- Header -->
+  <div class="bg-gradient-to-r from-green-500 to-emerald-600 text-white">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div class="flex items-center gap-3 mb-4">
+        <.link navigate="/docs" class="text-white/80 hover:text-white text-sm flex items-center gap-1">
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M10 19l-7-7m0 0l7-7m-7 7h18"
+            />
+          </svg>
+          Back to Docs
+        </.link>
+      </div>
+      <h1 class="text-4xl font-bold mb-3">Getting Started</h1>
+      <p class="text-xl text-white/90">
+        Quick integration guide to set up OAuth2 with Thalamus in 4 steps
+      </p>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <!-- What is Thalamus -->
+    <section class="mb-12">
+      <h2 class="text-2xl font-bold text-base-content mb-4">🎯 What is Thalamus?</h2>
+      <p class="text-base-content/80 mb-4">
+        Thalamus is a centralized OAuth2 authentication service built for modern applications.
+        It enables any application to authenticate users without implementing their own login system.
+      </p>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+        <div class="flex gap-3 p-4 bg-base-200 rounded-lg">
+          <svg class="h-6 w-6 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
+          <div>
+            <h3 class="font-semibold text-base-content">Single Sign-On (SSO)</h3>
+            <p class="text-sm text-base-content/70">One login for all your apps</p>
+          </div>
+        </div>
+
+        <div class="flex gap-3 p-4 bg-base-200 rounded-lg">
+          <svg class="h-6 w-6 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
+          <div>
+            <h3 class="font-semibold text-base-content">OAuth2 2.0 Compliant</h3>
+            <p class="text-sm text-base-content/70">Industry standard protocol</p>
+          </div>
+        </div>
+
+        <div class="flex gap-3 p-4 bg-base-200 rounded-lg">
+          <svg class="h-6 w-6 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
+          <div>
+            <h3 class="font-semibold text-base-content">Multi-Factor Authentication</h3>
+            <p class="text-sm text-base-content/70">Enhanced security with MFA</p>
+          </div>
+        </div>
+
+        <div class="flex gap-3 p-4 bg-base-200 rounded-lg">
+          <svg class="h-6 w-6 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
+          <div>
+            <h3 class="font-semibold text-base-content">Production Ready</h3>
+            <p class="text-sm text-base-content/70">Battle-tested and secure</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Integration Steps -->
+    <section class="mb-12">
+      <h2 class="text-2xl font-bold text-base-content mb-6">🚀 Integration in 4 Steps</h2>
+
+      <!-- Flow Diagram -->
+      <div class="flex flex-col gap-4 mb-8 p-6 bg-base-200 rounded-lg">
+        <div class="flex items-center gap-4">
+          <div class="badge badge-primary badge-lg">0</div>
+          <div class="flex-1">
+            <h3 class="font-semibold text-base-content">Super Admin creates Admin API Key</h3>
+            <p class="text-sm text-base-content/70">One-time per service/vertical</p>
+          </div>
+        </div>
+        <div class="pl-8">
+          <svg class="h-6 w-6 text-base-content/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+          </svg>
+        </div>
+
+        <div class="flex items-center gap-4">
+          <div class="badge badge-primary badge-lg">1</div>
+          <div class="flex-1">
+            <h3 class="font-semibold text-base-content">Your service self-registers as OAuth2 Client</h3>
+            <p class="text-sm text-base-content/70">Get client_id + client_secret</p>
+          </div>
+        </div>
+        <div class="pl-8">
+          <svg class="h-6 w-6 text-base-content/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+          </svg>
+        </div>
+
+        <div class="flex items-center gap-4">
+          <div class="badge badge-primary badge-lg">2</div>
+          <div class="flex-1">
+            <h3 class="font-semibold text-base-content">Configure OAuth2 in your application</h3>
+            <p class="text-sm text-base-content/70">Implement authentication flow</p>
+          </div>
+        </div>
+        <div class="pl-8">
+          <svg class="h-6 w-6 text-base-content/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+          </svg>
+        </div>
+
+        <div class="flex items-center gap-4">
+          <div class="badge badge-primary badge-lg">3</div>
+          <div class="flex-1">
+            <h3 class="font-semibold text-base-content">Users authenticate via Thalamus</h3>
+            <p class="text-sm text-base-content/70">Login → Token → Access to your app</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 0 -->
+      <div class="card bg-base-200 mb-6">
+        <div class="card-body">
+          <div class="flex items-center gap-3 mb-4">
+            <div class="badge badge-lg badge-primary">Step 0</div>
+            <h3 class="text-xl font-bold text-base-content">Obtain Admin API Key</h3>
+          </div>
+
+          <div class="alert alert-info mb-4">
+            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            <div class="text-sm">
+              <strong>Who:</strong>
+              Thalamus super admin
+              <br />
+              <strong>When:</strong>
+              Once per service/vertical<br />
+              <strong>Result:</strong>
+              API Key for service self-registration
+            </div>
+          </div>
+
+          <p class="text-base-content/80 mb-4">
+            A super admin creates an Admin API Key through the
+            <.link navigate="/dashboard" class="link link-primary">
+              dashboard
+            </.link>
+            or API:
+          </p>
+
+          <p class="text-sm text-base-content/70">
+            Create API key via dashboard or API with name, description, and scopes (clients:write, clients:read).
+          </p>
+
+          <div class="alert alert-warning mt-4">
+            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+              />
+            </svg>
+            <span class="text-sm">
+              <strong>Important:</strong>
+              Save the <code>api_key</code> securely. It's shown only once!
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 1 -->
+      <div class="card bg-base-200 mb-6">
+        <div class="card-body">
+          <div class="flex items-center gap-3 mb-4">
+            <div class="badge badge-lg badge-primary">Step 1</div>
+            <h3 class="text-xl font-bold text-base-content">Register as OAuth2 Client</h3>
+          </div>
+
+          <div class="alert alert-info mb-4">
+            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            <div class="text-sm">
+              <strong>Who:</strong>
+              Your development team
+              <br />
+              <strong>When:</strong>
+              Once during initial setup<br />
+              <strong>Result:</strong>
+              <code>client_id</code>
+              + <code>client_secret</code>
+            </div>
+          </div>
+
+          <p class="text-base-content/80 mb-4">
+            Your service registers as an OAuth2 client using the Admin API Key:
+          </p>
+
+          <p class="text-sm text-base-content/70">
+            Use the Admin API Key to POST to /api/clients with: name, organization_id, client_type, redirect_uris, grant_types, and scopes.
+            See Integration Guide for complete examples.
+          </p>
+
+          <p class="text-base-content/80 mt-4 mb-2">
+            <strong>Save these credentials</strong>
+            in your environment variables:
+          </p>
+
+          <div class="mockup-code">
+            <pre><code>OAUTH2_CLIENT_ID=client_abc123...
+OAUTH2_CLIENT_SECRET=secret_xyz789...
+OAUTH2_REDIRECT_URI=https://myapp.com/auth/callback
+OAUTH2_AUTHORIZE_URL=https://thalamus.example.com/oauth/authorize
+OAUTH2_TOKEN_URL=https://thalamus.example.com/oauth/token</code></pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="card bg-base-200 mb-6">
+        <div class="card-body">
+          <div class="flex items-center gap-3 mb-4">
+            <div class="badge badge-lg badge-primary">Step 2</div>
+            <h3 class="text-xl font-bold text-base-content">Configure OAuth2 in Your App</h3>
+          </div>
+
+          <p class="text-base-content/80 mb-4">
+            Implement the OAuth2 Authorization Code flow in your application:
+          </p>
+
+          <ol class="text-sm text-base-content/70">
+            <li>Redirect user to /oauth/authorize with client_id, redirect_uri, scope, and state</li>
+            <li>Handle callback at your redirect_uri with the authorization code</li>
+            <li>Exchange code for tokens at /oauth/token</li>
+            <li>Store tokens securely (httpOnly cookies recommended)</li>
+          </ol>
+
+          <p class="text-sm text-base-content/70 mt-4">
+            See the Integration Guide for complete code examples in Node.js, Python, PHP, and more.
+          </p>
+
+          <div class="alert mt-4">
+            <svg class="h-5 w-5 text-info" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            <span class="text-sm">
+              See the
+              <.link navigate="/docs/integration" class="link link-primary">Integration Guide</.link>
+              for examples in other languages and frameworks.
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="card bg-base-200 mb-6">
+        <div class="card-body">
+          <div class="flex items-center gap-3 mb-4">
+            <div class="badge badge-lg badge-success">Step 3</div>
+            <h3 class="text-xl font-bold text-base-content">Users Authenticate</h3>
+          </div>
+
+          <p class="text-base-content/80 mb-4">
+            Your users can now authenticate through Thalamus! The flow works like this:
+          </p>
+
+          <ol class="list-decimal list-inside space-y-2 text-base-content/80">
+            <li>User clicks "Login" in your app</li>
+            <li>They're redirected to Thalamus login page</li>
+            <li>User enters credentials (with optional MFA)</li>
+            <li>Thalamus redirects back with authorization code</li>
+            <li>Your app exchanges code for access token</li>
+            <li>User is now authenticated!</li>
+          </ol>
+
+          <div class="alert alert-success mt-4">
+            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            <span class="text-sm">
+              <strong>Done!</strong>
+              Your application is now integrated with Thalamus OAuth2.
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Next Steps -->
+    <section class="mb-12">
+      <h2 class="text-2xl font-bold text-base-content mb-4">📚 Next Steps</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <.link navigate="/docs/integration" class="card bg-base-200 hover:bg-base-300 transition">
+          <div class="card-body">
+            <h3 class="font-semibold text-base-content flex items-center gap-2">
+              <svg class="h-5 w-5 text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                />
+              </svg>
+              Integration Guide
+            </h3>
+            <p class="text-sm text-base-content/70">
+              Detailed OAuth2 integration with code examples
+            </p>
+          </div>
+        </.link>
+
+        <.link navigate="/docs/api-reference" class="card bg-base-200 hover:bg-base-300 transition">
+          <div class="card-body">
+            <h3 class="font-semibold text-base-content flex items-center gap-2">
+              <svg class="h-5 w-5 text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+                />
+              </svg>
+              API Reference
+            </h3>
+            <p class="text-sm text-base-content/70">
+              Complete API documentation and endpoints
+            </p>
+          </div>
+        </.link>
+
+        <.link navigate="/dashboard" class="card bg-base-200 hover:bg-base-300 transition">
+          <div class="card-body">
+            <h3 class="font-semibold text-base-content flex items-center gap-2">
+              <svg class="h-5 w-5 text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                />
+              </svg>
+              Admin Dashboard
+            </h3>
+            <p class="text-sm text-base-content/70">
+              Manage clients, users, and tokens
+            </p>
+          </div>
+        </.link>
+
+        <.link navigate="/docs/deployment" class="card bg-base-200 hover:bg-base-300 transition">
+          <div class="card-body">
+            <h3 class="font-semibold text-base-content flex items-center gap-2">
+              <svg class="h-5 w-5 text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"
+                />
+              </svg>
+              Deployment Guide
+            </h3>
+            <p class="text-sm text-base-content/70">
+              Deploy to production with Docker
+            </p>
+          </div>
+        </.link>
+      </div>
+    </section>
+  </div>
+</div>

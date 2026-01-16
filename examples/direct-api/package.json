@@ -1,0 +1,24 @@
+{
+  "name": "thalamus-direct-api-example",
+  "version": "1.0.0",
+  "description": "Example of direct API integration with Thalamus OAuth2 (no SDK)",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cookie-parser": "^1.4.6",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.10.5",
+    "@types/cookie-parser": "^1.4.6",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3"
+  }
+}
