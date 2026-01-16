@@ -86,6 +86,11 @@ defmodule ThalamusWeb.Router do
     get "/login", SessionController, :new
     post "/login", SessionController, :create
     post "/logout", SessionController, :delete
+
+    # Registration
+    get "/register", RegistrationController, :new
+    post "/register", RegistrationController, :create
+    get "/register/success", RegistrationController, :success
   end
 
   # Documentation (Public)

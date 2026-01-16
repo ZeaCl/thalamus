@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-base-200">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="csrf-token" content={get_csrf_token()} />
+    <title>Sign Up · Thalamus OAuth2</title>
+    <link phx-track-static rel="stylesheet" href={~p"/assets/css/app.css"} />
+    <script defer phx-track-static type="text/javascript" src={~p"/assets/js/app.js"}>
+    </script>
+  </head>
+  <body class="h-full">
+    <div class="flex min-h-full flex-col justify-center py-12 sm:px-6 lg:px-8 bg-base-200">
+      <div class="sm:mx-auto sm:w-full sm:max-w-md">
+        <!-- Logo -->
+        <div class="flex justify-center">
+          <svg
+            class="h-16 w-16 text-cyan-500"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+            />
+          </svg>
+        </div>
+        <h2 class="mt-6 text-center text-3xl font-bold tracking-tight text-base-content">
+          Create your account
+        </h2>
+        <p class="mt-2 text-center text-sm text-base-content/70">
+          Start using Thalamus OAuth2 Server
+        </p>
+      </div>
+
+      <div class="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+        <div class="card bg-base-100 shadow-xl">
+          <div class="card-body">
+            <%= if @flash["error"] do %>
+              <div class="alert alert-error">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="stroke-current shrink-0 h-6 w-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                <span>{@flash["error"]}</span>
+              </div>
+            <% end %>
+
+            <.form for={%{}} as={:registration} action={~p"/register"} method="post">
+              <div class="form-control w-full">
+                <label class="label">
+                  <span class="label-text">Name</span>
+                </label>
+                <input
+                  type="text"
+                  name="registration[name]"
+                  class="input input-bordered w-full"
+                  placeholder="John Doe"
+                  required
+                  autofocus
+                />
+              </div>
+
+              <div class="form-control w-full mt-4">
+                <label class="label">
+                  <span class="label-text">Email</span>
+                </label>
+                <input
+                  type="email"
+                  name="registration[email]"
+                  class="input input-bordered w-full"
+                  placeholder="john@company.com"
+                  required
+                />
+              </div>
+
+              <div class="form-control w-full mt-4">
+                <label class="label">
+                  <span class="label-text">Password</span>
+                </label>
+                <input
+                  type="password"
+                  name="registration[password]"
+                  class="input input-bordered w-full"
+                  placeholder="••••••••"
+                  minlength="8"
+                  required
+                />
+                <label class="label">
+                  <span class="label-text-alt text-base-content/60">
+                    Minimum 8 characters
+                  </span>
+                </label>
+              </div>
+
+              <div class="form-control mt-6">
+                <button type="submit" class="btn btn-primary w-full">
+                  <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
+                    />
+                  </svg>
+                  Create Account
+                </button>
+              </div>
+            </.form>
+
+            <div class="divider">OR</div>
+
+            <div class="text-center">
+              <span class="text-sm text-base-content/70">Already have an account?</span>
+              <a href="/login" class="link link-primary text-sm ml-1">
+                Sign In
+              </a>
+            </div>
+
+            <div class="text-center mt-2">
+              <a href="/" class="link link-ghost text-sm">
+                Back to Home
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <p class="mt-6 text-center text-xs text-base-content/70">
+          Thalamus OAuth2 Server v1.0.0
+        </p>
+      </div>
+    </div>
+  </body>
+</html>
