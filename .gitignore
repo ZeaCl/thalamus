@@ -93,3 +93,6 @@ coverage/
 
 # Mix lock conflicts
 mix.lock.conflict
+
+# OpenSpecification framework documentation (private)
+docs/open_spec/
