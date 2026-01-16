@@ -162,7 +162,10 @@ defmodule Thalamus.Infrastructure.Adapters.EmailServiceImpl do
           :ok
 
         {:error, reason} ->
-          Logger.error("[EMAIL] Failed to send #{template_key} email to #{to_email}: #{inspect(reason)}")
+          Logger.error(
+            "[EMAIL] Failed to send #{template_key} email to #{to_email}: #{inspect(reason)}"
+          )
+
           {:error, reason}
       end
     else

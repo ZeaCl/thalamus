@@ -58,7 +58,10 @@ unless free_plan.type == :free, do: raise("Free plan type invalid")
 unless free_plan.max_users == 5, do: raise("Free plan limits invalid")
 {:ok, enterprise_plan} = Plan.enterprise()
 unless enterprise_plan.max_users == :unlimited, do: raise("Enterprise plan limits invalid")
-unless Plan.allows_users?(enterprise_plan, 1_000_000), do: raise("Enterprise user limit check failed")
+
+unless Plan.allows_users?(enterprise_plan, 1_000_000),
+  do: raise("Enterprise user limit check failed")
+
 unless not Plan.allows_users?(free_plan, 10), do: raise("Free plan should not allow 10 users")
 {:ok, upgraded} = Plan.upgrade(free_plan)
 unless upgraded.type == :starter, do: raise("Plan upgrade failed")
@@ -93,7 +96,9 @@ unless Organization.member?(org_with_member, member_id), do: raise("Member check
 
 # Test role management
 unless Organization.has_role?(org_with_member, owner_id, :owner), do: raise("Role check failed")
-unless Organization.has_role?(org_with_member, member_id, :admin), do: raise("Admin role check failed")
+
+unless Organization.has_role?(org_with_member, member_id, :admin),
+  do: raise("Admin role check failed")
 
 # Test API call tracking
 {:ok, org_with_call} = Organization.record_api_call(org)
@@ -130,28 +135,34 @@ unless is_nil(public_client.client_secret), do: raise("Public client should not 
 
 # Test M2M client
 {:ok, m2m_client} = OAuth2Client.create_m2m("Background Service", org_id_for_client)
-unless OAuth2Client.supports_grant_type?(m2m_client, :client_credentials), do: raise("M2M grant type missing")
+
+unless OAuth2Client.supports_grant_type?(m2m_client, :client_credentials),
+  do: raise("M2M grant type missing")
 
 # Test redirect URI management
 {:ok, redirect_uri} = RedirectUri.new("https://app.example.com/callback")
 {:ok, client_with_uri} = OAuth2Client.add_redirect_uri(confidential_client, redirect_uri)
+
 unless OAuth2Client.valid_redirect_uri?(client_with_uri, "https://app.example.com/callback"),
   do: raise("Redirect URI validation failed")
 
 # Test scope management
 {:ok, profile_scope} = Scope.new("profile")
 {:ok, client_with_scope} = OAuth2Client.add_scope(confidential_client, profile_scope)
+
 unless OAuth2Client.valid_scopes?(client_with_scope, ["openid", "profile"]),
   do: raise("Scope validation failed")
 
 # Test grant type management
 {:ok, refresh_grant} = GrantType.refresh_token()
 {:ok, client_with_refresh} = OAuth2Client.add_grant_type(confidential_client, refresh_grant)
+
 unless OAuth2Client.supports_grant_type?(client_with_refresh, :refresh_token),
   do: raise("Grant type addition failed")
 
 # Test secret rotation
 {:ok, rotated_client} = OAuth2Client.rotate_secret(confidential_client)
+
 unless rotated_client.client_secret != confidential_client.client_secret,
   do: raise("Secret rotation failed")
 

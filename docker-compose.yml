@@ -19,6 +19,7 @@ services:
   # ==========================================================================
   postgres:
     image: postgres:16-alpine
+    platform: linux/amd64
     container_name: thalamus_postgres
     environment:
       POSTGRES_DB: thalamus_dev
@@ -26,7 +27,7 @@ services:
       POSTGRES_PASSWORD: postgres
       PGDATA: /var/lib/postgresql/data/pgdata
     ports:
-      - "5432:5432"
+      - "5532:5432"  # External: 5532, Internal: 5432
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./priv/repo/init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -44,10 +45,11 @@ services:
   # ==========================================================================
   redis:
     image: redis:7-alpine
+    platform: linux/amd64
     container_name: thalamus_redis
     command: redis-server --appendonly yes --requirepass redis_password
     ports:
-      - "6379:6379"
+      - "6479:6379"  # External: 6479, Internal: 6379
     volumes:
       - redis_data:/data
     networks:
@@ -95,6 +97,7 @@ services:
       PHX_HOST: localhost
       PHX_PORT: 4000
       SECRET_KEY_BASE: "your-secret-key-base-at-least-64-chars-long-change-in-production"
+      BASE_URL: "http://localhost:4100"
 
       # Security Tokens
       VERIFICATION_TOKEN_SECRET: "change_me_in_production_verification_token_secret_key"
@@ -102,18 +105,16 @@ services:
       SESSION_SECRET: "change_me_in_production_session_secret_key"
 
       # Email (Development)
-      EMAIL_MODE: development
-      EMAIL_FROM: noreply@localhost
-      EMAIL_FROM_NAME: "ZEA Thalamus (Dev)"
-      EMAIL_BASE_URL: "http://localhost:4000"
+      FROM_EMAIL: noreply@localhost
+      FROM_NAME: "ZEA Thalamus (Dev)"
 
       # CORS
-      CORS_ORIGINS: "http://localhost:3000,http://localhost:4000"
+      CORS_ORIGINS: "http://localhost:3000,http://localhost:4100"
 
       # Logging
       LOG_LEVEL: info
     ports:
-      - "4000:4000"
+      - "4100:4000"  # External: 4100, Internal: 4000
     volumes:
       - .:/app
       - /app/deps
@@ -123,9 +124,19 @@ services:
       - thalamus_network
     command: >
       sh -c "
+        echo '⏳ Installing dependencies...' &&
         mix deps.get &&
+        echo '✅ Dependencies installed' &&
+        echo '⏳ Creating database...' &&
         mix ecto.create &&
+        echo '✅ Database created' &&
+        echo '⏳ Running migrations...' &&
         mix ecto.migrate &&
+        echo '✅ Migrations completed' &&
+        echo '⏳ Running seeds...' &&
+        mix run priv/repo/seeds.exs &&
+        echo '✅ Seeds completed' &&
+        echo '🚀 Starting Phoenix server...' &&
         mix phx.server
       "
     restart: unless-stopped
@@ -135,13 +146,14 @@ services:
   # ==========================================================================
   adminer:
     image: adminer:latest
+    platform: linux/amd64
     container_name: thalamus_adminer
     depends_on:
       - postgres
     environment:
       ADMINER_DEFAULT_SERVER: postgres
     ports:
-      - "8080:8080"
+      - "8180:8080"  # External: 8180, Internal: 8080
     networks:
       - thalamus_network
     restart: unless-stopped
@@ -151,13 +163,14 @@ services:
   # ==========================================================================
   redis_commander:
     image: rediscommander/redis-commander:latest
+    platform: linux/amd64
     container_name: thalamus_redis_commander
     depends_on:
       - redis
     environment:
       REDIS_HOSTS: "local:redis:6379:0:redis_password"
     ports:
-      - "8081:8081"
+      - "8181:8081"  # External: 8181, Internal: 8081
     networks:
       - thalamus_network
     restart: unless-stopped

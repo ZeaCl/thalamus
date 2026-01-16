@@ -34,7 +34,8 @@ defmodule Thalamus.Domain.ValueObjects.AuthorizationCode do
     :used_at
   ]
 
-  @default_expires_in_seconds 600  # 10 minutes
+  # 10 minutes
+  @default_expires_in_seconds 600
   @min_code_length 32
   @max_code_length 128
 
@@ -50,32 +51,40 @@ defmodule Thalamus.Domain.ValueObjects.AuthorizationCode do
       iex> AuthorizationCode.new("code_abc123", client_id, user_id, redirect_uri, scopes)
       {:ok, %AuthorizationCode{code: "code_abc123", ...}}
   """
-  def new(code, client_id, user_id, redirect_uri, scopes, pkce_challenge \\ nil, expires_in_seconds \\ @default_expires_in_seconds)
+  def new(
+        code,
+        client_id,
+        user_id,
+        redirect_uri,
+        scopes,
+        pkce_challenge \\ nil,
+        expires_in_seconds \\ @default_expires_in_seconds
+      )
 
   def new(code, client_id, user_id, redirect_uri, scopes, pkce_challenge, expires_in_seconds)
-      when is_binary(code) and is_list(scopes) and is_integer(expires_in_seconds) and expires_in_seconds > 0 do
-
+      when is_binary(code) and is_list(scopes) and is_integer(expires_in_seconds) and
+             expires_in_seconds > 0 do
     with :ok <- validate_code(code),
          :ok <- validate_client_id(client_id),
          :ok <- validate_user_id(user_id),
          :ok <- validate_redirect_uri(redirect_uri),
          :ok <- validate_scopes(scopes),
          :ok <- validate_pkce_challenge(pkce_challenge) do
-
       now = DateTime.utc_now()
       expires_at = DateTime.add(now, expires_in_seconds, :second)
 
-      {:ok, %__MODULE__{
-        code: code,
-        client_id: client_id,
-        user_id: user_id,
-        redirect_uri: redirect_uri,
-        scopes: scopes,
-        pkce_challenge: pkce_challenge,
-        expires_at: expires_at,
-        issued_at: now,
-        used_at: nil
-      }}
+      {:ok,
+       %__MODULE__{
+         code: code,
+         client_id: client_id,
+         user_id: user_id,
+         redirect_uri: redirect_uri,
+         scopes: scopes,
+         pkce_challenge: pkce_challenge,
+         expires_at: expires_at,
+         issued_at: now,
+         used_at: nil
+       }}
     end
   end
 
@@ -93,7 +102,14 @@ defmodule Thalamus.Domain.ValueObjects.AuthorizationCode do
       iex> AuthorizationCode.generate(client_id, user_id, redirect_uri, scopes)
       {:ok, %AuthorizationCode{code: "ac_" <> _secure_code, ...}}
   """
-  def generate(client_id, user_id, redirect_uri, scopes, pkce_challenge \\ nil, expires_in_seconds \\ @default_expires_in_seconds) do
+  def generate(
+        client_id,
+        user_id,
+        redirect_uri,
+        scopes,
+        pkce_challenge \\ nil,
+        expires_in_seconds \\ @default_expires_in_seconds
+      ) do
     secure_code = generate_secure_code()
     new(secure_code, client_id, user_id, redirect_uri, scopes, pkce_challenge, expires_in_seconds)
   end
@@ -177,7 +193,8 @@ defmodule Thalamus.Domain.ValueObjects.AuthorizationCode do
       iex> AuthorizationCode.validate_redirect_uri(code, "https://evil.com/callback")
       {:error, :redirect_uri_mismatch}
   """
-  def validate_redirect_uri(%__MODULE__{redirect_uri: expected_uri}, provided_uri) when is_binary(provided_uri) do
+  def validate_redirect_uri(%__MODULE__{redirect_uri: expected_uri}, provided_uri)
+      when is_binary(provided_uri) do
     if RedirectUri.to_string(expected_uri) == provided_uri do
       :ok
     else
@@ -198,7 +215,8 @@ defmodule Thalamus.Domain.ValueObjects.AuthorizationCode do
       iex> AuthorizationCode.validate_client_id(code, "different_client")
       {:error, :client_id_mismatch}
   """
-  def validate_client_id(%__MODULE__{client_id: expected_client}, provided_client) when is_binary(provided_client) do
+  def validate_client_id(%__MODULE__{client_id: expected_client}, provided_client)
+      when is_binary(provided_client) do
     if ClientId.to_string(expected_client) == provided_client do
       :ok
     else
@@ -278,6 +296,7 @@ defmodule Thalamus.Domain.ValueObjects.AuthorizationCode do
   defp validate_redirect_uri(_), do: {:error, :invalid_redirect_uri}
 
   defp validate_scopes([]), do: {:error, :no_scopes_provided}
+
   defp validate_scopes(scopes) when is_list(scopes) do
     if Enum.all?(scopes, &valid_scope?/1) do
       :ok

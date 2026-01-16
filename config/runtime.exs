@@ -98,4 +98,21 @@ if config_env() == :prod do
   #       force_ssl: [hsts: true]
   #
   # Check `Plug.SSL` for all available options in `force_ssl`.
+
+  # Email configuration for production
+  config :thalamus, Thalamus.Mailer,
+    adapter: Swoosh.Adapters.SMTP,
+    relay: System.get_env("SMTP_RELAY"),
+    username: System.get_env("SMTP_USERNAME"),
+    password: System.get_env("SMTP_PASSWORD"),
+    port: String.to_integer(System.get_env("SMTP_PORT", "587")),
+    tls: String.to_atom(System.get_env("SMTP_TLS", "always")),
+    auth: String.to_atom(System.get_env("SMTP_AUTH", "always")),
+    retries: 2
+
+  # Email sender configuration
+  config :thalamus,
+    from_email: System.get_env("FROM_EMAIL") || "noreply@#{host}",
+    from_name: System.get_env("FROM_NAME") || "Thalamus OAuth2",
+    base_url: "https://#{host}"
 end

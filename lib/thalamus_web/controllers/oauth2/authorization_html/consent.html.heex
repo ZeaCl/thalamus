@@ -5,7 +5,7 @@
         Authorize Access
       </h2>
       <p class="mt-2 text-center text-sm text-gray-400">
-        <strong><%= @client_name %></strong> is requesting access to your account
+        <strong>{@client_name}</strong> is requesting access to your account
       </p>
     </div>
 
@@ -17,11 +17,21 @@
       <ul class="space-y-3 mb-6">
         <%= for scope <- @scopes do %>
           <li class="flex items-start">
-            <svg class="h-6 w-6 text-green-400 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            <svg
+              class="h-6 w-6 text-green-400 mr-2 flex-shrink-0"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M5 13l4 4L19 7"
+              />
             </svg>
             <span class="text-gray-300">
-              <%= scope_description(scope) %>
+              {scope_description(scope)}
             </span>
           </li>
         <% end %>
@@ -35,7 +45,11 @@
         <input type="hidden" name="state" value={@form_data.state} />
         <%= if @form_data.code_challenge do %>
           <input type="hidden" name="code_challenge" value={@form_data.code_challenge} />
-          <input type="hidden" name="code_challenge_method" value={@form_data.code_challenge_method} />
+          <input
+            type="hidden"
+            name="code_challenge_method"
+            value={@form_data.code_challenge_method}
+          />
         <% end %>
 
         <div class="flex space-x-4">
@@ -61,7 +75,7 @@
     </div>
 
     <p class="mt-4 text-center text-xs text-gray-500">
-      By authorizing, you allow <%= @client_name %> to access your information according to their privacy policy.
+      By authorizing, you allow {@client_name} to access your information according to their privacy policy.
     </p>
   </div>
 </div>

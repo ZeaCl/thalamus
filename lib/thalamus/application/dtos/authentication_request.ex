@@ -27,7 +27,8 @@ defmodule Thalamus.Application.DTOs.AuthenticationRequest do
       ...> })
       {:ok, %AuthenticationRequest{}}
   """
-  def new(%{email: email, password: password} = attrs) when is_binary(email) and is_binary(password) do
+  def new(%{email: email, password: password} = attrs)
+      when is_binary(email) and is_binary(password) do
     request = %__MODULE__{
       email: email,
       password: password,

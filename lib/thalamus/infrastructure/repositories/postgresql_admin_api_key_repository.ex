@@ -55,7 +55,7 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLAdminApiKeyRepository d
           # Existing key - determine if this is a rotation or normal update
           is_rotation =
             existing_schema.key_hash != admin_api_key.key_hash or
-            existing_schema.key_prefix != admin_api_key.key_prefix
+              existing_schema.key_prefix != admin_api_key.key_prefix
 
           changeset =
             if is_rotation do

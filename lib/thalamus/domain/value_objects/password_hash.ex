@@ -135,7 +135,9 @@ defmodule Thalamus.Domain.ValueObjects.PasswordHash do
   defp has_uppercase?(password), do: String.match?(password, ~r/[A-Z]/)
   defp has_lowercase?(password), do: String.match?(password, ~r/[a-z]/)
   defp has_digit?(password), do: String.match?(password, ~r/[0-9]/)
-  defp has_special_char?(password), do: String.match?(password, ~r/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/)
+
+  defp has_special_char?(password),
+    do: String.match?(password, ~r/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/)
 end
 
 # Implement String.Chars protocol for easy conversion

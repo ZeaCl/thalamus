@@ -3,6 +3,7 @@ defmodule ThalamusWeb.API.OrganizationControllerTest do
 
   alias Thalamus.Domain.Entities.{User, Organization}
   alias Thalamus.Domain.ValueObjects.AccessToken
+
   alias Thalamus.Infrastructure.Repositories.{
     PostgreSQLUserRepository,
     PostgreSQLOrganizationRepository,
@@ -16,12 +17,13 @@ defmodule ThalamusWeb.API.OrganizationControllerTest do
     {:ok, admin} = PostgreSQLUserRepository.save(admin)
 
     # Generate access token
-    {:ok, access_token} = AccessToken.generate(
-      admin.id,
-      Thalamus.Domain.ValueObjects.ClientId.generate!(),
-      [:read, :write, :admin],
-      3600
-    )
+    {:ok, access_token} =
+      AccessToken.generate(
+        admin.id,
+        Thalamus.Domain.ValueObjects.ClientId.generate(),
+        [:read, :write, :admin],
+        3600
+      )
 
     token_data = %{
       token: access_token.token,
@@ -30,6 +32,7 @@ defmodule ThalamusWeb.API.OrganizationControllerTest do
       scope: [:read, :write, :admin],
       expires_at: access_token.expires_at
     }
+
     :ok = PostgreSQLTokenRepository.store(token_data)
 
     {:ok, %{admin: admin, access_token: access_token.token}}
@@ -44,13 +47,14 @@ defmodule ThalamusWeb.API.OrganizationControllerTest do
       {:ok, org2} = Organization.new("Beta Inc", "owner2@beta.com", :starter)
       {:ok, _} = PostgreSQLOrganizationRepository.save(org2)
 
-      conn = conn
-      |> put_req_header("authorization", "Bearer #{token}")
-      |> get(~p"/api/organizations")
+      conn =
+        conn
+        |> put_req_header("authorization", "Bearer #{token}")
+        |> get(~p"/api/organizations")
 
       assert %{
-        "data" => orgs
-      } = json_response(conn, 200)
+               "data" => orgs
+             } = json_response(conn, 200)
 
       assert is_list(orgs)
       assert length(orgs) >= 2
@@ -64,13 +68,14 @@ defmodule ThalamusWeb.API.OrganizationControllerTest do
       {:ok, pending_org} = Organization.new("Pending Corp", "pending@test.com", :starter)
       {:ok, _} = PostgreSQLOrganizationRepository.save(pending_org)
 
-      conn = conn
-      |> put_req_header("authorization", "Bearer #{token}")
-      |> get(~p"/api/organizations?status=active")
+      conn =
+        conn
+        |> put_req_header("authorization", "Bearer #{token}")
+        |> get(~p"/api/organizations?status=active")
 
       assert %{
-        "data" => orgs
-      } = json_response(conn, 200)
+               "data" => orgs
+             } = json_response(conn, 200)
 
       Enum.each(orgs, fn org ->
         assert org["status"] == "active"
@@ -84,13 +89,14 @@ defmodule ThalamusWeb.API.OrganizationControllerTest do
       {:ok, free_org} = Organization.new("Free Corp", "free@test.com", :free)
       {:ok, _} = PostgreSQLOrganizationRepository.save(free_org)
 
-      conn = conn
-      |> put_req_header("authorization", "Bearer #{token}")
-      |> get(~p"/api/organizations?plan_type=professional")
+      conn =
+        conn
+        |> put_req_header("authorization", "Bearer #{token}")
+        |> get(~p"/api/organizations?plan_type=professional")
 
       assert %{
-        "data" => orgs
-      } = json_response(conn, 200)
+               "data" => orgs
+             } = json_response(conn, 200)
 
       Enum.each(orgs, fn org ->
         assert org["plan_type"] == "professional"
@@ -106,74 +112,79 @@ defmodule ThalamusWeb.API.OrganizationControllerTest do
 
   describe "POST /api/organizations" do
     test "creates new organization with valid data", %{conn: conn, access_token: token} do
-      conn = conn
-      |> put_req_header("authorization", "Bearer #{token}")
-      |> post(~p"/api/organizations", %{
-        name: "New Corp",
-        owner_email: "owner@newcorp.com",
-        plan_type: "professional"
-      })
+      conn =
+        conn
+        |> put_req_header("authorization", "Bearer #{token}")
+        |> post(~p"/api/organizations", %{
+          name: "New Corp",
+          owner_email: "owner@newcorp.com",
+          plan_type: "professional"
+        })
 
       assert %{
-        "data" => %{
-          "id" => id,
-          "name" => "New Corp",
-          "owner_email" => "owner@newcorp.com",
-          "plan_type" => "professional",
-          "status" => status
-        }
-      } = json_response(conn, 201)
+               "data" => %{
+                 "id" => id,
+                 "name" => "New Corp",
+                 "owner_email" => "owner@newcorp.com",
+                 "plan_type" => "professional",
+                 "status" => status
+               }
+             } = json_response(conn, 201)
 
       assert is_binary(id)
       assert status in ["pending_verification", "active"]
     end
 
     test "creates organization with default free plan", %{conn: conn, access_token: token} do
-      conn = conn
-      |> put_req_header("authorization", "Bearer #{token}")
-      |> post(~p"/api/organizations", %{
-        name: "Free Corp",
-        owner_email: "owner@freecorp.com"
-      })
+      conn =
+        conn
+        |> put_req_header("authorization", "Bearer #{token}")
+        |> post(~p"/api/organizations", %{
+          name: "Free Corp",
+          owner_email: "owner@freecorp.com"
+        })
 
       assert %{
-        "data" => %{
-          "plan_type" => "free"
-        }
-      } = json_response(conn, 201)
+               "data" => %{
+                 "plan_type" => "free"
+               }
+             } = json_response(conn, 201)
     end
 
     test "returns error with invalid email", %{conn: conn, access_token: token} do
-      conn = conn
-      |> put_req_header("authorization", "Bearer #{token}")
-      |> post(~p"/api/organizations", %{
-        name: "Bad Email Corp",
-        owner_email: "not-an-email",
-        plan_type: "starter"
-      })
+      conn =
+        conn
+        |> put_req_header("authorization", "Bearer #{token}")
+        |> post(~p"/api/organizations", %{
+          name: "Bad Email Corp",
+          owner_email: "not-an-email",
+          plan_type: "starter"
+        })
 
       assert %{
-        "error" => _
-      } = json_response(conn, 400)
+               "error" => _
+             } = json_response(conn, 400)
     end
 
     test "returns error with missing name", %{conn: conn, access_token: token} do
-      conn = conn
-      |> put_req_header("authorization", "Bearer #{token}")
-      |> post(~p"/api/organizations", %{
-        owner_email: "owner@test.com"
-      })
+      conn =
+        conn
+        |> put_req_header("authorization", "Bearer #{token}")
+        |> post(~p"/api/organizations", %{
+          owner_email: "owner@test.com"
+        })
 
       assert %{
-        "error" => _
-      } = json_response(conn, 400)
+               "error" => _
+             } = json_response(conn, 400)
     end
 
     test "requires authentication", %{conn: conn} do
-      conn = post(conn, ~p"/api/organizations", %{
-        name: "Unauth Corp",
-        owner_email: "owner@test.com"
-      })
+      conn =
+        post(conn, ~p"/api/organizations", %{
+          name: "Unauth Corp",
+          owner_email: "owner@test.com"
+        })
 
       assert json_response(conn, 401)
     end
@@ -184,17 +195,18 @@ defmodule ThalamusWeb.API.OrganizationControllerTest do
       {:ok, org} = Organization.new("Get Corp", "owner@getcorp.com", :professional)
       {:ok, org} = PostgreSQLOrganizationRepository.save(org)
 
-      conn = conn
-      |> put_req_header("authorization", "Bearer #{token}")
-      |> get(~p"/api/organizations/#{org.id}")
+      conn =
+        conn
+        |> put_req_header("authorization", "Bearer #{token}")
+        |> get(~p"/api/organizations/#{org.id}")
 
       assert %{
-        "data" => %{
-          "id" => id,
-          "name" => "Get Corp",
-          "owner_email" => "owner@getcorp.com"
-        }
-      } = json_response(conn, 200)
+               "data" => %{
+                 "id" => id,
+                 "name" => "Get Corp",
+                 "owner_email" => "owner@getcorp.com"
+               }
+             } = json_response(conn, 200)
 
       assert id == to_string(org.id)
     end
@@ -206,24 +218,26 @@ defmodule ThalamusWeb.API.OrganizationControllerTest do
       {:ok, user} = Thalamus.Domain.ValueObjects.UserId.generate()
       {:ok, email} = Thalamus.Domain.ValueObjects.Email.new("member@test.com")
 
-      {:ok, org_with_member} = Organization.add_member(
-        org,
-        user,
-        email,
-        :member
-      )
+      {:ok, org_with_member} =
+        Organization.add_member(
+          org,
+          user,
+          email,
+          :member
+        )
 
       {:ok, org_with_member} = PostgreSQLOrganizationRepository.save(org_with_member)
 
-      conn = conn
-      |> put_req_header("authorization", "Bearer #{token}")
-      |> get(~p"/api/organizations/#{org_with_member.id}")
+      conn =
+        conn
+        |> put_req_header("authorization", "Bearer #{token}")
+        |> get(~p"/api/organizations/#{org_with_member.id}")
 
       assert %{
-        "data" => %{
-          "members" => members
-        }
-      } = json_response(conn, 200)
+               "data" => %{
+                 "members" => members
+               }
+             } = json_response(conn, 200)
 
       assert is_list(members)
       assert length(members) >= 1
@@ -232,13 +246,14 @@ defmodule ThalamusWeb.API.OrganizationControllerTest do
     test "returns 404 for non-existent organization", %{conn: conn, access_token: token} do
       fake_id = Thalamus.Domain.ValueObjects.OrganizationId.generate!()
 
-      conn = conn
-      |> put_req_header("authorization", "Bearer #{token}")
-      |> get(~p"/api/organizations/#{fake_id}")
+      conn =
+        conn
+        |> put_req_header("authorization", "Bearer #{token}")
+        |> get(~p"/api/organizations/#{fake_id}")
 
       assert %{
-        "error" => _
-      } = json_response(conn, 404)
+               "error" => _
+             } = json_response(conn, 404)
     end
 
     test "requires authentication", %{conn: conn} do
@@ -256,62 +271,66 @@ defmodule ThalamusWeb.API.OrganizationControllerTest do
       {:ok, org} = Organization.new("Old Name", "owner@test.com", :starter)
       {:ok, org} = PostgreSQLOrganizationRepository.save(org)
 
-      conn = conn
-      |> put_req_header("authorization", "Bearer #{token}")
-      |> patch(~p"/api/organizations/#{org.id}", %{
-        name: "New Name"
-      })
+      conn =
+        conn
+        |> put_req_header("authorization", "Bearer #{token}")
+        |> patch(~p"/api/organizations/#{org.id}", %{
+          name: "New Name"
+        })
 
       assert %{
-        "data" => %{
-          "id" => _,
-          "name" => "New Name"
-        }
-      } = json_response(conn, 200)
+               "data" => %{
+                 "id" => _,
+                 "name" => "New Name"
+               }
+             } = json_response(conn, 200)
     end
 
     test "updates organization plan", %{conn: conn, access_token: token} do
       {:ok, org} = Organization.new("Upgrade Corp", "owner@test.com", :free)
       {:ok, org} = PostgreSQLOrganizationRepository.save(org)
 
-      conn = conn
-      |> put_req_header("authorization", "Bearer #{token}")
-      |> patch(~p"/api/organizations/#{org.id}", %{
-        plan_type: "enterprise"
-      })
+      conn =
+        conn
+        |> put_req_header("authorization", "Bearer #{token}")
+        |> patch(~p"/api/organizations/#{org.id}", %{
+          plan_type: "enterprise"
+        })
 
       assert %{
-        "data" => %{
-          "plan_type" => "enterprise"
-        }
-      } = json_response(conn, 200)
+               "data" => %{
+                 "plan_type" => "enterprise"
+               }
+             } = json_response(conn, 200)
     end
 
     test "updates organization status", %{conn: conn, access_token: token} do
       {:ok, org} = Organization.new("Status Corp", "owner@test.com", :starter)
       {:ok, org} = PostgreSQLOrganizationRepository.save(org)
 
-      conn = conn
-      |> put_req_header("authorization", "Bearer #{token}")
-      |> patch(~p"/api/organizations/#{org.id}", %{
-        status: "suspended"
-      })
+      conn =
+        conn
+        |> put_req_header("authorization", "Bearer #{token}")
+        |> patch(~p"/api/organizations/#{org.id}", %{
+          status: "suspended"
+        })
 
       assert %{
-        "data" => %{
-          "status" => "suspended"
-        }
-      } = json_response(conn, 200)
+               "data" => %{
+                 "status" => "suspended"
+               }
+             } = json_response(conn, 200)
     end
 
     test "returns 404 for non-existent organization", %{conn: conn, access_token: token} do
       fake_id = Thalamus.Domain.ValueObjects.OrganizationId.generate!()
 
-      conn = conn
-      |> put_req_header("authorization", "Bearer #{token}")
-      |> patch(~p"/api/organizations/#{fake_id}", %{
-        name: "Not Found"
-      })
+      conn =
+        conn
+        |> put_req_header("authorization", "Bearer #{token}")
+        |> patch(~p"/api/organizations/#{fake_id}", %{
+          name: "Not Found"
+        })
 
       assert json_response(conn, 404)
     end
@@ -320,9 +339,10 @@ defmodule ThalamusWeb.API.OrganizationControllerTest do
       {:ok, org} = Organization.new("No Auth", "owner@test.com", :free)
       {:ok, org} = PostgreSQLOrganizationRepository.save(org)
 
-      conn = patch(conn, ~p"/api/organizations/#{org.id}", %{
-        name: "New Name"
-      })
+      conn =
+        patch(conn, ~p"/api/organizations/#{org.id}", %{
+          name: "New Name"
+        })
 
       assert json_response(conn, 401)
     end
@@ -333,9 +353,10 @@ defmodule ThalamusWeb.API.OrganizationControllerTest do
       {:ok, org} = Organization.new("Delete Corp", "owner@delete.com", :free)
       {:ok, org} = PostgreSQLOrganizationRepository.save(org)
 
-      conn = conn
-      |> put_req_header("authorization", "Bearer #{token}")
-      |> delete(~p"/api/organizations/#{org.id}")
+      conn =
+        conn
+        |> put_req_header("authorization", "Bearer #{token}")
+        |> delete(~p"/api/organizations/#{org.id}")
 
       assert response(conn, 204)
 
@@ -346,9 +367,10 @@ defmodule ThalamusWeb.API.OrganizationControllerTest do
     test "returns 404 for non-existent organization", %{conn: conn, access_token: token} do
       fake_id = Thalamus.Domain.ValueObjects.OrganizationId.generate!()
 
-      conn = conn
-      |> put_req_header("authorization", "Bearer #{token}")
-      |> delete(~p"/api/organizations/#{fake_id}")
+      conn =
+        conn
+        |> put_req_header("authorization", "Bearer #{token}")
+        |> delete(~p"/api/organizations/#{fake_id}")
 
       assert json_response(conn, 404)
     end

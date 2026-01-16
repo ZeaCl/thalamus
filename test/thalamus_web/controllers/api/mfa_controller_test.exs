@@ -3,10 +3,12 @@ defmodule ThalamusWeb.API.MFAControllerTest do
 
   alias Thalamus.Domain.Entities.User
   alias Thalamus.Domain.ValueObjects.AccessToken
+
   alias Thalamus.Infrastructure.Repositories.{
     PostgreSQLUserRepository,
     PostgreSQLTokenRepository
   }
+
   alias Thalamus.Infrastructure.Adapters.RedisCacheAdapter
 
   setup do
@@ -16,12 +18,13 @@ defmodule ThalamusWeb.API.MFAControllerTest do
     {:ok, user} = PostgreSQLUserRepository.save(user)
 
     # Generate access token for authenticated requests
-    {:ok, access_token} = AccessToken.generate(
-      user.id,
-      Thalamus.Domain.ValueObjects.ClientId.generate!(),
-      [:read, :write],
-      3600
-    )
+    {:ok, access_token} =
+      AccessToken.generate(
+        user.id,
+        Thalamus.Domain.ValueObjects.ClientId.generate(),
+        [:read, :write],
+        3600
+      )
 
     token_data = %{
       token: access_token.token,
@@ -30,6 +33,7 @@ defmodule ThalamusWeb.API.MFAControllerTest do
       scope: [:read, :write],
       expires_at: access_token.expires_at
     }
+
     :ok = PostgreSQLTokenRepository.store(token_data)
 
     {:ok, %{user: user, access_token: access_token.token}}
@@ -37,18 +41,19 @@ defmodule ThalamusWeb.API.MFAControllerTest do
 
   describe "POST /api/mfa/totp/setup" do
     test "returns TOTP secret and QR code for new setup", %{conn: conn, access_token: token} do
-      conn = conn
-      |> put_req_header("authorization", "Bearer #{token}")
-      |> post(~p"/api/mfa/totp/setup")
+      conn =
+        conn
+        |> put_req_header("authorization", "Bearer #{token}")
+        |> post(~p"/api/mfa/totp/setup")
 
       assert %{
-        "data" => %{
-          "secret" => secret,
-          "qr_code_uri" => qr_uri,
-          "backup_codes" => backup_codes,
-          "instructions" => _
-        }
-      } = json_response(conn, 200)
+               "data" => %{
+                 "secret" => secret,
+                 "qr_code_uri" => qr_uri,
+                 "backup_codes" => backup_codes,
+                 "instructions" => _
+               }
+             } = json_response(conn, 200)
 
       # Validate secret format (Base32)
       assert String.length(secret) == 32
@@ -61,6 +66,7 @@ defmodule ThalamusWeb.API.MFAControllerTest do
 
       # Validate backup codes
       assert length(backup_codes) == 10
+
       Enum.each(backup_codes, fn code ->
         assert String.length(code) == 8
         assert String.match?(code, ~r/^[a-f0-9]+$/)
@@ -73,13 +79,14 @@ defmodule ThalamusWeb.API.MFAControllerTest do
       updated_user = %{user | mfa_enabled: true, mfa_methods: [mfa_method]}
       {:ok, _} = PostgreSQLUserRepository.save(updated_user)
 
-      conn = conn
-      |> put_req_header("authorization", "Bearer #{token}")
-      |> post(~p"/api/mfa/totp/setup")
+      conn =
+        conn
+        |> put_req_header("authorization", "Bearer #{token}")
+        |> post(~p"/api/mfa/totp/setup")
 
       assert %{
-        "error" => "MFA is already enabled for this account"
-      } = json_response(conn, 400)
+               "error" => "MFA is already enabled for this account"
+             } = json_response(conn, 400)
     end
 
     test "requires authentication", %{conn: conn} do
@@ -92,9 +99,10 @@ defmodule ThalamusWeb.API.MFAControllerTest do
   describe "POST /api/mfa/totp/verify" do
     test "enables MFA with valid TOTP code", %{conn: conn, user: user, access_token: token} do
       # Setup TOTP first
-      setup_conn = conn
-      |> put_req_header("authorization", "Bearer #{token}")
-      |> post(~p"/api/mfa/totp/setup")
+      setup_conn =
+        conn
+        |> put_req_header("authorization", "Bearer #{token}")
+        |> post(~p"/api/mfa/totp/setup")
 
       %{"data" => %{"secret" => secret}} = json_response(setup_conn, 200)
 
@@ -102,18 +110,19 @@ defmodule ThalamusWeb.API.MFAControllerTest do
       code = generate_totp_code(secret)
 
       # Verify code
-      verify_conn = conn
-      |> put_req_header("authorization", "Bearer #{token}")
-      |> post(~p"/api/mfa/totp/verify", %{code: code})
+      verify_conn =
+        conn
+        |> put_req_header("authorization", "Bearer #{token}")
+        |> post(~p"/api/mfa/totp/verify", %{code: code})
 
       assert %{
-        "data" => %{
-          "mfa_enabled" => true,
-          "method" => "totp",
-          "backup_codes" => backup_codes,
-          "message" => _
-        }
-      } = json_response(verify_conn, 200)
+               "data" => %{
+                 "mfa_enabled" => true,
+                 "method" => "totp",
+                 "backup_codes" => backup_codes,
+                 "message" => _
+               }
+             } = json_response(verify_conn, 200)
 
       assert length(backup_codes) == 10
 
@@ -124,75 +133,86 @@ defmodule ThalamusWeb.API.MFAControllerTest do
 
     test "returns error with invalid code", %{conn: conn, access_token: token} do
       # Setup TOTP first
-      setup_conn = conn
-      |> put_req_header("authorization", "Bearer #{token}")
-      |> post(~p"/api/mfa/totp/setup")
+      setup_conn =
+        conn
+        |> put_req_header("authorization", "Bearer #{token}")
+        |> post(~p"/api/mfa/totp/setup")
 
       json_response(setup_conn, 200)
 
       # Try with invalid code
-      conn = conn
-      |> put_req_header("authorization", "Bearer #{token}")
-      |> post(~p"/api/mfa/totp/verify", %{code: "000000"})
+      conn =
+        conn
+        |> put_req_header("authorization", "Bearer #{token}")
+        |> post(~p"/api/mfa/totp/verify", %{code: "000000"})
 
       assert %{
-        "error" => "Invalid verification code"
-      } = json_response(conn, 400)
+               "error" => "Invalid verification code"
+             } = json_response(conn, 400)
     end
 
     test "returns error without pending setup", %{conn: conn, access_token: token} do
-      conn = conn
-      |> put_req_header("authorization", "Bearer #{token}")
-      |> post(~p"/api/mfa/totp/verify", %{code: "123456"})
+      conn =
+        conn
+        |> put_req_header("authorization", "Bearer #{token}")
+        |> post(~p"/api/mfa/totp/verify", %{code: "123456"})
 
       assert %{
-        "error" => "No pending MFA setup found. Please initiate setup first."
-      } = json_response(conn, 400)
+               "error" => "No pending MFA setup found. Please initiate setup first."
+             } = json_response(conn, 400)
     end
 
     test "returns error with missing code", %{conn: conn, access_token: token} do
-      conn = conn
-      |> put_req_header("authorization", "Bearer #{token}")
-      |> post(~p"/api/mfa/totp/verify", %{})
+      conn =
+        conn
+        |> put_req_header("authorization", "Bearer #{token}")
+        |> post(~p"/api/mfa/totp/verify", %{})
 
       assert %{
-        "error" => "Missing required field: code"
-      } = json_response(conn, 400)
+               "error" => "Missing required field: code"
+             } = json_response(conn, 400)
     end
   end
 
   describe "DELETE /api/mfa/disable" do
-    test "disables MFA with valid password and code", %{conn: conn, user: user, access_token: token} do
+    test "disables MFA with valid password and code", %{
+      conn: conn,
+      user: user,
+      access_token: token
+    } do
       # Setup and enable MFA first
-      setup_conn = conn
-      |> put_req_header("authorization", "Bearer #{token}")
-      |> post(~p"/api/mfa/totp/setup")
+      setup_conn =
+        conn
+        |> put_req_header("authorization", "Bearer #{token}")
+        |> post(~p"/api/mfa/totp/setup")
 
       %{"data" => %{"secret" => secret}} = json_response(setup_conn, 200)
       code = generate_totp_code(secret)
 
-      verify_conn = conn
-      |> put_req_header("authorization", "Bearer #{token}")
-      |> post(~p"/api/mfa/totp/verify", %{code: code})
+      verify_conn =
+        conn
+        |> put_req_header("authorization", "Bearer #{token}")
+        |> post(~p"/api/mfa/totp/verify", %{code: code})
 
       json_response(verify_conn, 200)
 
       # Now disable MFA
       new_code = generate_totp_code(secret)
 
-      disable_conn = conn
-      |> put_req_header("authorization", "Bearer #{token}")
-      |> delete(~p"/api/mfa/disable", %{
-        password: "Password123!",
-        code: new_code
-      })
+      disable_conn =
+        conn
+        |> put_req_header("authorization", "Bearer #{token}")
+        |> delete(~p"/api/mfa/disable", %{
+          password: "Password123!",
+          code: new_code
+        })
 
       assert %{
-        "data" => %{
-          "mfa_enabled" => false,
-          "message" => _
-        }
-      } = json_response(disable_conn, 200)
+               "data" => %{
+                 "mfa_enabled" => false,
+                 "message" => _
+               }
+             } = json_response(disable_conn, 200)
 
       # Verify MFA is disabled
       {:ok, updated_user} = PostgreSQLUserRepository.find_by_id(user.id)
@@ -207,16 +227,17 @@ defmodule ThalamusWeb.API.MFAControllerTest do
 
       code = generate_totp_code("TESTSECRET123456")
 
-      conn = conn
-      |> put_req_header("authorization", "Bearer #{token}")
-      |> delete(~p"/api/mfa/disable", %{
-        password: "WrongPassword!",
-        code: code
-      })
+      conn =
+        conn
+        |> put_req_header("authorization", "Bearer #{token}")
+        |> delete(~p"/api/mfa/disable", %{
+          password: "WrongPassword!",
+          code: code
+        })
 
       assert %{
-        "error" => "Invalid password"
-      } = json_response(conn, 400)
+               "error" => "Invalid password"
+             } = json_response(conn, 400)
     end
 
     test "returns error with invalid code", %{conn: conn, user: user, access_token: token} do
@@ -225,34 +246,40 @@ defmodule ThalamusWeb.API.MFAControllerTest do
       updated_user = %{user | mfa_enabled: true, mfa_methods: [mfa_method]}
       {:ok, _} = PostgreSQLUserRepository.save(updated_user)
 
-      conn = conn
-      |> put_req_header("authorization", "Bearer #{token}")
-      |> delete(~p"/api/mfa/disable", %{
-        password: "Password123!",
-        code: "000000"
-      })
+      conn =
+        conn
+        |> put_req_header("authorization", "Bearer #{token}")
+        |> delete(~p"/api/mfa/disable", %{
+          password: "Password123!",
+          code: "000000"
+        })
 
       assert %{
-        "error" => "Invalid verification code"
-      } = json_response(conn, 400)
+               "error" => "Invalid verification code"
+             } = json_response(conn, 400)
     end
 
     test "returns error if MFA not enabled", %{conn: conn, access_token: token} do
-      conn = conn
-      |> put_req_header("authorization", "Bearer #{token}")
-      |> delete(~p"/api/mfa/disable", %{
-        password: "Password123!",
-        code: "123456"
-      })
+      conn =
+        conn
+        |> put_req_header("authorization", "Bearer #{token}")
+        |> delete(~p"/api/mfa/disable", %{
+          password: "Password123!",
+          code: "123456"
+        })
 
       assert %{
-        "error" => "MFA is not enabled for this account"
-      } = json_response(conn, 400)
+               "error" => "MFA is not enabled for this account"
+             } = json_response(conn, 400)
     end
   end
 
   describe "POST /api/mfa/backup-codes/regenerate" do
-    test "regenerates backup codes with valid credentials", %{conn: conn, user: user, access_token: token} do
+    test "regenerates backup codes with valid credentials", %{
+      conn: conn,
+      user: user,
+      access_token: token
+    } do
       # Enable MFA
       {:ok, mfa_method} = Thalamus.Domain.ValueObjects.MFAMethod.new(:totp, "TESTSECRET123456")
       updated_user = %{user | mfa_enabled: true, mfa_methods: [mfa_method]}
@@ -260,21 +287,23 @@ defmodule ThalamusWeb.API.MFAControllerTest do
 
       code = generate_totp_code("TESTSECRET123456")
 
-      conn = conn
-      |> put_req_header("authorization", "Bearer #{token}")
-      |> post(~p"/api/mfa/backup-codes/regenerate", %{
-        password: "Password123!",
-        code: code
-      })
+      conn =
+        conn
+        |> put_req_header("authorization", "Bearer #{token}")
+        |> post(~p"/api/mfa/backup-codes/regenerate", %{
+          password: "Password123!",
+          code: code
+        })
 
       assert %{
-        "data" => %{
-          "backup_codes" => backup_codes,
-          "message" => _
-        }
-      } = json_response(conn, 200)
+               "data" => %{
+                 "backup_codes" => backup_codes,
+                 "message" => _
+               }
+             } = json_response(conn, 200)
 
       assert length(backup_codes) == 10
+
       Enum.each(backup_codes, fn code ->
         assert String.length(code) == 8
       end)
@@ -287,12 +316,13 @@ defmodule ThalamusWeb.API.MFAControllerTest do
 
       code = generate_totp_code("TESTSECRET123456")
 
-      conn = conn
-      |> put_req_header("authorization", "Bearer #{token}")
-      |> post(~p"/api/mfa/backup-codes/regenerate", %{
-        password: "WrongPassword!",
-        code: code
-      })
+      conn =
+        conn
+        |> put_req_header("authorization", "Bearer #{token}")
+        |> post(~p"/api/mfa/backup-codes/regenerate", %{
+          password: "WrongPassword!",
+          code: code
+        })
 
       assert %{"error" => _} = json_response(conn, 400)
     end

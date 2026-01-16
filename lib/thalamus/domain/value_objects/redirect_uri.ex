@@ -166,7 +166,8 @@ defmodule Thalamus.Domain.ValueObjects.RedirectUri do
 
   defp validate_format(value) do
     cond do
-      String.length(value) < 8 ->  # Minimum: "http://a"
+      # Minimum: "http://a"
+      String.length(value) < 8 ->
         {:error, :redirect_uri_too_short}
 
       String.length(value) > 2048 ->
@@ -190,6 +191,7 @@ defmodule Thalamus.Domain.ValueObjects.RedirectUri do
     case URI.parse(value) do
       %URI{scheme: scheme, host: host} when not is_nil(scheme) and not is_nil(host) ->
         true
+
       _ ->
         false
     end
@@ -211,13 +213,15 @@ defmodule Thalamus.Domain.ValueObjects.RedirectUri do
       String.starts_with?(host || "", "192.168.") or
       String.starts_with?(host || "", "10.") or
       (String.starts_with?(host || "", "172.") and
-       String.length(host || "") >= 8 and
-       is_private_172_network?(host))
+         String.length(host || "") >= 8 and
+         is_private_172_network?(host))
   end
 
   defp is_private_172_network?(host) do
     case host |> String.split(".") |> Enum.at(1) do
-      nil -> false
+      nil ->
+        false
+
       second_octet_str ->
         case Integer.parse(second_octet_str) do
           {second_octet, ""} -> second_octet in 16..31

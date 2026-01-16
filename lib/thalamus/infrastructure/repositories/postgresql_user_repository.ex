@@ -56,6 +56,7 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository do
         nil ->
           # New user - insert
           schema_map = Map.from_struct(schema)
+
           UserSchema.create_changeset(schema_map)
           |> Repo.insert()
 
@@ -176,12 +177,13 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository do
 
     # Extract UUID from UserId (removes "user_" prefix)
     # UserId.to_string returns "user_<uuid>", but DB expects just "<uuid>"
-    user_uuid = if user.id do
-      user_id_string = UserId.to_string(user.id)
-      String.replace_prefix(user_id_string, "user_", "")
-    else
-      nil
-    end
+    user_uuid =
+      if user.id do
+        user_id_string = UserId.to_string(user.id)
+        String.replace_prefix(user_id_string, "user_", "")
+      else
+        nil
+      end
 
     %UserSchema{
       id: user_uuid,

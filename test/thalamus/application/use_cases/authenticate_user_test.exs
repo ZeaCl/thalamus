@@ -281,7 +281,9 @@ defmodule Thalamus.Application.UseCases.AuthenticateUserTest do
         {:ok, updated_user}
       end)
 
-      expect(MockAuditLogger, :log_authentication_failure, fn _email, :invalid_password, _context ->
+      expect(MockAuditLogger, :log_authentication_failure, fn _email,
+                                                              :invalid_password,
+                                                              _context ->
         :ok
       end)
 
@@ -358,7 +360,9 @@ defmodule Thalamus.Application.UseCases.AuthenticateUserTest do
         {:ok, user}
       end)
 
-      expect(MockAuditLogger, :log_authentication_failure, fn _email, :account_suspended, _context ->
+      expect(MockAuditLogger, :log_authentication_failure, fn _email,
+                                                              :account_suspended,
+                                                              _context ->
         :ok
       end)
 
@@ -396,7 +400,9 @@ defmodule Thalamus.Application.UseCases.AuthenticateUserTest do
         {:ok, user}
       end)
 
-      expect(MockAuditLogger, :log_authentication_failure, fn _email, :account_not_verified, _context ->
+      expect(MockAuditLogger, :log_authentication_failure, fn _email,
+                                                              :account_not_verified,
+                                                              _context ->
         :ok
       end)
 
@@ -436,7 +442,9 @@ defmodule Thalamus.Application.UseCases.AuthenticateUserTest do
         {:ok, user}
       end)
 
-      expect(MockAuditLogger, :log_authentication_failure, fn _email, :invalid_mfa_code, _context ->
+      expect(MockAuditLogger, :log_authentication_failure, fn _email,
+                                                              :invalid_mfa_code,
+                                                              _context ->
         :ok
       end)
 

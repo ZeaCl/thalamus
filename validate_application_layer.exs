@@ -236,7 +236,11 @@ defmodule ApplicationLayerValidator do
       e ->
         IO.puts(IO.ANSI.red() <> "✗ #{description}" <> IO.ANSI.reset())
         IO.puts(IO.ANSI.red() <> "  Error: #{inspect(e)}" <> IO.ANSI.reset())
-        IO.puts(IO.ANSI.red() <> "  #{Exception.format(:error, e, __STACKTRACE__)}" <> IO.ANSI.reset())
+
+        IO.puts(
+          IO.ANSI.red() <> "  #{Exception.format(:error, e, __STACKTRACE__)}" <> IO.ANSI.reset()
+        )
+
         {:error, e}
     end
   end

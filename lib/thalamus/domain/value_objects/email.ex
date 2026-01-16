@@ -103,8 +103,12 @@ defmodule Thalamus.Domain.ValueObjects.Email do
 
     # List of common disposable email domains
     disposable_domains = [
-      "10minutemail.com", "guerrillamail.com", "mailinator.com",
-      "tempmail.org", "yopmail.com", "throwaway.email"
+      "10minutemail.com",
+      "guerrillamail.com",
+      "mailinator.com",
+      "tempmail.org",
+      "yopmail.com",
+      "throwaway.email"
     ]
 
     Enum.member?(disposable_domains, domain)

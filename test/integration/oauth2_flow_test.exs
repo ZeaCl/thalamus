@@ -10,6 +10,7 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
   @moduletag :integration
 
   alias Thalamus.Domain.Entities.{User, Organization, OAuth2Client}
+
   alias Thalamus.Infrastructure.Repositories.{
     PostgreSQLUserRepository,
     PostgreSQLOrganizationRepository,
@@ -27,13 +28,15 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
     {:ok, user} = PostgreSQLUserRepository.save(user)
 
     # Create OAuth2 client
-    {:ok, client} = OAuth2Client.new(
-      "Test Client",
-      org.id,
-      ["http://localhost:3000/callback"],
-      [:authorization_code, :refresh_token, :client_credentials],
-      [:read, :write]
-    )
+    {:ok, client} =
+      OAuth2Client.new(
+        "Test Client",
+        org.id,
+        ["http://localhost:3000/callback"],
+        [:authorization_code, :refresh_token, :client_credentials],
+        [:read, :write]
+      )
+
     {:ok, client} = PostgreSQLOAuth2ClientRepository.save(client)
 
     {:ok, %{user: user, client: client, org: org}}
@@ -46,32 +49,35 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
       client: client
     } do
       # Step 1: Client initiates authorization request
-      state = "random_state_" <> :crypto.strong_rand_bytes(16) |> Base.url_encode64(padding: false)
+      state =
+        ("random_state_" <> :crypto.strong_rand_bytes(16)) |> Base.url_encode64(padding: false)
 
-      conn1 = conn
-      |> put_session(:user_id, to_string(user.id))
-      |> get(~p"/oauth/authorize", %{
-        response_type: "code",
-        client_id: to_string(client.id),
-        redirect_uri: "http://localhost:3000/callback",
-        scope: "read write",
-        state: state
-      })
+      conn1 =
+        conn
+        |> put_session(:user_id, to_string(user.id))
+        |> get(~p"/oauth/authorize", %{
+          response_type: "code",
+          client_id: to_string(client.id),
+          redirect_uri: "http://localhost:3000/callback",
+          scope: "read write",
+          state: state
+        })
 
       # Should show consent screen
       assert html_response(conn1, 200)
       assert conn1.resp_body =~ "Test Client"
 
       # Step 2: User approves authorization
-      conn2 = conn
-      |> put_session(:user_id, to_string(user.id))
-      |> post(~p"/oauth/authorize", %{
-        decision: "approve",
-        client_id: to_string(client.id),
-        redirect_uri: "http://localhost:3000/callback",
-        scope: "read write",
-        state: state
-      })
+      conn2 =
+        conn
+        |> put_session(:user_id, to_string(user.id))
+        |> post(~p"/oauth/authorize", %{
+          decision: "approve",
+          client_id: to_string(client.id),
+          redirect_uri: "http://localhost:3000/callback",
+          scope: "read write",
+          state: state
+        })
 
       # Should redirect with authorization code
       assert redirected_to(conn2, 302) =~ "code="
@@ -85,30 +91,32 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
       assert params["state"] == state
 
       # Step 3: Exchange authorization code for tokens
-      conn3 = post(conn, ~p"/oauth/token", %{
-        grant_type: "authorization_code",
-        code: auth_code,
-        client_id: to_string(client.id),
-        client_secret: client.secret,
-        redirect_uri: "http://localhost:3000/callback"
-      })
+      conn3 =
+        post(conn, ~p"/oauth/token", %{
+          grant_type: "authorization_code",
+          code: auth_code,
+          client_id: to_string(client.id),
+          client_secret: client.secret,
+          redirect_uri: "http://localhost:3000/callback"
+        })
 
       assert %{
-        "access_token" => access_token,
-        "refresh_token" => refresh_token,
-        "token_type" => "Bearer",
-        "expires_in" => 3600,
-        "scope" => scope
-      } = json_response(conn3, 200)
+               "access_token" => access_token,
+               "refresh_token" => refresh_token,
+               "token_type" => "Bearer",
+               "expires_in" => 3600,
+               "scope" => scope
+             } = json_response(conn3, 200)
 
       assert is_binary(access_token)
       assert is_binary(refresh_token)
       assert String.contains?(scope, "read")
 
       # Step 4: Use access token to access protected resource
-      conn4 = conn
-      |> put_req_header("authorization", "Bearer #{access_token}")
-      |> get(~p"/api/users")
+      conn4 =
+        conn
+        |> put_req_header("authorization", "Bearer #{access_token}")
+        |> get(~p"/api/users")
 
       assert %{"data" => users} = json_response(conn4, 200)
       assert is_list(users)
@@ -116,49 +124,53 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
       # Step 5: Introspect token
       credentials = Base.encode64("#{client.id}:#{client.secret}")
 
-      conn5 = conn
-      |> put_req_header("authorization", "Basic #{credentials}")
-      |> post(~p"/oauth/introspect", %{
-        token: access_token
-      })
+      conn5 =
+        conn
+        |> put_req_header("authorization", "Basic #{credentials}")
+        |> post(~p"/oauth/introspect", %{
+          token: access_token
+        })
 
       assert %{
-        "active" => true,
-        "scope" => _scope,
-        "client_id" => _client_id
-      } = json_response(conn5, 200)
+               "active" => true,
+               "scope" => _scope,
+               "client_id" => _client_id
+             } = json_response(conn5, 200)
 
       # Step 6: Use refresh token to get new access token
-      conn6 = post(conn, ~p"/oauth/token", %{
-        grant_type: "refresh_token",
-        refresh_token: refresh_token,
-        client_id: to_string(client.id),
-        client_secret: client.secret
-      })
+      conn6 =
+        post(conn, ~p"/oauth/token", %{
+          grant_type: "refresh_token",
+          refresh_token: refresh_token,
+          client_id: to_string(client.id),
+          client_secret: client.secret
+        })
 
       assert %{
-        "access_token" => new_access_token,
-        "refresh_token" => new_refresh_token
-      } = json_response(conn6, 200)
+               "access_token" => new_access_token,
+               "refresh_token" => new_refresh_token
+             } = json_response(conn6, 200)
 
       assert new_access_token != access_token
       assert new_refresh_token != refresh_token
 
       # Step 7: Revoke token
-      conn7 = conn
-      |> put_req_header("authorization", "Basic #{credentials}")
-      |> post(~p"/oauth/revoke", %{
-        token: new_access_token
-      })
+      conn7 =
+        conn
+        |> put_req_header("authorization", "Basic #{credentials}")
+        |> post(~p"/oauth/revoke", %{
+          token: new_access_token
+        })
 
       assert response(conn7, 200)
 
       # Step 8: Verify token is revoked
-      conn8 = conn
-      |> put_req_header("authorization", "Basic #{credentials}")
-      |> post(~p"/oauth/introspect", %{
-        token: new_access_token
-      })
+      conn8 =
+        conn
+        |> put_req_header("authorization", "Basic #{credentials}")
+        |> post(~p"/oauth/introspect", %{
+          token: new_access_token
+        })
 
       assert %{"active" => false} = json_response(conn8, 200)
     end
@@ -175,32 +187,34 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
       code_challenge = :crypto.hash(:sha256, code_verifier) |> Base.url_encode64(padding: false)
 
       # Step 1: Authorization request with code_challenge
-      conn1 = conn
-      |> put_session(:user_id, to_string(user.id))
-      |> get(~p"/oauth/authorize", %{
-        response_type: "code",
-        client_id: to_string(client.id),
-        redirect_uri: "http://localhost:3000/callback",
-        scope: "read",
-        state: "state_123",
-        code_challenge: code_challenge,
-        code_challenge_method: "S256"
-      })
+      conn1 =
+        conn
+        |> put_session(:user_id, to_string(user.id))
+        |> get(~p"/oauth/authorize", %{
+          response_type: "code",
+          client_id: to_string(client.id),
+          redirect_uri: "http://localhost:3000/callback",
+          scope: "read",
+          state: "state_123",
+          code_challenge: code_challenge,
+          code_challenge_method: "S256"
+        })
 
       assert html_response(conn1, 200)
 
       # Step 2: User approves
-      conn2 = conn
-      |> put_session(:user_id, to_string(user.id))
-      |> post(~p"/oauth/authorize", %{
-        decision: "approve",
-        client_id: to_string(client.id),
-        redirect_uri: "http://localhost:3000/callback",
-        scope: "read",
-        state: "state_123",
-        code_challenge: code_challenge,
-        code_challenge_method: "S256"
-      })
+      conn2 =
+        conn
+        |> put_session(:user_id, to_string(user.id))
+        |> post(~p"/oauth/authorize", %{
+          decision: "approve",
+          client_id: to_string(client.id),
+          redirect_uri: "http://localhost:3000/callback",
+          scope: "read",
+          state: "state_123",
+          code_challenge: code_challenge,
+          code_challenge_method: "S256"
+        })
 
       location = Plug.Conn.get_resp_header(conn2, "location") |> List.first()
       uri = URI.parse(location)
@@ -208,19 +222,20 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
       auth_code = params["code"]
 
       # Step 3: Exchange code with code_verifier
-      conn3 = post(conn, ~p"/oauth/token", %{
-        grant_type: "authorization_code",
-        code: auth_code,
-        client_id: to_string(client.id),
-        client_secret: client.secret,
-        redirect_uri: "http://localhost:3000/callback",
-        code_verifier: code_verifier
-      })
+      conn3 =
+        post(conn, ~p"/oauth/token", %{
+          grant_type: "authorization_code",
+          code: auth_code,
+          client_id: to_string(client.id),
+          client_secret: client.secret,
+          redirect_uri: "http://localhost:3000/callback",
+          code_verifier: code_verifier
+        })
 
       assert %{
-        "access_token" => access_token,
-        "token_type" => "Bearer"
-      } = json_response(conn3, 200)
+               "access_token" => access_token,
+               "token_type" => "Bearer"
+             } = json_response(conn3, 200)
 
       assert is_binary(access_token)
     end
@@ -235,16 +250,17 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
       code_challenge = :crypto.hash(:sha256, code_verifier) |> Base.url_encode64(padding: false)
 
       # Get authorization code
-      conn1 = conn
-      |> put_session(:user_id, to_string(user.id))
-      |> post(~p"/oauth/authorize", %{
-        decision: "approve",
-        client_id: to_string(client.id),
-        redirect_uri: "http://localhost:3000/callback",
-        scope: "read",
-        code_challenge: code_challenge,
-        code_challenge_method: "S256"
-      })
+      conn1 =
+        conn
+        |> put_session(:user_id, to_string(user.id))
+        |> post(~p"/oauth/authorize", %{
+          decision: "approve",
+          client_id: to_string(client.id),
+          redirect_uri: "http://localhost:3000/callback",
+          scope: "read",
+          code_challenge: code_challenge,
+          code_challenge_method: "S256"
+        })
 
       location = Plug.Conn.get_resp_header(conn1, "location") |> List.first()
       uri = URI.parse(location)
@@ -254,45 +270,48 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
       # Try to exchange with wrong verifier
       wrong_verifier = :crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false)
 
-      conn2 = post(conn, ~p"/oauth/token", %{
-        grant_type: "authorization_code",
-        code: auth_code,
-        client_id: to_string(client.id),
-        client_secret: client.secret,
-        redirect_uri: "http://localhost:3000/callback",
-        code_verifier: wrong_verifier
-      })
+      conn2 =
+        post(conn, ~p"/oauth/token", %{
+          grant_type: "authorization_code",
+          code: auth_code,
+          client_id: to_string(client.id),
+          client_secret: client.secret,
+          redirect_uri: "http://localhost:3000/callback",
+          code_verifier: wrong_verifier
+        })
 
       assert %{
-        "error" => "invalid_grant"
-      } = json_response(conn2, 400)
+               "error" => "invalid_grant"
+             } = json_response(conn2, 400)
     end
   end
 
   describe "Client Credentials Flow" do
     test "completes client credentials flow", %{conn: conn, client: client} do
       # Step 1: Client requests token directly
-      conn1 = post(conn, ~p"/oauth/token", %{
-        grant_type: "client_credentials",
-        client_id: to_string(client.id),
-        client_secret: client.secret,
-        scope: "read write"
-      })
+      conn1 =
+        post(conn, ~p"/oauth/token", %{
+          grant_type: "client_credentials",
+          client_id: to_string(client.id),
+          client_secret: client.secret,
+          scope: "read write"
+        })
 
       assert %{
-        "access_token" => access_token,
-        "token_type" => "Bearer",
-        "expires_in" => 3600,
-        "scope" => scope
-      } = json_response(conn1, 200)
+               "access_token" => access_token,
+               "token_type" => "Bearer",
+               "expires_in" => 3600,
+               "scope" => scope
+             } = json_response(conn1, 200)
 
       assert is_binary(access_token)
       assert String.contains?(scope, "read")
 
       # Step 2: Use token to access API
-      conn2 = conn
-      |> put_req_header("authorization", "Bearer #{access_token}")
-      |> get(~p"/api/organizations")
+      conn2 =
+        conn
+        |> put_req_header("authorization", "Bearer #{access_token}")
+        |> get(~p"/api/organizations")
 
       assert %{"data" => orgs} = json_response(conn2, 200)
       assert is_list(orgs)
@@ -300,27 +319,29 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
       # Step 3: Introspect token
       credentials = Base.encode64("#{client.id}:#{client.secret}")
 
-      conn3 = conn
-      |> put_req_header("authorization", "Basic #{credentials}")
-      |> post(~p"/oauth/introspect", %{
-        token: access_token
-      })
+      conn3 =
+        conn
+        |> put_req_header("authorization", "Basic #{credentials}")
+        |> post(~p"/oauth/introspect", %{
+          token: access_token
+        })
 
       assert %{
-        "active" => true,
-        "token_type" => "Bearer"
-      } = json_response(conn3, 200)
+               "active" => true,
+               "token_type" => "Bearer"
+             } = json_response(conn3, 200)
     end
   end
 
   describe "Token Lifecycle" do
     test "expired tokens are rejected", %{conn: conn, client: client} do
       # Get a token
-      conn1 = post(conn, ~p"/oauth/token", %{
-        grant_type: "client_credentials",
-        client_id: to_string(client.id),
-        client_secret: client.secret
-      })
+      conn1 =
+        post(conn, ~p"/oauth/token", %{
+          grant_type: "client_credentials",
+          client_id: to_string(client.id),
+          client_secret: client.secret
+        })
 
       %{"access_token" => access_token} = json_response(conn1, 200)
 
@@ -330,45 +351,50 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
       # 3. Modify the token's expiration in the database
 
       # For now, we just verify that the token works
-      conn2 = conn
-      |> put_req_header("authorization", "Bearer #{access_token}")
-      |> get(~p"/api/users")
+      conn2 =
+        conn
+        |> put_req_header("authorization", "Bearer #{access_token}")
+        |> get(~p"/api/users")
 
       assert json_response(conn2, 200)
     end
 
     test "revoked tokens cannot be used", %{conn: conn, client: client} do
       # Get token
-      conn1 = post(conn, ~p"/oauth/token", %{
-        grant_type: "client_credentials",
-        client_id: to_string(client.id),
-        client_secret: client.secret
-      })
+      conn1 =
+        post(conn, ~p"/oauth/token", %{
+          grant_type: "client_credentials",
+          client_id: to_string(client.id),
+          client_secret: client.secret
+        })
 
       %{"access_token" => access_token} = json_response(conn1, 200)
 
       # Verify token works
-      conn2 = conn
-      |> put_req_header("authorization", "Bearer #{access_token}")
-      |> get(~p"/api/users")
+      conn2 =
+        conn
+        |> put_req_header("authorization", "Bearer #{access_token}")
+        |> get(~p"/api/users")
 
       assert json_response(conn2, 200)
 
       # Revoke token
       credentials = Base.encode64("#{client.id}:#{client.secret}")
 
-      conn3 = conn
-      |> put_req_header("authorization", "Basic #{credentials}")
-      |> post(~p"/oauth/revoke", %{
-        token: access_token
-      })
+      conn3 =
+        conn
+        |> put_req_header("authorization", "Basic #{credentials}")
+        |> post(~p"/oauth/revoke", %{
+          token: access_token
+        })
 
       assert response(conn3, 200)
 
       # Try to use revoked token
-      conn4 = conn
-      |> put_req_header("authorization", "Bearer #{access_token}")
-      |> get(~p"/api/users")
+      conn4 =
+        conn
+        |> put_req_header("authorization", "Bearer #{access_token}")
+        |> get(~p"/api/users")
 
       assert json_response(conn4, 401)
     end
@@ -377,14 +403,15 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
   describe "Error Scenarios" do
     test "rejects reused authorization code", %{conn: conn, user: user, client: client} do
       # Get authorization code
-      conn1 = conn
-      |> put_session(:user_id, to_string(user.id))
-      |> post(~p"/oauth/authorize", %{
-        decision: "approve",
-        client_id: to_string(client.id),
-        redirect_uri: "http://localhost:3000/callback",
-        scope: "read"
-      })
+      conn1 =
+        conn
+        |> put_session(:user_id, to_string(user.id))
+        |> post(~p"/oauth/authorize", %{
+          decision: "approve",
+          client_id: to_string(client.id),
+          redirect_uri: "http://localhost:3000/callback",
+          scope: "read"
+        })
 
       location = Plug.Conn.get_resp_header(conn1, "location") |> List.first()
       uri = URI.parse(location)
@@ -392,71 +419,79 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
       auth_code = params["code"]
 
       # Exchange once (should succeed)
-      conn2 = post(conn, ~p"/oauth/token", %{
-        grant_type: "authorization_code",
-        code: auth_code,
-        client_id: to_string(client.id),
-        client_secret: client.secret,
-        redirect_uri: "http://localhost:3000/callback"
-      })
+      conn2 =
+        post(conn, ~p"/oauth/token", %{
+          grant_type: "authorization_code",
+          code: auth_code,
+          client_id: to_string(client.id),
+          client_secret: client.secret,
+          redirect_uri: "http://localhost:3000/callback"
+        })
 
       assert json_response(conn2, 200)
 
       # Try to exchange again (should fail)
-      conn3 = post(conn, ~p"/oauth/token", %{
-        grant_type: "authorization_code",
-        code: auth_code,
-        client_id: to_string(client.id),
-        client_secret: client.secret,
-        redirect_uri: "http://localhost:3000/callback"
-      })
+      conn3 =
+        post(conn, ~p"/oauth/token", %{
+          grant_type: "authorization_code",
+          code: auth_code,
+          client_id: to_string(client.id),
+          client_secret: client.secret,
+          redirect_uri: "http://localhost:3000/callback"
+        })
 
       assert %{
-        "error" => "invalid_grant"
-      } = json_response(conn3, 400)
+               "error" => "invalid_grant"
+             } = json_response(conn3, 400)
     end
 
     test "rejects invalid client credentials", %{conn: conn, client: client} do
-      conn = post(conn, ~p"/oauth/token", %{
-        grant_type: "client_credentials",
-        client_id: to_string(client.id),
-        client_secret: "wrong_secret"
-      })
+      conn =
+        post(conn, ~p"/oauth/token", %{
+          grant_type: "client_credentials",
+          client_id: to_string(client.id),
+          client_secret: "wrong_secret"
+        })
 
       assert %{
-        "error" => "invalid_client"
-      } = json_response(conn, 401)
+               "error" => "invalid_client"
+             } = json_response(conn, 401)
     end
 
     test "rejects invalid grant type", %{conn: conn, client: client} do
-      conn = post(conn, ~p"/oauth/token", %{
-        grant_type: "password",  # Not supported
-        client_id: to_string(client.id),
-        client_secret: client.secret
-      })
+      conn =
+        post(conn, ~p"/oauth/token", %{
+          # Not supported
+          grant_type: "password",
+          client_id: to_string(client.id),
+          client_secret: client.secret
+        })
 
       assert %{
-        "error" => "unsupported_grant_type"
-      } = json_response(conn, 400)
+               "error" => "unsupported_grant_type"
+             } = json_response(conn, 400)
     end
   end
 
   describe "Scope Restrictions" do
     test "access token only grants requested scopes", %{conn: conn, client: client} do
       # Request token with only 'read' scope
-      conn1 = post(conn, ~p"/oauth/token", %{
-        grant_type: "client_credentials",
-        client_id: to_string(client.id),
-        client_secret: client.secret,
-        scope: "read"  # Only read, not write
-      })
+      conn1 =
+        post(conn, ~p"/oauth/token", %{
+          grant_type: "client_credentials",
+          client_id: to_string(client.id),
+          client_secret: client.secret,
+          # Only read, not write
+          scope: "read"
+        })
 
       %{"access_token" => access_token} = json_response(conn1, 200)
 
       # Should be able to read
-      conn2 = conn
-      |> put_req_header("authorization", "Bearer #{access_token}")
-      |> get(~p"/api/users")
+      conn2 =
+        conn
+        |> put_req_header("authorization", "Bearer #{access_token}")
+        |> get(~p"/api/users")
 
       assert json_response(conn2, 200)
 

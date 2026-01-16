@@ -75,7 +75,8 @@ defmodule Thalamus.MixProject do
       {:bcrypt_elixir, "~> 3.0"},
       {:pbkdf2_elixir, "~> 2.0"},
       {:comeonin, "~> 5.3"},
-      {:pot, "~> 1.0"},  # TOTP for MFA
+      # TOTP for MFA
+      {:pot, "~> 1.0"},
 
       # HTTP Client
       {:req, "~> 0.4"},
@@ -90,6 +91,10 @@ defmodule Thalamus.MixProject do
 
       # Background Jobs
       {:oban, "~> 2.17"},
+
+      # Email
+      {:swoosh, "~> 1.16"},
+      {:gen_smtp, "~> 1.2"},
 
       # Validation & Data Structures
       {:vex, "~> 0.9"},
@@ -129,7 +134,8 @@ defmodule Thalamus.MixProject do
       "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
-      "test.unit": ["test"],  # Unit tests without database setup
+      # Unit tests without database setup
+      "test.unit": ["test"],
       "test.integration": ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
       "assets.build": ["tailwind thalamus", "esbuild thalamus"],

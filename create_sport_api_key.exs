@@ -46,7 +46,8 @@ IO.puts("\n📋 Step 2: Creating Super Admin User")
 
 # Create user with organization_id directly using Ecto
 {:ok, password_hash} = Bcrypt.hash_pwd_salt("SuperAdmin123!@#") |> (&{:ok, &1}).()
-org_uuid = saved_org.id  # Already a UUID string
+# Already a UUID string
+org_uuid = saved_org.id
 
 admin_user_attrs = %{
   email: "sport-admin@zea.com",
@@ -61,6 +62,7 @@ admin_user_attrs = %{
   admin_user_attrs
   |> UserSchema.create_changeset()
   |> Thalamus.Repo.insert()
+
 IO.puts("✅ Admin user created: #{admin_user.email}")
 IO.puts("   Password: SuperAdmin123!@#")
 IO.puts("   ⚠️  SAVE THIS PASSWORD - needed for login")
@@ -73,19 +75,20 @@ IO.puts("\n📋 Step 3: Creating Admin API Key for Sport Backend")
   AdminApiKeyGenerator.generate()
 
 # Create the Admin API Key entity
-{:ok, api_key_entity} = AdminApiKey.new(%{
-  id: Ecto.UUID.generate(),
-  key_hash: key_hash,
-  key_prefix: key_prefix,
-  name: "Sport Backend Integration",
-  description: "Admin API Key for Sport backend to auto-register OAuth2 M2M client",
-  scopes: ["clients:write", "clients:read"],
-  is_active: true,
-  expires_at: ~U[2026-12-31 23:59:59Z],
-  created_by_user_id: admin_user.id,
-  created_at: DateTime.utc_now(),
-  updated_at: DateTime.utc_now()
-})
+{:ok, api_key_entity} =
+  AdminApiKey.new(%{
+    id: Ecto.UUID.generate(),
+    key_hash: key_hash,
+    key_prefix: key_prefix,
+    name: "Sport Backend Integration",
+    description: "Admin API Key for Sport backend to auto-register OAuth2 M2M client",
+    scopes: ["clients:write", "clients:read"],
+    is_active: true,
+    expires_at: ~U[2026-12-31 23:59:59Z],
+    created_by_user_id: admin_user.id,
+    created_at: DateTime.utc_now(),
+    updated_at: DateTime.utc_now()
+  })
 
 # Save to database
 {:ok, saved_key} = PostgreSQLAdminApiKeyRepository.save(api_key_entity)

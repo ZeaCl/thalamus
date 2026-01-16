@@ -83,3 +83,9 @@ config :phoenix_live_view,
   debug_attributes: true,
   # Enable helpful, but potentially expensive runtime checks
   enable_expensive_runtime_checks: true
+
+# Configure Swoosh Mailbox for email preview in development
+config :thalamus, Thalamus.Mailer, adapter: Swoosh.Adapters.Local
+
+# Enable Swoosh mailbox preview
+config :swoosh, :api_client, false

@@ -6,24 +6,28 @@ defmodule Thalamus.Domain.ValueObjects.MFAMethodTest do
   describe "new/3" do
     test "creates valid TOTP MFA method" do
       secret = "JBSWY3DPEHPK3PXP"
+
       assert {:ok, %MFAMethod{type: :totp, identifier: ^secret, verified: false}} =
                MFAMethod.new(:totp, secret, false)
     end
 
     test "creates valid SMS MFA method" do
       phone = "+1234567890"
+
       assert {:ok, %MFAMethod{type: :sms, identifier: ^phone}} =
                MFAMethod.new(:sms, phone, false)
     end
 
     test "creates valid email MFA method" do
       email = "user@example.com"
+
       assert {:ok, %MFAMethod{type: :email, identifier: ^email}} =
                MFAMethod.new(:email, email, false)
     end
 
     test "creates valid WebAuthn MFA method" do
       credential = "credential_id_base64_encoded_string"
+
       assert {:ok, %MFAMethod{type: :webauthn, identifier: ^credential}} =
                MFAMethod.new(:webauthn, credential, false)
     end
@@ -49,6 +53,7 @@ defmodule Thalamus.Domain.ValueObjects.MFAMethodTest do
   describe "totp/1" do
     test "creates TOTP method with valid secret" do
       secret = "JBSWY3DPEHPK3PXPJBSWY3DP"
+
       assert {:ok, %MFAMethod{type: :totp, identifier: ^secret, verified: false}} =
                MFAMethod.totp(secret)
     end
@@ -133,6 +138,7 @@ defmodule Thalamus.Domain.ValueObjects.MFAMethodTest do
   describe "webauthn/1" do
     test "creates WebAuthn method with valid credential ID" do
       credential = "base64_encoded_credential_id_string"
+
       assert {:ok, %MFAMethod{type: :webauthn, identifier: ^credential}} =
                MFAMethod.webauthn(credential)
     end

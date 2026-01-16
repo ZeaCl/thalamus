@@ -65,10 +65,11 @@ IO.puts("  ✓ MFA integration works")
 {:ok, user_for_lock} = User.register("lock@example.com", "SecureP@ssw0rd123")
 {:ok, user_for_lock} = User.verify_email(user_for_lock)
 
-user_locked = Enum.reduce(1..5, user_for_lock, fn _, acc ->
-  {:ok, updated} = User.record_failed_login(acc)
-  updated
-end)
+user_locked =
+  Enum.reduce(1..5, user_for_lock, fn _, acc ->
+    {:ok, updated} = User.record_failed_login(acc)
+    updated
+  end)
 
 unless User.account_locked?(user_locked), do: raise("Account not locked")
 IO.puts("  ✓ Failed login tracking works")

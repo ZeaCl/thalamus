@@ -14,12 +14,13 @@ defmodule ThalamusWeb.OAuth2.IntrospectionController do
 
   use ThalamusWeb, :controller
 
-  alias Thalamus.Application.UseCases.ValidateToken
+  alias Thalamus.Application.UseCases.CachedValidateToken
 
   # Dependencies
   @deps %{
     token_repository: Thalamus.Infrastructure.Repositories.PostgreSQLTokenRepository,
-    user_repository: Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository
+    user_repository: Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository,
+    cache_service: Thalamus.Infrastructure.Adapters.RedisCacheAdapter
   }
 
   @doc """
@@ -87,7 +88,7 @@ defmodule ThalamusWeb.OAuth2.IntrospectionController do
   # Private functions
 
   defp perform_introspection(conn, token) do
-    case ValidateToken.execute(token, @deps) do
+    case CachedValidateToken.execute(token, @deps) do
       {:ok, validation_result} ->
         # Convert to RFC 7662 format
         response = build_introspection_response(validation_result)
@@ -139,7 +140,8 @@ defmodule ThalamusWeb.OAuth2.IntrospectionController do
       if result.organization_id do
         response
         |> Map.put(:organization_id, result.organization_id)
-        |> Map.put(:tenant_id, result.organization_id)  # Campaigns usa ambos nombres
+        # Campaigns usa ambos nombres
+        |> Map.put(:tenant_id, result.organization_id)
       else
         response
       end
@@ -158,7 +160,33 @@ defmodule ThalamusWeb.OAuth2.IntrospectionController do
         response
       end
 
+    # Add agent-specific fields if present
+    response =
+      if result.agent_type do
+        response
+        |> Map.put(:agent_type, result.agent_type)
+        |> maybe_put(:delegated_by, result.delegated_by)
+        |> maybe_put(:delegation_chain, result.delegation_chain)
+        |> maybe_put(:delegation_depth, result.delegation_depth)
+        |> maybe_put(:task_id, result.task_id)
+        |> maybe_put(:task_type, result.task_type)
+        |> maybe_put(:task_scopes, result.task_scopes)
+        |> maybe_put(:max_operations, result.max_operations)
+        |> maybe_put(:operations_remaining, result.operations_remaining)
+        |> maybe_put(:expires_on_completion, result.expires_on_completion)
+        |> maybe_put(:intent_description, result.intent_description)
+        |> maybe_put(:orchestrator_id, result.orchestrator_id)
+        |> maybe_put(:environment, result.environment)
+      else
+        response
+      end
+
     response
+  end
+
+  defp build_introspection_response(_result) do
+    # Token is not active
+    %{active: false}
   end
 
   defp maybe_put(map, _key, nil), do: map
@@ -177,11 +205,6 @@ defmodule ThalamusWeb.OAuth2.IntrospectionController do
   end
 
   defp get_user_email(_), do: nil
-
-  defp build_introspection_response(_result) do
-    # Token is not active
-    %{active: false}
-  end
 
   defp get_param(params, key) when is_map(params) do
     params[key] || params[String.to_atom(key)]

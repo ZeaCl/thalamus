@@ -3,6 +3,7 @@ defmodule ThalamusWeb.OAuth2.RevocationControllerTest do
 
   alias Thalamus.Domain.Entities.{User, Organization, OAuth2Client}
   alias Thalamus.Domain.ValueObjects.{AccessToken, RefreshToken}
+
   alias Thalamus.Infrastructure.Repositories.{
     PostgreSQLUserRepository,
     PostgreSQLOrganizationRepository,
@@ -21,13 +22,15 @@ defmodule ThalamusWeb.OAuth2.RevocationControllerTest do
     {:ok, user} = PostgreSQLUserRepository.save(user)
 
     # Create OAuth2 client
-    {:ok, client} = OAuth2Client.new(
-      "Test Client",
-      org.id,
-      ["http://localhost:3000/callback"],
-      [:authorization_code, :refresh_token, :client_credentials],
-      [:read, :write]
-    )
+    {:ok, client} =
+      OAuth2Client.new(
+        "Test Client",
+        org.id,
+        ["http://localhost:3000/callback"],
+        [:authorization_code, :refresh_token, :client_credentials],
+        [:read, :write]
+      )
+
     {:ok, client} = PostgreSQLOAuth2ClientRepository.save(client)
 
     {:ok, %{user: user, client: client, org: org}}
@@ -46,17 +49,19 @@ defmodule ThalamusWeb.OAuth2.RevocationControllerTest do
         scope: [:read],
         expires_at: access_token.expires_at
       }
+
       :ok = PostgreSQLTokenRepository.store(token_data)
 
       # Revoke token
       credentials = Base.encode64("#{client.id}:#{client.secret}")
 
-      conn = conn
-      |> put_req_header("authorization", "Basic #{credentials}")
-      |> post(~p"/oauth/revoke", %{
-        token: access_token.token,
-        token_type_hint: "access_token"
-      })
+      conn =
+        conn
+        |> put_req_header("authorization", "Basic #{credentials}")
+        |> post(~p"/oauth/revoke", %{
+          token: access_token.token,
+          token_type_hint: "access_token"
+        })
 
       # Per RFC 7009, always returns 200 OK
       assert response(conn, 200)
@@ -77,16 +82,18 @@ defmodule ThalamusWeb.OAuth2.RevocationControllerTest do
         scope: [:read, :write],
         expires_at: DateTime.add(DateTime.utc_now(), 2_592_000, :second)
       }
+
       :ok = PostgreSQLTokenRepository.store(token_data)
 
       credentials = Base.encode64("#{client.id}:#{client.secret}")
 
-      conn = conn
-      |> put_req_header("authorization", "Basic #{credentials}")
-      |> post(~p"/oauth/revoke", %{
-        token: refresh_token.token,
-        token_type_hint: "refresh_token"
-      })
+      conn =
+        conn
+        |> put_req_header("authorization", "Basic #{credentials}")
+        |> post(~p"/oauth/revoke", %{
+          token: refresh_token.token,
+          token_type_hint: "refresh_token"
+        })
 
       assert response(conn, 200)
     end
@@ -94,11 +101,12 @@ defmodule ThalamusWeb.OAuth2.RevocationControllerTest do
     test "returns 200 for invalid token (per RFC 7009)", %{conn: conn, client: client} do
       credentials = Base.encode64("#{client.id}:#{client.secret}")
 
-      conn = conn
-      |> put_req_header("authorization", "Basic #{credentials}")
-      |> post(~p"/oauth/revoke", %{
-        token: "invalid_nonexistent_token"
-      })
+      conn =
+        conn
+        |> put_req_header("authorization", "Basic #{credentials}")
+        |> post(~p"/oauth/revoke", %{
+          token: "invalid_nonexistent_token"
+        })
 
       # Per RFC 7009, MUST return 200 even for invalid tokens
       # This prevents information leakage
@@ -117,23 +125,26 @@ defmodule ThalamusWeb.OAuth2.RevocationControllerTest do
         expires_at: access_token.expires_at,
         revoked: true
       }
+
       :ok = PostgreSQLTokenRepository.store(token_data)
 
       credentials = Base.encode64("#{client.id}:#{client.secret}")
 
-      conn = conn
-      |> put_req_header("authorization", "Basic #{credentials}")
-      |> post(~p"/oauth/revoke", %{
-        token: access_token.token
-      })
+      conn =
+        conn
+        |> put_req_header("authorization", "Basic #{credentials}")
+        |> post(~p"/oauth/revoke", %{
+          token: access_token.token
+        })
 
       assert response(conn, 200)
     end
 
     test "returns error with missing client credentials", %{conn: conn} do
-      conn = post(conn, ~p"/oauth/revoke", %{
-        token: "some_token"
-      })
+      conn =
+        post(conn, ~p"/oauth/revoke", %{
+          token: "some_token"
+        })
 
       assert json_response(conn, 401)
     end
@@ -141,11 +152,12 @@ defmodule ThalamusWeb.OAuth2.RevocationControllerTest do
     test "returns error with invalid client credentials", %{conn: conn, client: client} do
       credentials = Base.encode64("#{client.id}:wrong_secret")
 
-      conn = conn
-      |> put_req_header("authorization", "Basic #{credentials}")
-      |> post(~p"/oauth/revoke", %{
-        token: "some_token"
-      })
+      conn =
+        conn
+        |> put_req_header("authorization", "Basic #{credentials}")
+        |> post(~p"/oauth/revoke", %{
+          token: "some_token"
+        })
 
       assert json_response(conn, 401)
     end
@@ -153,24 +165,27 @@ defmodule ThalamusWeb.OAuth2.RevocationControllerTest do
     test "returns error with missing token parameter", %{conn: conn, client: client} do
       credentials = Base.encode64("#{client.id}:#{client.secret}")
 
-      conn = conn
-      |> put_req_header("authorization", "Basic #{credentials}")
-      |> post(~p"/oauth/revoke", %{})
+      conn =
+        conn
+        |> put_req_header("authorization", "Basic #{credentials}")
+        |> post(~p"/oauth/revoke", %{})
 
       assert %{
-        "error" => "invalid_request"
-      } = json_response(conn, 400)
+               "error" => "invalid_request"
+             } = json_response(conn, 400)
     end
 
     test "client can only revoke its own tokens", %{conn: conn, user: user, client: client} do
       # Create another client
-      {:ok, other_client} = OAuth2Client.new(
-        "Other Client",
-        client.organization_id,
-        ["http://other.com/callback"],
-        [:client_credentials],
-        [:read]
-      )
+      {:ok, other_client} =
+        OAuth2Client.new(
+          "Other Client",
+          client.organization_id,
+          ["http://other.com/callback"],
+          [:client_credentials],
+          [:read]
+        )
+
       {:ok, other_client} = PostgreSQLOAuth2ClientRepository.save(other_client)
 
       # Create token for first client
@@ -184,16 +199,18 @@ defmodule ThalamusWeb.OAuth2.RevocationControllerTest do
         scope: [:read],
         expires_at: access_token.expires_at
       }
+
       :ok = PostgreSQLTokenRepository.store(token_data)
 
       # Try to revoke with other client's credentials
       credentials = Base.encode64("#{other_client.id}:#{other_client.secret}")
 
-      conn = conn
-      |> put_req_header("authorization", "Basic #{credentials}")
-      |> post(~p"/oauth/revoke", %{
-        token: access_token.token
-      })
+      conn =
+        conn
+        |> put_req_header("authorization", "Basic #{credentials}")
+        |> post(~p"/oauth/revoke", %{
+          token: access_token.token
+        })
 
       # Should still return 200 per RFC 7009 (no information leakage)
       assert response(conn, 200)

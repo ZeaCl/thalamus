@@ -201,12 +201,23 @@ defmodule Thalamus.Domain.ValueObjects.MFAMethod do
 
   defp validate(type, identifier) do
     cond do
-      identifier == "" -> {:error, :invalid_identifier}
-      type == :totp and not valid_totp_secret?(identifier) -> {:error, :invalid_totp_secret}
-      type == :sms -> validate_phone_number(identifier)
-      type == :email -> validate_email(identifier)
-      type == :webauthn and String.length(identifier) < 10 -> {:error, :invalid_webauthn_credential}
-      true -> :ok
+      identifier == "" ->
+        {:error, :invalid_identifier}
+
+      type == :totp and not valid_totp_secret?(identifier) ->
+        {:error, :invalid_totp_secret}
+
+      type == :sms ->
+        validate_phone_number(identifier)
+
+      type == :email ->
+        validate_email(identifier)
+
+      type == :webauthn and String.length(identifier) < 10 ->
+        {:error, :invalid_webauthn_credential}
+
+      true ->
+        :ok
     end
   end
 

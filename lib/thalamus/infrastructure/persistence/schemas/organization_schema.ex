@@ -33,7 +33,9 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.OrganizationSchema do
     field :mfa_required, :boolean, default: false
     field :sso_enabled, :boolean, default: false
     field :audit_logs_retention_days, :integer, default: 30
-    field :support_level, Ecto.Enum, values: [:community, :email, :priority, :dedicated, :enterprise]
+
+    field :support_level, Ecto.Enum,
+      values: [:community, :email, :priority, :dedicated, :enterprise]
 
     # Usage tracking
     field :current_user_count, :integer, default: 0

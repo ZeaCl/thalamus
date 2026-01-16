@@ -87,17 +87,36 @@ REDIS_HOST=localhost
 REDIS_PORT=6379
 REDIS_PASSWORD=STRONG_REDIS_PASSWORD_CHANGE_THIS
 
-# Email (SMTP)
-EMAIL_MODE=production
-EMAIL_FROM=noreply@your-domain.com
-EMAIL_FROM_NAME="ZEA Thalamus"
-EMAIL_BASE_URL=https://your-domain.com
+# Email Configuration
+# See docs/EMAIL_CONFIGURATION.md for detailed setup
+FROM_EMAIL=noreply@your-domain.com
+FROM_NAME="ZEA Thalamus"
+BASE_URL=https://your-domain.com
 
-# SMTP Configuration (example: SendGrid, Mailgun, AWS SES)
-SMTP_HOST=smtp.sendgrid.net
+# SMTP Configuration
+# Option 1: SendGrid (Recommended)
+SMTP_RELAY=smtp.sendgrid.net
+SMTP_USERNAME=apikey
+SMTP_PASSWORD=YOUR_SENDGRID_API_KEY
 SMTP_PORT=587
-SMTP_USER=apikey
-SMTP_PASSWORD=YOUR_SMTP_API_KEY
+SMTP_TLS=always
+SMTP_AUTH=always
+
+# Option 2: Mailgun
+# SMTP_RELAY=smtp.mailgun.org
+# SMTP_USERNAME=postmaster@your-domain.mailgun.org
+# SMTP_PASSWORD=YOUR_MAILGUN_PASSWORD
+# SMTP_PORT=587
+# SMTP_TLS=always
+# SMTP_AUTH=always
+
+# Option 3: AWS SES
+# SMTP_RELAY=email-smtp.us-east-1.amazonaws.com
+# SMTP_USERNAME=YOUR_SES_USERNAME
+# SMTP_PASSWORD=YOUR_SES_PASSWORD
+# SMTP_PORT=587
+# SMTP_TLS=always
+# SMTP_AUTH=always
 
 # CORS
 CORS_ORIGINS=https://app.your-domain.com,https://your-domain.com
@@ -469,6 +488,112 @@ MIX_ENV=prod mix run priv/repo/seeds.exs
 
 ---
 
+## Email Configuration
+
+Thalamus requires email configuration for user verification, password reset, and notifications.
+
+### Email Service Setup
+
+**Recommended Providers:**
+- **SendGrid:** 100 emails/day free, easy setup
+- **Mailgun:** 100 emails/day free, reliable
+- **AWS SES:** 62,000 emails/month free (AWS account required)
+
+### SendGrid Setup (Recommended)
+
+1. Sign up at https://sendgrid.com
+2. Create an API key:
+   - Settings → API Keys → Create API Key
+   - Name: "Thalamus Production"
+   - Permissions: "Full Access" (or "Mail Send" minimum)
+3. Copy the API key (shown only once!)
+4. Configure environment:
+
+```bash
+SMTP_RELAY=smtp.sendgrid.net
+SMTP_USERNAME=apikey
+SMTP_PASSWORD=SG.your-api-key-here
+SMTP_PORT=587
+SMTP_TLS=always
+SMTP_AUTH=always
+FROM_EMAIL=noreply@your-domain.com
+FROM_NAME="ZEA Thalamus"
+```
+
+5. Verify sender email:
+   - Settings → Sender Authentication
+   - Verify your sender email or domain
+
+### Mailgun Setup
+
+1. Sign up at https://mailgun.com
+2. Add and verify your domain
+3. Get SMTP credentials:
+   - Sending → Domain Settings → SMTP Credentials
+4. Configure environment:
+
+```bash
+SMTP_RELAY=smtp.mailgun.org
+SMTP_USERNAME=postmaster@your-domain.mailgun.org
+SMTP_PASSWORD=your-mailgun-password
+SMTP_PORT=587
+SMTP_TLS=always
+SMTP_AUTH=always
+FROM_EMAIL=noreply@your-domain.com
+FROM_NAME="ZEA Thalamus"
+```
+
+### AWS SES Setup
+
+1. Set up SES in AWS Console
+2. Verify your sender email or domain
+3. Create SMTP credentials:
+   - Amazon SES → SMTP Settings → Create SMTP Credentials
+4. Configure environment:
+
+```bash
+SMTP_RELAY=email-smtp.us-east-1.amazonaws.com
+SMTP_USERNAME=your-ses-smtp-username
+SMTP_PASSWORD=your-ses-smtp-password
+SMTP_PORT=587
+SMTP_TLS=always
+SMTP_AUTH=always
+FROM_EMAIL=noreply@your-domain.com  # Must be verified in SES
+FROM_NAME="ZEA Thalamus"
+```
+
+### Testing Email
+
+```bash
+# Test email sending (in IEx console)
+_build/prod/rel/thalamus/bin/thalamus remote
+
+# In console:
+alias Thalamus.Emails.UserEmail
+alias Thalamus.Mailer
+
+user = %{email: "test@example.com", full_name: "Test User"}
+UserEmail.welcome(user) |> Mailer.deliver()
+```
+
+### Email Templates
+
+Thalamus includes three email templates:
+- **Email Verification:** Sent when users register
+- **Password Reset:** Sent when users request password reset
+- **Welcome Email:** Sent after email verification
+
+**Customize Templates:**
+Edit `lib/thalamus/emails/user_email.ex` to modify:
+- Subject lines
+- HTML content
+- Branding colors
+- Footer text
+
+For complete email configuration guide, see: [EMAIL_CONFIGURATION.md](EMAIL_CONFIGURATION.md)
+
+---
+
 ## Monitoring & Logging
 
 ### Application Logs
@@ -536,19 +661,39 @@ gunzip < backup.sql.gz | psql -U thalamus_user thalamus_prod
 
 ## Security Checklist
 
+### Before Launch
 - [ ] All secrets changed from defaults
-- [ ] SSL/TLS enabled and working
+- [ ] SECRET_KEY_BASE is 64+ characters
+- [ ] SSL/TLS enabled and working (https://)
 - [ ] Firewall configured (ports 80, 443 only)
-- [ ] Database password is strong
-- [ ] Redis password is strong
+- [ ] Database password is strong (16+ chars)
+- [ ] Redis password is strong (16+ chars)
 - [ ] SSH key-based authentication only
 - [ ] Regular security updates enabled
 - [ ] Backup system tested
 - [ ] Monitoring and alerts configured
 - [ ] Rate limiting verified
-- [ ] CORS origins restricted
-- [ ] Email sending tested
+- [ ] CORS origins restricted to your domains
+- [ ] Email sending tested (verification, password reset, welcome)
 - [ ] Audit logs reviewed
+
+### Post-Launch
+- [ ] Create first admin user
+- [ ] Generate admin API keys for services
+- [ ] Test OAuth2 flow end-to-end
+- [ ] Set up automated database backups
+- [ ] Configure log rotation
+- [ ] Set up uptime monitoring
+- [ ] Test password reset flow
+- [ ] Test MFA (if enabled)
+- [ ] Review and adjust rate limits
+- [ ] Set up calendar reminders for secret rotation (90 days)
+
+### SPF/DKIM/DMARC (Email Deliverability)
+- [ ] Add SPF record to DNS
+- [ ] Configure DKIM with email provider
+- [ ] Set up DMARC policy
+- [ ] Test emails don't go to spam
 
 ---
 

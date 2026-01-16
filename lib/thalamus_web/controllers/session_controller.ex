@@ -1,109 +1,72 @@
 defmodule ThalamusWeb.SessionController do
-  @moduledoc """
-  Handles user authentication sessions for OAuth2 authorization flow.
-  This is the login page where users authenticate before granting OAuth2 consent.
-  """
   use ThalamusWeb, :controller
 
-  alias Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository
-  alias Thalamus.Domain.ValueObjects.{Email, UserId, PasswordHash}
+  alias Thalamus.Repo
+  alias Thalamus.Infrastructure.Persistence.Schemas.UserSchema
 
-  @doc """
-  GET /login
-
-  Shows the login form.
-  Can redirect back to OAuth2 authorization flow after successful login.
-  """
   def new(conn, params) do
-    # Check if user is already authenticated
-    case get_session(conn, :user_id) do
-      nil ->
-        # Not authenticated, show login form
-        render(conn, :new, return_to: params["return_to"])
+    # Preserve return_to parameter in session for OAuth2 authorization flow
+    conn =
+      case params["return_to"] do
+        nil -> conn
+        return_to -> put_session(conn, :return_to, return_to)
+      end
 
-      _user_id ->
-        # Already authenticated, redirect to return_to or home
-        redirect_url = params["return_to"] || "/"
-        redirect(conn, to: redirect_url)
-    end
+    render(conn, :new, layout: false)
   end
 
-  @doc """
-  POST /login
+  def create(conn, %{"session" => %{"email" => email, "password" => password}}) do
+    case authenticate_user(email, password) do
+      {:ok, user} ->
+        # Check if there's an OAuth2 authorization request in session
+        authorization_request = get_session(conn, :authorization_request)
 
-  Processes login form submission and authenticates the user.
-  """
-  def create(conn, %{"user" => %{"email" => email_string, "password" => password}} = params) do
-    return_to = params["return_to"]
+        conn
+        |> put_flash(:info, "Welcome back!")
+        |> put_session(:user_id, user.id)
+        # Clear return_to after reading it
+        |> delete_session(:return_to)
+        # Clear authorization request
+        |> delete_session(:authorization_request)
+        |> redirect_after_login(authorization_request)
 
-    # Authenticate user
-    with {:ok, email} <- Email.from_string(email_string),
-         {:ok, user} <- PostgreSQLUserRepository.find_by_email(email),
-         :ok <- PasswordHash.verify(user.password_hash, password) do
-      # Check user status
-      case user.status do
-        :active ->
-          # Authentication successful
-          # Check if there's a stored authorization request to redirect back to
-          redirect_url = build_redirect_url(conn, return_to)
-
-          conn
-          |> put_session(:user_id, UserId.to_string(user.id))
-          |> delete_session(:authorization_request)
-          |> put_flash(:info, "Welcome back!")
-          |> redirect(to: redirect_url)
-
-        :pending_verification ->
-          conn
-          |> put_flash(:error, "Please verify your email address before logging in")
-          |> render(:new, return_to: return_to)
-
-        :locked ->
-          conn
-          |> put_flash(:error, "Your account has been locked")
-          |> render(:new, return_to: return_to)
-
-        _ ->
-          conn
-          |> put_flash(:error, "Your account is not active")
-          |> render(:new, return_to: return_to)
-      end
-    else
-      _ ->
-        # Invalid credentials
+      {:error, _reason} ->
         conn
         |> put_flash(:error, "Invalid email or password")
-        |> render(:new, return_to: return_to)
+        |> render(:new, layout: false)
     end
   end
 
-  @doc """
-  DELETE /logout
-
-  Logs out the current user.
-  """
   def delete(conn, _params) do
     conn
-    |> configure_session(drop: true)
-    |> put_flash(:info, "You have been logged out")
-    |> redirect(to: "/")
+    |> clear_session()
+    |> put_flash(:info, "Logged out successfully")
+    |> redirect(to: ~p"/")
   end
 
-  # Private helper functions
+  defp authenticate_user(email, password) do
+    user = Repo.get_by(UserSchema, email: email)
 
-  defp build_redirect_url(conn, return_to) do
-    case get_session(conn, :authorization_request) do
-      nil ->
-        # No stored authorization request, use return_to or default
-        return_to || "/"
-
-      auth_params when is_map(auth_params) ->
-        # Rebuild the authorization URL with original parameters
-        query_string = URI.encode_query(auth_params)
-        return_to <> "?" <> query_string
-
-      _ ->
-        return_to || "/"
+    if user && Bcrypt.verify_pass(password, user.password_hash) && user.status == :active do
+      {:ok, user}
+    else
+      Bcrypt.no_user_verify()
+      {:error, :invalid_credentials}
     end
+  end
+
+  defp get_return_to(conn) do
+    get_session(conn, :return_to) || conn.params["return_to"] || ~p"/dashboard"
+  end
+
+  defp redirect_after_login(conn, nil) do
+    # No authorization request - use normal return_to logic
+    redirect(conn, to: get_return_to(conn))
+  end
+
+  defp redirect_after_login(conn, authorization_request) when is_map(authorization_request) do
+    # Rebuild authorization URL with original OAuth2 parameters
+    query_string = URI.encode_query(authorization_request)
+    redirect(conn, to: "/oauth/authorize?" <> query_string)
   end
 end

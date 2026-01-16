@@ -335,14 +335,15 @@ defmodule ThalamusWeb.API.OAuth2ClientController do
     grant_types =
       Enum.map(grant_type_strings, fn type_string ->
         # Convert string to atom safely (validate against known grant types)
-        type_atom = case type_string do
-          "authorization_code" -> :authorization_code
-          "client_credentials" -> :client_credentials
-          "refresh_token" -> :refresh_token
-          "implicit" -> :implicit
-          "password" -> :password
-          _ -> nil
-        end
+        type_atom =
+          case type_string do
+            "authorization_code" -> :authorization_code
+            "client_credentials" -> :client_credentials
+            "refresh_token" -> :refresh_token
+            "implicit" -> :implicit
+            "password" -> :password
+            _ -> nil
+          end
 
         if type_atom do
           {:ok, grant_type} = Thalamus.Domain.ValueObjects.GrantType.new(type_atom)

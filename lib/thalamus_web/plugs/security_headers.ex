@@ -59,21 +59,22 @@ defmodule ThalamusWeb.Plugs.SecurityHeaders do
 
   # Default security policies
   @default_csp_policy """
-  default-src 'self'; \
-  script-src 'self' 'unsafe-inline' 'unsafe-eval'; \
-  style-src 'self' 'unsafe-inline'; \
-  img-src 'self' data: https:; \
-  font-src 'self' data:; \
-  connect-src 'self' ws://localhost:* wss://localhost:*; \
-  frame-src 'self'; \
-  frame-ancestors 'none'; \
-  base-uri 'self'; \
-  form-action 'self' http://localhost:*
-  """
-  |> String.replace(~r/\s+/, " ")
-  |> String.trim()
+                      default-src 'self'; \
+                      script-src 'self' 'unsafe-inline' 'unsafe-eval'; \
+                      style-src 'self' 'unsafe-inline'; \
+                      img-src 'self' data: https:; \
+                      font-src 'self' data:; \
+                      connect-src 'self' ws://localhost:* wss://localhost:*; \
+                      frame-src 'self'; \
+                      frame-ancestors 'none'; \
+                      base-uri 'self'; \
+                      form-action 'self' http://localhost:*
+                      """
+                      |> String.replace(~r/\s+/, " ")
+                      |> String.trim()
 
-  @default_hsts_max_age 31_536_000  # 1 year
+  # 1 year
+  @default_hsts_max_age 31_536_000
   @default_frame_options "DENY"
   @default_referrer_policy "strict-origin-when-cross-origin"
 

@@ -135,7 +135,8 @@ defmodule Thalamus.Domain.Entities.AdminApiKey do
       {:ok, %AdminApiKey{is_active: true}}
   """
   def activate(%__MODULE__{} = api_key) do
-    {:ok, %{api_key | is_active: true, updated_at: DateTime.truncate(DateTime.utc_now(), :second)}}
+    {:ok,
+     %{api_key | is_active: true, updated_at: DateTime.truncate(DateTime.utc_now(), :second)}}
   end
 
   @doc """
@@ -150,7 +151,8 @@ defmodule Thalamus.Domain.Entities.AdminApiKey do
       {:ok, %AdminApiKey{is_active: false}}
   """
   def deactivate(%__MODULE__{} = api_key) do
-    {:ok, %{api_key | is_active: false, updated_at: DateTime.truncate(DateTime.utc_now(), :second)}}
+    {:ok,
+     %{api_key | is_active: false, updated_at: DateTime.truncate(DateTime.utc_now(), :second)}}
   end
 
   @doc """
@@ -197,6 +199,7 @@ defmodule Thalamus.Domain.Entities.AdminApiKey do
       false
   """
   def valid?(%__MODULE__{is_active: false}), do: false
+
   def valid?(%__MODULE__{} = api_key) do
     not expired?(api_key)
   end
@@ -247,7 +250,11 @@ defmodule Thalamus.Domain.Entities.AdminApiKey do
   """
   def mark_as_used(%__MODULE__{} = api_key) do
     {:ok,
-     %{api_key | last_used_at: DateTime.truncate(DateTime.utc_now(), :second), updated_at: DateTime.truncate(DateTime.utc_now(), :second)}}
+     %{
+       api_key
+       | last_used_at: DateTime.truncate(DateTime.utc_now(), :second),
+         updated_at: DateTime.truncate(DateTime.utc_now(), :second)
+     }}
   end
 
   @doc """

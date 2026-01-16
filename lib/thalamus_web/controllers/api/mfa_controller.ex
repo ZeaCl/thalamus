@@ -44,7 +44,6 @@ defmodule ThalamusWeb.API.MFAController do
          :ok <- validate_mfa_not_enabled(user),
          {:ok, secret} <- generate_totp_secret(),
          {:ok, backup_codes} <- generate_backup_codes() do
-
       # Generate QR code URI for authenticator apps
       qr_uri = generate_totp_uri(user.email, secret)
 
@@ -76,6 +75,7 @@ defmodule ThalamusWeb.API.MFAController do
 
       {:error, reason} ->
         Logger.error("TOTP setup failed: #{inspect(reason)}")
+
         conn
         |> put_status(:internal_server_error)
         |> json(%{error: "Failed to setup TOTP"})
@@ -107,7 +107,6 @@ defmodule ThalamusWeb.API.MFAController do
          {:ok, user} <- PostgreSQLUserRepository.find_by_id(user_id),
          {:ok, mfa_method} <- MFAMethod.new(:totp, pending_setup.secret),
          {:ok, _updated_user} <- enable_mfa_for_user(user, mfa_method) do
-
       # Clear pending setup
       clear_pending_mfa_setup(user_id)
 
@@ -131,12 +130,14 @@ defmodule ThalamusWeb.API.MFAController do
 
       {:error, :invalid_code} ->
         AuditLoggerImpl.log_mfa_verification_failed(user_id, :totp)
+
         conn
         |> put_status(:bad_request)
         |> json(%{error: "Invalid verification code"})
 
       {:error, reason} ->
         Logger.error("TOTP verification failed: #{inspect(reason)}")
+
         conn
         |> put_status(:internal_server_error)
         |> json(%{error: "Failed to verify TOTP"})
@@ -178,7 +179,6 @@ defmodule ThalamusWeb.API.MFAController do
          :ok <- validate_user_has_mfa(user),
          {:ok, mfa_method} <- get_user_totp_method(user),
          :ok <- validate_totp_code(code, mfa_method.secret) do
-
       AuditLoggerImpl.log_mfa_verification_success(user_id, :totp)
 
       conn
@@ -201,6 +201,7 @@ defmodule ThalamusWeb.API.MFAController do
 
       {:error, reason} ->
         Logger.error("MFA verification failed: #{inspect(reason)}")
+
         conn
         |> put_status(:unauthorized)
         |> json(%{error: "Verification failed"})
@@ -245,7 +246,6 @@ defmodule ThalamusWeb.API.MFAController do
          {:ok, mfa_method} <- get_user_totp_method(user),
          :ok <- validate_totp_code(code, mfa_method.secret),
          {:ok, _updated_user} <- disable_mfa_for_user(user) do
-
       AuditLoggerImpl.log_mfa_disabled(user_id)
 
       conn
@@ -264,6 +264,7 @@ defmodule ThalamusWeb.API.MFAController do
 
       {:error, :invalid_password} ->
         AuditLoggerImpl.log_failed_login(user_id, "invalid_password_for_mfa_disable")
+
         conn
         |> put_status(:bad_request)
         |> json(%{error: "Invalid password"})
@@ -275,6 +276,7 @@ defmodule ThalamusWeb.API.MFAController do
 
       {:error, reason} ->
         Logger.error("MFA disable failed: #{inspect(reason)}")
+
         conn
         |> put_status(:internal_server_error)
         |> json(%{error: "Failed to disable MFA"})
@@ -320,7 +322,6 @@ defmodule ThalamusWeb.API.MFAController do
          :ok <- validate_totp_code(code, mfa_method.secret),
          {:ok, backup_codes} <- generate_backup_codes(),
          :ok <- store_backup_codes(user_id, backup_codes) do
-
       AuditLoggerImpl.log_backup_codes_regenerated(user_id)
 
       conn
@@ -334,6 +335,7 @@ defmodule ThalamusWeb.API.MFAController do
     else
       {:error, reason} ->
         Logger.error("Backup codes regeneration failed: #{inspect(reason)}")
+
         conn
         |> put_status(:bad_request)
         |> json(%{error: "Failed to regenerate backup codes"})
@@ -368,18 +370,20 @@ defmodule ThalamusWeb.API.MFAController do
 
   defp generate_totp_secret do
     # Generate 32-character base32 secret (160 bits)
-    secret = :crypto.strong_rand_bytes(20)
-    |> Base.encode32(padding: false)
+    secret =
+      :crypto.strong_rand_bytes(20)
+      |> Base.encode32(padding: false)
 
     {:ok, secret}
   end
 
   defp generate_backup_codes do
     # Generate 10 backup codes (8 characters each)
-    codes = for _ <- 1..10 do
-      :crypto.strong_rand_bytes(4)
-      |> Base.encode16(case: :lower)
-    end
+    codes =
+      for _ <- 1..10 do
+        :crypto.strong_rand_bytes(4)
+        |> Base.encode16(case: :lower)
+      end
 
     {:ok, codes}
   end
@@ -395,13 +399,18 @@ defmodule ThalamusWeb.API.MFAController do
   defp store_pending_mfa_setup(user_id, secret, backup_codes) do
     # Store in Redis with 10 minute expiration
     cache_key = "mfa:pending:#{UserId.to_string(user_id)}"
+
     data = %{
       secret: secret,
       backup_codes: backup_codes,
       created_at: DateTime.utc_now() |> DateTime.to_unix()
     }
 
-    case Thalamus.Infrastructure.Adapters.RedisCacheAdapter.set(cache_key, Jason.encode!(data), 600) do
+    case Thalamus.Infrastructure.Adapters.RedisCacheAdapter.set(
+           cache_key,
+           Jason.encode!(data),
+           600
+         ) do
       :ok -> :ok
       {:error, _} = error -> error
     end
@@ -414,8 +423,10 @@ defmodule ThalamusWeb.API.MFAController do
       {:ok, json_data} ->
         data = Jason.decode!(json_data, keys: :atoms)
         {:ok, data}
+
       {:error, :not_found} ->
         {:error, :no_pending_setup}
+
       {:error, _} = error ->
         error
     end
@@ -443,10 +454,11 @@ defmodule ThalamusWeb.API.MFAController do
       div(current_time, time_step) + 1
     ]
 
-    valid = Enum.any?(valid_windows, fn window ->
-      expected_code = generate_totp_code(secret, window)
-      expected_code == code
-    end)
+    valid =
+      Enum.any?(valid_windows, fn window ->
+        expected_code = generate_totp_code(secret, window)
+        expected_code == code
+      end)
 
     if valid do
       :ok
@@ -480,25 +492,22 @@ defmodule ThalamusWeb.API.MFAController do
 
   defp enable_mfa_for_user(user, mfa_method) do
     # Update user with MFA method
-    updated_user = %Thalamus.Domain.Entities.User{user |
-      mfa_methods: [mfa_method]
-    }
+    updated_user = %Thalamus.Domain.Entities.User{user | mfa_methods: [mfa_method]}
 
     PostgreSQLUserRepository.save(updated_user)
   end
 
   defp disable_mfa_for_user(user) do
-    updated_user = %Thalamus.Domain.Entities.User{user |
-      mfa_methods: []
-    }
+    updated_user = %Thalamus.Domain.Entities.User{user | mfa_methods: []}
 
     PostgreSQLUserRepository.save(updated_user)
   end
 
   defp get_user_totp_method(user) do
-    totp_method = Enum.find(user.mfa_methods, fn method ->
-      method.method_type == :totp
-    end)
+    totp_method =
+      Enum.find(user.mfa_methods, fn method ->
+        method.method_type == :totp
+      end)
 
     if totp_method do
       {:ok, totp_method}
@@ -519,15 +528,17 @@ defmodule ThalamusWeb.API.MFAController do
     # Store hashed backup codes in Redis
     cache_key = "mfa:backup_codes:#{UserId.to_string(user_id)}"
 
-    hashed_codes = Enum.map(backup_codes, fn code ->
-      :crypto.hash(:sha256, code) |> Base.encode16(case: :lower)
-    end)
+    hashed_codes =
+      Enum.map(backup_codes, fn code ->
+        :crypto.hash(:sha256, code) |> Base.encode16(case: :lower)
+      end)
 
     case Thalamus.Infrastructure.Adapters.RedisCacheAdapter.set(
-      cache_key,
-      Jason.encode!(hashed_codes),
-      31_536_000  # 1 year expiration
-    ) do
+           cache_key,
+           Jason.encode!(hashed_codes),
+           # 1 year expiration
+           31_536_000
+         ) do
       :ok -> :ok
       {:error, _} = error -> error
     end

@@ -103,3 +103,28 @@
 [data-phx-session], [data-phx-teleported-src] { display: contents }
 
 /* This file is for your main application CSS */
+
+/* Custom form improvements */
+.form-control .label {
+  margin-bottom: 0.5rem;
+}
+
+.form-control .input,
+.form-control .textarea,
+.form-control .select {
+  margin-bottom: 0;
+}
+
+/* Remove double border on focus */
+.input:focus,
+.textarea:focus,
+.select:focus {
+  outline: none;
+  outline-offset: 0;
+}
+
+/* Improve checkbox label spacing */
+.label.cursor-pointer {
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}

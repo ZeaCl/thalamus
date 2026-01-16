@@ -66,6 +66,17 @@ defmodule ThalamusWeb.Router do
     plug ThalamusWeb.Plugs.RateLimiter, limit: 1000, window: 60_000, key: :user_id
   end
 
+  # Dashboard pipeline - authenticated browser access
+  pipeline :dashboard do
+    plug :browser
+    plug :fetch_session
+    plug :fetch_live_flash
+    plug :put_root_layout, html: {ThalamusWeb.Layouts, :app}
+    plug :protect_from_forgery
+    plug :put_secure_browser_headers
+    plug ThalamusWeb.Plugs.RequireAuth
+  end
+
   scope "/", ThalamusWeb do
     pipe_through :browser
 
@@ -74,7 +85,75 @@ defmodule ThalamusWeb.Router do
     # Session management
     get "/login", SessionController, :new
     post "/login", SessionController, :create
-    delete "/logout", SessionController, :delete
+    post "/logout", SessionController, :delete
+  end
+
+  # Dashboard (Admin Panel)
+  scope "/dashboard", ThalamusWeb.Dashboard do
+    pipe_through :dashboard
+
+    live "/", Index, :index
+  end
+
+  # OAuth2 Clients Management
+  scope "/dashboard", ThalamusWeb do
+    pipe_through :dashboard
+
+    live "/clients", Clients.Index, :index
+    live "/clients/new", Clients.Form, :new
+    live "/clients/:id", Clients.Show, :show
+    live "/clients/:id/edit", Clients.Form, :edit
+  end
+
+  # Users Management
+  scope "/dashboard", ThalamusWeb do
+    pipe_through :dashboard
+
+    live "/users", Users.Index, :index
+    live "/users/new", Users.Form, :new
+    live "/users/:id", Users.Show, :show
+    live "/users/:id/edit", Users.Form, :edit
+  end
+
+  # Organizations Management
+  scope "/dashboard", ThalamusWeb do
+    pipe_through :dashboard
+
+    live "/organizations", Organizations.Index, :index
+    live "/organizations/new", Organizations.Form, :new
+    live "/organizations/:id", Organizations.Show, :show
+    live "/organizations/:id/edit", Organizations.Form, :edit
+  end
+
+  # Token Management
+  scope "/dashboard", ThalamusWeb do
+    pipe_through :dashboard
+
+    live "/tokens", Tokens.Index, :index
+    live "/tokens/:id", Tokens.Show, :show
+  end
+
+  # Audit Logs
+  scope "/dashboard", ThalamusWeb do
+    pipe_through :dashboard
+
+    live "/audit-logs", AuditLogs.Index, :index
+  end
+
+  # API Keys Management
+  scope "/dashboard", ThalamusWeb do
+    pipe_through :dashboard
+
+    live "/api-keys", ApiKeys.Index, :index
+    live "/api-keys/new", ApiKeys.Form, :new
+    live "/api-keys/:id", ApiKeys.Show, :show
+  end
+
+  # Settings
+  scope "/dashboard", ThalamusWeb do
+    pipe_through :dashboard
+
+    live "/settings", Settings.Index, :index
   end
 
   # OAuth2 Authorization Endpoints (Browser-based, needs CSRF protection)
@@ -92,6 +171,9 @@ defmodule ThalamusWeb.Router do
 
     # Token endpoint - POST only
     post "/token", TokenController, :create
+
+    # Agent token endpoint - POST only (NEW)
+    post "/agent-token", AgentTokenController, :create
 
     # UserInfo endpoint (OpenID Connect)
     get "/userinfo", UserinfoController, :show
@@ -177,6 +259,7 @@ defmodule ThalamusWeb.Router do
       pipe_through :browser
 
       live_dashboard "/dashboard", metrics: ThalamusWeb.Telemetry
+      forward "/mailbox", Plug.Swoosh.MailboxPreview
     end
   end
 end

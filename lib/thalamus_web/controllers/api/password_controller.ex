@@ -56,7 +56,6 @@ defmodule ThalamusWeb.API.PasswordController do
   def reset(conn, params) do
     with {:ok, email_string} <- get_required_param(params, "email"),
          {:ok, email_vo} <- Email.new(email_string) do
-
       # Attempt to find user by email
       case PostgreSQLUserRepository.find_by_email(email_vo) do
         {:ok, user} ->
@@ -135,7 +134,6 @@ defmodule ThalamusWeb.API.PasswordController do
          {:ok, user} <- PostgreSQLUserRepository.find_by_id(user_id),
          {:ok, updated_user} <- User.change_password(user, password, password),
          {:ok, _saved_user} <- PostgreSQLUserRepository.save(updated_user) do
-
       # TODO: Audit log
       # AuditLogger.log_password_changed(user.id, %{ip_address: get_ip(conn)})
 
@@ -212,12 +210,12 @@ defmodule ThalamusWeb.API.PasswordController do
     with {:ok, user_id} <- get_authenticated_user_id(conn),
          {:ok, current_password} <- get_required_param(params, "current_password"),
          {:ok, new_password} <- get_required_param(params, "new_password"),
-         {:ok, new_password_confirmation} <- get_required_param(params, "new_password_confirmation"),
+         {:ok, new_password_confirmation} <-
+           get_required_param(params, "new_password_confirmation"),
          :ok <- validate_password_confirmation(new_password, new_password_confirmation),
          {:ok, user} <- PostgreSQLUserRepository.find_by_id(user_id),
          {:ok, updated_user} <- User.change_password(user, current_password, new_password),
          {:ok, _saved_user} <- PostgreSQLUserRepository.save(updated_user) do
-
       # TODO: Audit log
       # AuditLogger.log_password_changed(user.id, %{ip_address: get_ip(conn)})
 
@@ -301,10 +299,14 @@ defmodule ThalamusWeb.API.PasswordController do
 
   defp get_authenticated_user_id(conn) do
     case conn.assigns[:current_user_id] do
-      nil -> {:error, :not_authenticated}
+      nil ->
+        {:error, :not_authenticated}
+
       user_id when is_binary(user_id) ->
         UserId.from_string(user_id)
-      user_id -> {:ok, user_id}
+
+      user_id ->
+        {:ok, user_id}
     end
   end
 
@@ -336,7 +338,10 @@ defmodule ThalamusWeb.API.PasswordController do
             if now - token_time < 3600 do
               # Verify signature
               token_data = "#{user_id_string}:#{timestamp}"
-              secret_key = Application.get_env(:thalamus, :password_reset_secret, "change_me_in_production")
+
+              secret_key =
+                Application.get_env(:thalamus, :password_reset_secret, "change_me_in_production")
+
               expected_signature = :crypto.mac(:hmac, :sha256, secret_key, token_data)
 
               case Base.decode64(signature_b64) do

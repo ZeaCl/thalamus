@@ -15,7 +15,11 @@ defmodule ThalamusWeb.OAuth2.RevocationController do
 
   use ThalamusWeb, :controller
 
-  alias Thalamus.Infrastructure.Repositories.{PostgreSQLOAuth2ClientRepository, PostgreSQLTokenRepository}
+  alias Thalamus.Infrastructure.Repositories.{
+    PostgreSQLOAuth2ClientRepository,
+    PostgreSQLTokenRepository
+  }
+
   alias Thalamus.Domain.ValueObjects.ClientId
 
   @doc """
@@ -61,7 +65,6 @@ defmodule ThalamusWeb.OAuth2.RevocationController do
     with {:ok, client_id, client_secret} <- extract_client_credentials(conn, params),
          {:ok, client_id_vo} <- ClientId.from_string(client_id),
          {:ok, _client} <- authenticate_client(client_id_vo, client_secret) do
-
       # Validate required parameters
       cond do
         is_nil(token) or token == "" ->

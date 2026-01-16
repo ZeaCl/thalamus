@@ -299,7 +299,8 @@ defmodule Thalamus.Application.UseCases.ValidateTokenTest do
         {:ok, token_data}
       end)
 
-      {:ok, result} = ValidateToken.execute_with_scope("at_valid_token_123", "openid profile", deps)
+      {:ok, result} =
+        ValidateToken.execute_with_scope("at_valid_token_123", "openid profile", deps)
 
       assert result.valid == true
       assert result.active == true

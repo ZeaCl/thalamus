@@ -16,8 +16,9 @@ defmodule ThalamusWeb.API.RegistrationController do
     PostgreSQLOrganizationRepository,
     PostgreSQLTokenRepository
   }
+
   alias Thalamus.Domain.Entities.{User, Organization}
-  alias Thalamus.Domain.ValueObjects.{UserId, Email, OrganizationId, ClientId}
+  alias Thalamus.Domain.ValueObjects.{UserId, Email, OrganizationId}
 
   # TODO: Inject EmailService dependency
   # For now, we'll skip email sending
@@ -83,7 +84,6 @@ defmodule ThalamusWeb.API.RegistrationController do
          {:ok, verified_user} <- User.verify_email(saved_user),
          {:ok, final_user} <- PostgreSQLUserRepository.save(verified_user),
          {:ok, tokens} <- generate_tokens_for_user(final_user, organization) do
-
       # Build response with user, organization, and tokens
       conn
       |> put_status(:created)
@@ -178,7 +178,6 @@ defmodule ThalamusWeb.API.RegistrationController do
          :ok <- validate_verification_token(user.id, token),
          {:ok, verified_user} <- User.verify_email(user),
          {:ok, saved_user} <- PostgreSQLUserRepository.save(verified_user) do
-
       conn
       |> put_status(:ok)
       |> json(%{
@@ -234,7 +233,6 @@ defmodule ThalamusWeb.API.RegistrationController do
          {:ok, email_vo} <- Email.new(email_string),
          {:ok, user} <- PostgreSQLUserRepository.find_by_email(email_vo),
          :ok <- check_not_verified(user) do
-
       # Generate new verification token
       verification_token = generate_verification_token(user.id)
 
@@ -317,7 +315,9 @@ defmodule ThalamusWeb.API.RegistrationController do
     token_data = "#{user_id_string}:#{DateTime.to_unix(DateTime.utc_now())}"
 
     # Create HMAC signature
-    secret_key = Application.get_env(:thalamus, :verification_token_secret, "change_me_in_production")
+    secret_key =
+      Application.get_env(:thalamus, :verification_token_secret, "change_me_in_production")
+
     signature = :crypto.mac(:hmac, :sha256, secret_key, token_data)
 
     # Encode token
@@ -339,7 +339,14 @@ defmodule ThalamusWeb.API.RegistrationController do
               if now - token_time < 86400 do
                 # Verify signature
                 token_data = "#{token_user_id}:#{timestamp}"
-                secret_key = Application.get_env(:thalamus, :verification_token_secret, "change_me_in_production")
+
+                secret_key =
+                  Application.get_env(
+                    :thalamus,
+                    :verification_token_secret,
+                    "change_me_in_production"
+                  )
+
                 expected_signature = :crypto.mac(:hmac, :sha256, secret_key, token_data)
 
                 case Base.decode64(signature_b64) do
@@ -371,17 +378,25 @@ defmodule ThalamusWeb.API.RegistrationController do
 
   defp create_organization_if_provided(params, user) do
     require Logger
-    Logger.debug("create_organization_if_provided called with params: #{inspect(params)}, user_id: #{inspect(user.id)}")
+
+    Logger.debug(
+      "create_organization_if_provided called with params: #{inspect(params)}, user_id: #{inspect(user.id)}"
+    )
 
     case params["organization_name"] do
       nil ->
         Logger.debug("No organization_name provided")
         {:ok, nil}
+
       "" ->
         Logger.debug("Empty organization_name provided")
         {:ok, nil}
+
       org_name when is_binary(org_name) ->
-        Logger.debug("Creating organization with name: #{org_name}, owner_email: #{inspect(user.email)}")
+        Logger.debug(
+          "Creating organization with name: #{org_name}, owner_email: #{inspect(user.email)}"
+        )
+
         # Create new organization with user as owner
         # Use the convenience function that takes strings
         with {:ok, organization} <- Organization.new(org_name, Email.to_string(user.email)),
@@ -405,20 +420,25 @@ defmodule ThalamusWeb.API.RegistrationController do
     with {:ok, user_id} <- UserId.generate(),
          {:ok, email} <- Email.new(email_string),
          {:ok, password_hash} <- Thalamus.Domain.ValueObjects.PasswordHash.from_password(password) do
+      Logger.debug(
+        "About to call User.new with id=#{inspect(user_id)}, email=#{inspect(email)}, name=#{inspect(name)}"
+      )
 
-      Logger.debug("About to call User.new with id=#{inspect(user_id)}, email=#{inspect(email)}, name=#{inspect(name)}")
-
-      result = User.new(%{
-        id: user_id,
-        email: email,
-        name: name,
-        password_hash: password_hash
-      })
+      result =
+        User.new(%{
+          id: user_id,
+          email: email,
+          name: name,
+          password_hash: password_hash
+        })
 
       # Debug logging
       case result do
         {:error, reason} ->
-          Logger.error("User.new failed: #{inspect(reason)}, inputs: id=#{inspect(user_id)}, email=#{inspect(email)}, name=#{inspect(name)}, password_hash=present")
+          Logger.error(
+            "User.new failed: #{inspect(reason)}, inputs: id=#{inspect(user_id)}, email=#{inspect(email)}, name=#{inspect(name)}, password_hash=present"
+          )
+
         {:ok, user} ->
           Logger.debug("User.new succeeded: #{inspect(user)}")
       end
@@ -432,6 +452,7 @@ defmodule ThalamusWeb.API.RegistrationController do
   end
 
   defp associate_user_with_organization(_user, nil), do: :ok
+
   defp associate_user_with_organization(user, organization) do
     alias Thalamus.Infrastructure.Persistence.Schemas.UserSchema
 
@@ -442,7 +463,9 @@ defmodule ThalamusWeb.API.RegistrationController do
 
     # Update the user schema directly with organization_id
     case Thalamus.Repo.get(UserSchema, user_uuid) do
-      nil -> {:error, :user_not_found}
+      nil ->
+        {:error, :user_not_found}
+
       user_schema ->
         user_schema
         |> Ecto.Changeset.change(%{organization_id: org_id_string})
@@ -472,7 +495,8 @@ defmodule ThalamusWeb.API.RegistrationController do
       client_id: internal_client_uuid,
       organization_id: organization_id,
       scopes: get_default_user_scopes(),
-      expires_at: DateTime.add(DateTime.utc_now(), 3600),  # 1 hour
+      # 1 hour
+      expires_at: DateTime.add(DateTime.utc_now(), 3600),
       revoked: false
     })
 
@@ -484,16 +508,18 @@ defmodule ThalamusWeb.API.RegistrationController do
       client_id: internal_client_uuid,
       organization_id: organization_id,
       scopes: get_default_user_scopes(),
-      expires_at: DateTime.add(DateTime.utc_now(), 2_592_000),  # 30 days
+      # 30 days
+      expires_at: DateTime.add(DateTime.utc_now(), 2_592_000),
       revoked: false
     })
 
-    {:ok, %{
-      access_token: access_token,
-      token_type: "Bearer",
-      expires_in: 3600,
-      refresh_token: refresh_token
-    }}
+    {:ok,
+     %{
+       access_token: access_token,
+       token_type: "Bearer",
+       expires_in: 3600,
+       refresh_token: refresh_token
+     }}
   end
 
   defp generate_access_token do
@@ -531,6 +557,7 @@ defmodule ThalamusWeb.API.RegistrationController do
   end
 
   defp organization_to_json(nil), do: nil
+
   defp organization_to_json(organization) do
     %{
       id: OrganizationId.to_string(organization.id),

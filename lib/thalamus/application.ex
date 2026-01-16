@@ -20,6 +20,9 @@ defmodule Thalamus.Application do
       ThalamusWeb.Endpoint
     ]
 
+    # Add Redis cache adapter if configured
+    children = maybe_add_redis_cache(children)
+
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
     opts = [strategy: :one_for_one, name: Thalamus.Supervisor]
@@ -32,6 +35,18 @@ defmodule Thalamus.Application do
   def config_change(changed, _new, removed) do
     ThalamusWeb.Endpoint.config_change(changed, removed)
     :ok
+  end
+
+  defp maybe_add_redis_cache(children) do
+    case Application.get_env(:thalamus, :redis_adapter, :mock) do
+      :redix ->
+        # Add Redis cache adapter to supervision tree
+        [Thalamus.Infrastructure.Adapters.RedisCacheAdapter | children]
+
+      :mock ->
+        # Use mock adapter, no supervisor needed
+        children
+    end
   end
 
   defp print_banner do

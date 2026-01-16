@@ -139,7 +139,8 @@ defmodule Thalamus.Domain.Entities.Organization do
       iex> Organization.new("Acme Corp", "owner@acme.com")
       {:ok, %Organization{name: "Acme Corp", plan_type: :free}}
   """
-  def new(name, owner_email_string, plan_type \\ :free) when is_binary(name) and is_binary(owner_email_string) do
+  def new(name, owner_email_string, plan_type \\ :free)
+      when is_binary(name) and is_binary(owner_email_string) do
     with {:ok, org_id} <- OrganizationId.generate(),
          {:ok, owner_email} <- Email.new(owner_email_string) do
       # Truncate to seconds for Ecto :utc_datetime compatibility
@@ -149,7 +150,8 @@ defmodule Thalamus.Domain.Entities.Organization do
         id: org_id,
         name: name,
         owner_email: owner_email,
-        plan: nil,  # Will be set based on plan_type
+        # Will be set based on plan_type
+        plan: nil,
         plan_type: plan_type,
         members: [],
         settings: default_settings(),
@@ -523,12 +525,14 @@ defmodule Thalamus.Domain.Entities.Organization do
   defp plan_max_users(:free), do: 5
   defp plan_max_users(:starter), do: 25
   defp plan_max_users(:professional), do: 100
-  defp plan_max_users(:enterprise), do: nil  # unlimited
+  # unlimited
+  defp plan_max_users(:enterprise), do: nil
 
   defp plan_max_api_calls(:free), do: 10_000
   defp plan_max_api_calls(:starter), do: 100_000
   defp plan_max_api_calls(:professional), do: 1_000_000
-  defp plan_max_api_calls(:enterprise), do: nil  # unlimited
+  # unlimited
+  defp plan_max_api_calls(:enterprise), do: nil
 
   defp default_settings do
     %{

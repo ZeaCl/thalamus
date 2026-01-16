@@ -80,6 +80,18 @@ config :thalamus, ThalamusWeb.Plugs.SecurityHeaders,
 config :hammer,
   backend: {Hammer.Backend.ETS, [expiry_ms: 60_000 * 60 * 2, cleanup_interval_ms: 60_000 * 10]}
 
+# Redis cache configuration
+config :thalamus,
+  redis_url: System.get_env("REDIS_URL", "redis://localhost:6379/0"),
+  # Using real Redis for production-grade caching
+  redis_adapter: :redix,
+  base_url: System.get_env("BASE_URL", "http://localhost:4000")
+
+# Swoosh email configuration
+config :thalamus, Thalamus.Mailer,
+  # Default to Local adapter, override in env configs
+  adapter: Swoosh.Adapters.Local
+
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
 import_config "#{config_env()}.exs"

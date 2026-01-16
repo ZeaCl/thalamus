@@ -86,10 +86,12 @@ defmodule ThalamusWeb do
       import Phoenix.HTML
       # Core UI components
       import ThalamusWeb.CoreComponents
+      # Layout components (breadcrumbs, nav_link, etc.)
+      import ThalamusWeb.Layouts,
+        only: [breadcrumbs: 1, nav_link: 1, sidebar_link: 1, mobile_nav_link: 1, theme_toggle: 1]
 
       # Common modules used in templates
       alias Phoenix.LiveView.JS
-      alias ThalamusWeb.Layouts
 
       # Routes generation with the ~p sigil
       unquote(verified_routes())

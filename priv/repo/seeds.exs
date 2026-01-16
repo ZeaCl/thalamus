@@ -12,6 +12,7 @@
 
 alias Thalamus.Repo
 alias Thalamus.Domain.Entities.{User, Organization, OAuth2Client}
+
 alias Thalamus.Infrastructure.Repositories.{
   PostgreSQLUserRepository,
   PostgreSQLOrganizationRepository,

@@ -18,7 +18,13 @@ defmodule Thalamus.Domain.ValueObjects.GrantType do
           pkce_required: boolean()
         }
 
-  defstruct [:type, :requires_user, :requires_client_secret, :issues_refresh_token, :pkce_required]
+  defstruct [
+    :type,
+    :requires_user,
+    :requires_client_secret,
+    :issues_refresh_token,
+    :pkce_required
+  ]
 
   @valid_types [:authorization_code, :client_credentials, :refresh_token, :implicit, :password]
 

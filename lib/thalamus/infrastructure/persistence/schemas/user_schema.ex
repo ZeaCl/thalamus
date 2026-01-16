@@ -117,7 +117,11 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.UserSchema do
     # Lock account after 5 failed attempts
     changes =
       if failed_attempts >= 5 do
-        Map.put(changes, :locked_until, DateTime.add(DateTime.truncate(DateTime.utc_now(), :second), 1800, :second))
+        Map.put(
+          changes,
+          :locked_until,
+          DateTime.add(DateTime.truncate(DateTime.utc_now(), :second), 1800, :second)
+        )
       else
         changes
       end

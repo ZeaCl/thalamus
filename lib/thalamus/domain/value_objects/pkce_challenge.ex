@@ -16,7 +16,8 @@ defmodule Thalamus.Domain.ValueObjects.PKCEChallenge do
 
   defstruct [:value, :method]
 
-  @min_challenge_length 43  # RFC 7636 requirement
+  # RFC 7636 requirement
+  @min_challenge_length 43
   @max_challenge_length 128
 
   @doc """
@@ -59,6 +60,7 @@ defmodule Thalamus.Domain.ValueObjects.PKCEChallenge do
       :ok ->
         challenge_value = generate_challenge(verifier, method)
         new(challenge_value, method)
+
       {:error, reason} ->
         {:error, reason}
     end
@@ -96,15 +98,18 @@ defmodule Thalamus.Domain.ValueObjects.PKCEChallenge do
       iex> PKCEChallenge.verify(challenge, "wrong_verifier")
       {:error, :verification_failed}
   """
-  def verify(%__MODULE__{value: expected_challenge, method: method}, verifier) when is_binary(verifier) do
+  def verify(%__MODULE__{value: expected_challenge, method: method}, verifier)
+      when is_binary(verifier) do
     case validate_verifier(verifier) do
       :ok ->
         actual_challenge = generate_challenge(verifier, method)
+
         if secure_compare(expected_challenge, actual_challenge) do
           :ok
         else
           {:error, :verification_failed}
         end
+
       {:error, reason} ->
         {:error, reason}
     end
@@ -226,6 +231,7 @@ defmodule Thalamus.Domain.ValueObjects.PKCEChallenge do
   defp secure_compare(a, b) do
     # Constant-time string comparison to prevent timing attacks
     import Bitwise
+
     if String.length(a) != String.length(b) do
       false
     else
@@ -247,9 +253,12 @@ end
 # Implement Jason.Encoder for JSON serialization
 defimpl Jason.Encoder, for: Thalamus.Domain.ValueObjects.PKCEChallenge do
   def encode(%Thalamus.Domain.ValueObjects.PKCEChallenge{value: value, method: method}, opts) do
-    Jason.Encode.map(%{
-      challenge: value,
-      challenge_method: Atom.to_string(method)
-    }, opts)
+    Jason.Encode.map(
+      %{
+        challenge: value,
+        challenge_method: Atom.to_string(method)
+      },
+      opts
+    )
   end
 end

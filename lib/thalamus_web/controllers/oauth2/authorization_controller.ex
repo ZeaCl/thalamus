@@ -18,8 +18,18 @@ defmodule ThalamusWeb.OAuth2.AuthorizationController do
 
   use ThalamusWeb, :controller
 
-  alias Thalamus.Infrastructure.Repositories.{PostgreSQLOAuth2ClientRepository, PostgreSQLTokenRepository}
-  alias Thalamus.Domain.ValueObjects.{ClientId, UserId, Scope, AuthorizationCode, PKCEChallenge, RedirectUri}
+  alias Thalamus.Infrastructure.Repositories.{
+    PostgreSQLOAuth2ClientRepository,
+    PostgreSQLTokenRepository
+  }
+
+  alias Thalamus.Domain.ValueObjects.{
+    UserId,
+    Scope,
+    AuthorizationCode,
+    PKCEChallenge,
+    RedirectUri
+  }
 
   @doc """
   GET /oauth/authorize
@@ -60,7 +70,6 @@ defmodule ThalamusWeb.OAuth2.AuthorizationController do
          {:ok, redirect_uri} <- validate_redirect_uri(params["redirect_uri"], client),
          {:ok, scopes} <- parse_scopes(params["scope"]),
          {:ok, pkce_params} <- extract_pkce_params(params) do
-
       # Check if user is authenticated
       case get_authenticated_user(conn) do
         {:ok, _user_id} ->
@@ -142,7 +151,6 @@ defmodule ThalamusWeb.OAuth2.AuthorizationController do
          {:ok, redirect_uri} <- validate_redirect_uri(params["redirect_uri"], client),
          {:ok, scopes} <- parse_scopes(params["scope"]),
          {:ok, user_id} <- get_authenticated_user(conn) do
-
       case decision do
         "approve" ->
           # User approved - generate authorization code
@@ -158,7 +166,13 @@ defmodule ThalamusWeb.OAuth2.AuthorizationController do
 
         "deny" ->
           # User denied - redirect with access_denied error
-          redirect_with_error(conn, redirect_uri, "access_denied", "The user denied the authorization request", params["state"])
+          redirect_with_error(
+            conn,
+            redirect_uri,
+            "access_denied",
+            "The user denied the authorization request",
+            params["state"]
+          )
 
         _ ->
           conn
@@ -186,10 +200,16 @@ defmodule ThalamusWeb.OAuth2.AuthorizationController do
   # Private helper functions
 
   defp validate_response_type("code"), do: {:ok, "code"}
-  defp validate_response_type(_), do: {:error, "unsupported_response_type", "Only 'code' response type is supported"}
 
-  defp validate_client_id_param(nil), do: {:error, "invalid_request", "Missing client_id parameter"}
-  defp validate_client_id_param(""), do: {:error, "invalid_request", "Missing client_id parameter"}
+  defp validate_response_type(_),
+    do: {:error, "unsupported_response_type", "Only 'code' response type is supported"}
+
+  defp validate_client_id_param(nil),
+    do: {:error, "invalid_request", "Missing client_id parameter"}
+
+  defp validate_client_id_param(""),
+    do: {:error, "invalid_request", "Missing client_id parameter"}
+
   defp validate_client_id_param(client_id), do: {:ok, client_id}
 
   defp validate_redirect_uri(nil, client) do
@@ -211,6 +231,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationController do
 
   defp parse_scopes(nil), do: {:ok, []}
   defp parse_scopes(""), do: {:ok, []}
+
   defp parse_scopes(scope_string) when is_binary(scope_string) do
     scopes =
       scope_string
@@ -242,7 +263,9 @@ defmodule ThalamusWeb.OAuth2.AuthorizationController do
       nil ->
         # Try to get from session
         case get_session(conn, :user_id) do
-          nil -> {:error, :not_authenticated}
+          nil ->
+            {:error, :not_authenticated}
+
           user_id_string ->
             case UserId.from_string(user_id_string) do
               {:ok, user_id} -> {:ok, user_id}
@@ -283,9 +306,30 @@ defmodule ThalamusWeb.OAuth2.AuthorizationController do
     # Create PKCE challenge if provided
     pkce_challenge =
       if data.code_challenge do
-        method = String.to_existing_atom(data.code_challenge_method)
-        {:ok, challenge} = PKCEChallenge.new(data.code_challenge, method)
-        challenge
+        # Convert string to atom with validation
+        method =
+          case data.code_challenge_method do
+            "S256" -> :S256
+            "plain" -> :plain
+            # Default to S256 for security
+            _ -> :S256
+          end
+
+        case PKCEChallenge.new(data.code_challenge, method) do
+          {:ok, challenge} ->
+            challenge
+
+          {:error, reason} ->
+            # Log the error and return error to client
+            require Logger
+
+            Logger.error(
+              "Invalid PKCE challenge: #{inspect(reason)}, challenge: #{data.code_challenge}"
+            )
+
+            # Return nil - this will cause the authorization code generation to fail gracefully
+            nil
+        end
       else
         nil
       end
@@ -297,12 +341,14 @@ defmodule ThalamusWeb.OAuth2.AuthorizationController do
            build_redirect_uri_vo(data.redirect_uri),
            data.scopes,
            pkce_challenge,
-           600  # 10 minutes expiry
+           # 10 minutes expiry
+           600
          ) do
       {:ok, auth_code} ->
         # Store authorization code in database
         # Extract UUID from client_id value object (removes "client_" prefix)
-        client_uuid = auth_code.client_id.value
+        client_uuid =
+          auth_code.client_id.value
           |> String.replace_prefix("client_", "")
 
         token_data = %{
@@ -324,13 +370,27 @@ defmodule ThalamusWeb.OAuth2.AuthorizationController do
           {:error, reason} ->
             require Logger
             Logger.error("Failed to store authorization code: #{inspect(reason)}")
-            redirect_with_error(conn, data.redirect_uri, "server_error", "Failed to generate authorization code", data.state)
+
+            redirect_with_error(
+              conn,
+              data.redirect_uri,
+              "server_error",
+              "Failed to generate authorization code",
+              data.state
+            )
         end
 
       {:error, reason} ->
         require Logger
         Logger.error("Failed to generate authorization code entity: #{inspect(reason)}")
-        redirect_with_error(conn, data.redirect_uri, "server_error", "Failed to generate authorization code", data.state)
+
+        redirect_with_error(
+          conn,
+          data.redirect_uri,
+          "server_error",
+          "Failed to generate authorization code",
+          data.state
+        )
     end
   end
 
@@ -384,7 +444,8 @@ defmodule ThalamusWeb.OAuth2.AuthorizationController do
     # Create a RedirectUri value object
     case RedirectUri.new(uri_string) do
       {:ok, redirect_uri} -> redirect_uri
-      {:error, _} -> %RedirectUri{value: uri_string}  # Fallback to struct if validation fails
+      # Fallback to struct if validation fails
+      {:error, _} -> %RedirectUri{value: uri_string}
     end
   end
 end

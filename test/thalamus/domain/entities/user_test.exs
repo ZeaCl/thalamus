@@ -214,10 +214,11 @@ defmodule Thalamus.Domain.Entities.UserTest do
       {:ok, user} = User.register("user@example.com", "SecureP@ssw0rd1")
 
       # Record 5 failed attempts
-      user = Enum.reduce(1..5, user, fn _, acc ->
-        {:ok, updated} = User.record_failed_login(acc)
-        updated
-      end)
+      user =
+        Enum.reduce(1..5, user, fn _, acc ->
+          {:ok, updated} = User.record_failed_login(acc)
+          updated
+        end)
 
       assert user.failed_login_attempts == 5
       assert %DateTime{} = user.locked_until
@@ -228,10 +229,11 @@ defmodule Thalamus.Domain.Entities.UserTest do
       {:ok, user} = User.register("user@example.com", "SecureP@ssw0rd1")
 
       # Record 5 failed attempts to lock
-      user = Enum.reduce(1..5, user, fn _, acc ->
-        {:ok, updated} = User.record_failed_login(acc)
-        updated
-      end)
+      user =
+        Enum.reduce(1..5, user, fn _, acc ->
+          {:ok, updated} = User.record_failed_login(acc)
+          updated
+        end)
 
       now = DateTime.utc_now()
       expected_unlock = DateTime.add(now, 30 * 60)
@@ -248,10 +250,11 @@ defmodule Thalamus.Domain.Entities.UserTest do
       {:ok, user} = User.verify_email(user)
 
       # Simulate some failed attempts
-      user = Enum.reduce(1..3, user, fn _, acc ->
-        {:ok, updated} = User.record_failed_login(acc)
-        updated
-      end)
+      user =
+        Enum.reduce(1..3, user, fn _, acc ->
+          {:ok, updated} = User.record_failed_login(acc)
+          updated
+        end)
 
       assert user.failed_login_attempts == 3
 
@@ -266,10 +269,11 @@ defmodule Thalamus.Domain.Entities.UserTest do
       {:ok, user} = User.verify_email(user)
 
       # Lock the account
-      user = Enum.reduce(1..5, user, fn _, acc ->
-        {:ok, updated} = User.record_failed_login(acc)
-        updated
-      end)
+      user =
+        Enum.reduce(1..5, user, fn _, acc ->
+          {:ok, updated} = User.record_failed_login(acc)
+          updated
+        end)
 
       assert {:error, :account_locked} = User.record_successful_login(user)
     end
@@ -410,10 +414,11 @@ defmodule Thalamus.Domain.Entities.UserTest do
       {:ok, user} = User.verify_email(user)
 
       # Lock the account
-      user = Enum.reduce(1..5, user, fn _, acc ->
-        {:ok, updated} = User.record_failed_login(acc)
-        updated
-      end)
+      user =
+        Enum.reduce(1..5, user, fn _, acc ->
+          {:ok, updated} = User.record_failed_login(acc)
+          updated
+        end)
 
       assert User.can_authenticate?(user) == false
     end

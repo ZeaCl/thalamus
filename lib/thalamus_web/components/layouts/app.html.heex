@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-gray-50">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="csrf-token" content={get_csrf_token()} />
+    <.live_title suffix=" · Thalamus OAuth2">
+      {assigns[:page_title] || "Dashboard"}
+    </.live_title>
+    <link phx-track-static rel="stylesheet" href={~p"/assets/css/app.css"} />
+    <script defer phx-track-static type="text/javascript" src={~p"/assets/js/app.js"}>
+    </script>
+    <script>
+      (() => {
+        const setTheme = (theme) => {
+          if (theme === "system") {
+            localStorage.removeItem("phx:theme");
+            document.documentElement.removeAttribute("data-theme");
+          } else {
+            localStorage.setItem("phx:theme", theme);
+            document.documentElement.setAttribute("data-theme", theme);
+          }
+        };
+        if (!document.documentElement.hasAttribute("data-theme")) {
+          setTheme(localStorage.getItem("phx:theme") || "system");
+        }
+        window.addEventListener("storage", (e) => e.key === "phx:theme" && setTheme(e.newValue || "system"));
+
+        window.addEventListener("phx:set-theme", (e) => setTheme(e.target.dataset.phxTheme));
+      })();
+    </script>
+  </head>
+  <body
+    class="h-full"
+    x-data="{
+    sidebarOpen: false,
+    sidebarCollapsed: localStorage.getItem('sidebarCollapsed') === 'true',
+    toggleSidebar() {
+      this.sidebarCollapsed = !this.sidebarCollapsed;
+      localStorage.setItem('sidebarCollapsed', this.sidebarCollapsed);
+    }
+  }"
+  >
+    <% # Get current path from assigns (works for both LiveView and controllers)
+    current_path =
+      Map.get(
+        assigns,
+        :current_path,
+        Map.get(assigns, :conn, %{}) |> Map.get(:request_path, "/dashboard")
+      ) %>
+    <div class="flex h-full bg-base-100">
+      <!-- Sidebar -->
+      <div class="hidden lg:flex lg:flex-shrink-0">
+        <div
+          class="flex flex-col transition-all duration-300 ease-in-out"
+          x-bind:class="sidebarCollapsed ? 'w-20' : 'w-64'"
+        >
+          <div class="flex min-h-0 flex-1 flex-col border-r border-white/10 bg-base-300">
+            <!-- Logo -->
+            <div
+              class="flex h-16 flex-shrink-0 items-center border-b border-white/10 bg-base-300 transition-all duration-300"
+              x-bind:class="sidebarCollapsed ? 'px-4 justify-center' : 'px-6'"
+            >
+              <button
+                @click="toggleSidebar()"
+                class="flex items-center gap-2 hover:opacity-80 transition-opacity"
+              >
+                <svg
+                  class="h-8 w-8 text-cyan-500 flex-shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                  />
+                </svg>
+                <span
+                  x-show="!sidebarCollapsed"
+                  x-transition
+                  class="text-xl font-bold text-white whitespace-nowrap"
+                >
+                  Thalamus
+                </span>
+              </button>
+            </div>
+            
+<!-- Navigation -->
+            <div class="flex flex-1 flex-col overflow-y-auto pt-5 pb-4">
+              <nav
+                class="flex-1 space-y-1 transition-all duration-300"
+                x-bind:class="sidebarCollapsed ? 'px-2' : 'px-3'"
+              >
+                <!-- Main -->
+                <div class="mb-3" x-show="!sidebarCollapsed" x-transition>
+                  <p class="px-3 text-[9px] font-semibold text-gray-500 uppercase tracking-wider">
+                    Main
+                  </p>
+                </div>
+
+                <.sidebar_link href="/dashboard" current={current_path}>
+                  <svg
+                    class="h-5 w-5 text-yellow-500 flex-shrink-0"
+                    x-bind:class="sidebarCollapsed ? '' : 'mr-3'"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+                    />
+                  </svg>
+                  <span x-show="!sidebarCollapsed" x-transition class="whitespace-nowrap">
+                    Dashboard
+                  </span>
+                </.sidebar_link>
+                
+<!-- OAuth2 Management -->
+                <div class="mb-3 mt-6" x-show="!sidebarCollapsed" x-transition>
+                  <p class="px-3 text-[9px] font-semibold text-gray-500 uppercase tracking-wider">
+                    OAuth2
+                  </p>
+                </div>
+
+                <.sidebar_link href="/dashboard/clients" current={current_path}>
+                  <svg
+                    class="h-5 w-5 text-indigo-500 flex-shrink-0"
+                    x-bind:class="sidebarCollapsed ? '' : 'mr-3'"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                    />
+                  </svg>
+                  <span x-show="!sidebarCollapsed" x-transition class="whitespace-nowrap">
+                    OAuth2 Clients
+                  </span>
+                </.sidebar_link>
+
+                <.sidebar_link href="/dashboard/tokens" current={current_path}>
+                  <svg
+                    class="h-5 w-5 text-violet-500 flex-shrink-0"
+                    x-bind:class="sidebarCollapsed ? '' : 'mr-3'"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
+                    />
+                  </svg>
+                  <span x-show="!sidebarCollapsed" x-transition class="whitespace-nowrap">
+                    Access Tokens
+                  </span>
+                </.sidebar_link>
+                
+<!-- User Management -->
+                <div class="mb-3 mt-6" x-show="!sidebarCollapsed" x-transition>
+                  <p class="px-3 text-[9px] font-semibold text-gray-500 uppercase tracking-wider">
+                    Management
+                  </p>
+                </div>
+
+                <.sidebar_link href="/dashboard/users" current={current_path}>
+                  <svg
+                    class="h-5 w-5 text-blue-500 flex-shrink-0"
+                    x-bind:class="sidebarCollapsed ? '' : 'mr-3'"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
+                    />
+                  </svg>
+                  <span x-show="!sidebarCollapsed" x-transition class="whitespace-nowrap">
+                    Users
+                  </span>
+                </.sidebar_link>
+
+                <.sidebar_link href="/dashboard/organizations" current={current_path}>
+                  <svg
+                    class="h-5 w-5 text-orange-500 flex-shrink-0"
+                    x-bind:class="sidebarCollapsed ? '' : 'mr-3'"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                    />
+                  </svg>
+                  <span x-show="!sidebarCollapsed" x-transition class="whitespace-nowrap">
+                    Organizations
+                  </span>
+                </.sidebar_link>
+                
+<!-- Security & Settings -->
+                <div class="mb-3 mt-6" x-show="!sidebarCollapsed" x-transition>
+                  <p class="px-3 text-[9px] font-semibold text-gray-500 uppercase tracking-wider">
+                    Security
+                  </p>
+                </div>
+
+                <.sidebar_link href="/dashboard/api-keys" current={current_path}>
+                  <svg
+                    class="h-5 w-5 text-purple-500 flex-shrink-0"
+                    x-bind:class="sidebarCollapsed ? '' : 'mr-3'"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
+                    />
+                  </svg>
+                  <span x-show="!sidebarCollapsed" x-transition class="whitespace-nowrap">
+                    API Keys
+                  </span>
+                </.sidebar_link>
+
+                <.sidebar_link href="/dashboard/audit-logs" current={current_path}>
+                  <svg
+                    class="h-5 w-5 text-emerald-500 flex-shrink-0"
+                    x-bind:class="sidebarCollapsed ? '' : 'mr-3'"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                    />
+                  </svg>
+                  <span x-show="!sidebarCollapsed" x-transition class="whitespace-nowrap">
+                    Audit Logs
+                  </span>
+                </.sidebar_link>
+              </nav>
+            </div>
+            
+<!-- User section -->
+            <div class="flex flex-shrink-0 border-t border-white/10 bg-base-300 p-4">
+              <div class="group block w-full flex-shrink-0" x-data="{ open: false }">
+                <div
+                  class="flex items-center justify-center"
+                  x-bind:class="sidebarCollapsed ? 'flex-col' : ''"
+                >
+                  <div class="flex-1 min-w-0" x-show="!sidebarCollapsed" x-transition>
+                    <p class="text-[11px] font-medium text-white uppercase truncate">
+                      {Map.get(assigns, :current_user, %{}) |> Map.get(:email, "Admin")}
+                    </p>
+                    <p class="text-[10px] text-gray-400 truncate">OAuth2 Server</p>
+                  </div>
+                  <button
+                    @click="open = !open"
+                    class="flex-shrink-0"
+                    x-bind:class="sidebarCollapsed ? '' : 'ml-3'"
+                  >
+                    <svg
+                      class="h-4 w-4 text-gray-400 hover:text-cyan-500 transition-colors"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                      />
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                      />
+                    </svg>
+                  </button>
+                </div>
+                
+<!-- Dropdown -->
+                <div
+                  x-show="open"
+                  @click.away="open = false"
+                  x-transition
+                  class="absolute bottom-16 left-4 z-10 w-56 rounded-md bg-base-200 shadow-lg ring-1 ring-white/10"
+                  style="display: none;"
+                >
+                  <div class="py-1">
+                    <.link
+                      navigate="/dashboard/settings"
+                      class="block px-4 py-2 text-[11px] uppercase font-medium text-gray-400 hover:bg-white/5 hover:text-white transition-colors"
+                    >
+                      Settings
+                    </.link>
+                    <form action="/logout" method="post" class="block">
+                      <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
+                      <button
+                        type="submit"
+                        class="block w-full text-left px-4 py-2 text-[11px] uppercase font-medium text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors"
+                      >
+                        Sign out
+                      </button>
+                    </form>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+<!-- Main content area -->
+      <div class="flex flex-1 flex-col overflow-hidden">
+        <!-- Top bar (mobile) -->
+        <div class="lg:hidden">
+          <div class="flex items-center justify-between bg-white border-b border-gray-200 px-4 py-3">
+            <.link navigate="/dashboard" class="flex items-center gap-2">
+              <svg
+                class="h-8 w-8 text-cyan-500"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                />
+              </svg>
+              <span class="text-xl font-bold text-gray-900">Thalamus</span>
+            </.link>
+            <button
+              @click="sidebarOpen = true"
+              class="inline-flex items-center justify-center rounded-md p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-500"
+            >
+              <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M4 6h16M4 12h16M4 18h16"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+        
+<!-- Main content -->
+        <main class="flex-1 overflow-y-auto bg-base-200">
+          <.flash_group flash={@flash} />
+          {@inner_content}
+        </main>
+      </div>
+    </div>
+    
+<!-- Alpine.js for dropdown functionality -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js">
+    </script>
+  </body>
+</html>

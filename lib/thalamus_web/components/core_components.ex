@@ -469,4 +469,77 @@ defmodule ThalamusWeb.CoreComponents do
   def translate_errors(errors, field) when is_list(errors) do
     for {^field, {msg, opts}} <- errors, do: translate_error({msg, opts})
   end
+
+  @doc """
+  Renders a loading spinner.
+
+  ## Examples
+
+      <.spinner />
+      <.spinner class="h-8 w-8" />
+  """
+  attr :class, :string, default: "h-5 w-5"
+  attr :rest, :global
+
+  def spinner(assigns) do
+    ~H"""
+    <svg
+      class={["animate-spin text-primary", @class]}
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+      {@rest}
+    >
+      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4">
+      </circle>
+      <path
+        class="opacity-75"
+        fill="currentColor"
+        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+      >
+      </path>
+    </svg>
+    """
+  end
+
+  @doc """
+  Renders a skeleton loading placeholder.
+
+  ## Examples
+
+      <.skeleton class="h-4 w-32" />
+      <.skeleton class="h-10 w-full" />
+  """
+  attr :class, :string, default: "h-4 w-full"
+  attr :rest, :global
+
+  def skeleton(assigns) do
+    ~H"""
+    <div class={["animate-pulse bg-base-300 rounded", @class]} {@rest}></div>
+    """
+  end
+
+  @doc """
+  Renders a table skeleton for loading states.
+
+  ## Examples
+
+      <.table_skeleton rows={5} />
+  """
+  attr :rows, :integer, default: 3
+
+  def table_skeleton(assigns) do
+    ~H"""
+    <div class="space-y-3">
+      <%= for _ <- 1..@rows do %>
+        <div class="flex gap-4">
+          <.skeleton class="h-8 w-1/4" />
+          <.skeleton class="h-8 w-1/4" />
+          <.skeleton class="h-8 w-1/4" />
+          <.skeleton class="h-8 w-1/4" />
+        </div>
+      <% end %>
+    </div>
+    """
+  end
 end

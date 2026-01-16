@@ -30,6 +30,7 @@ defmodule Thalamus.Application.Ports.AuditLogger do
           metadata: map()
         }
 
+  @callback log(map()) :: :ok
   @callback log_authentication_success(UserId.t(), context()) :: :ok
   @callback log_authentication_failure(String.t(), atom(), context()) :: :ok
   @callback log_token_generated(UserId.t(), ClientId.t(), context()) :: :ok

@@ -16,27 +16,44 @@ defmodule Thalamus.Domain.ValueObjects.Scope do
 
   # Predefined standard scopes for OAuth2/OpenID Connect
   @standard_scopes [
-    "openid",      # OpenID Connect identity
-    "profile",     # Basic profile information
-    "email",       # Email address
-    "address",     # Physical address
-    "phone",       # Phone number
-    "offline_access" # Refresh token capability
+    # OpenID Connect identity
+    "openid",
+    # Basic profile information
+    "profile",
+    # Email address
+    "email",
+    # Physical address
+    "address",
+    # Phone number
+    "phone",
+    # Refresh token capability
+    "offline_access"
   ]
 
   # Custom ZEA platform scopes
   @zea_scopes [
-    "zea:read",           # Read access to ZEA resources
-    "zea:write",          # Write access to ZEA resources
-    "zea:admin",          # Administrative access
-    "synapse:events",     # Access to Synapse telemetry events
-    "synapse:metrics",    # Access to Synapse metrics
-    "cortex:chat",        # Access to Cortex chat API
-    "cortex:completions", # Access to Cortex completions
-    "billing:read",       # Read billing information
-    "billing:write",      # Modify billing information
-    "organizations:read", # Read organization data
-    "organizations:write" # Modify organization data
+    # Read access to ZEA resources
+    "zea:read",
+    # Write access to ZEA resources
+    "zea:write",
+    # Administrative access
+    "zea:admin",
+    # Access to Synapse telemetry events
+    "synapse:events",
+    # Access to Synapse metrics
+    "synapse:metrics",
+    # Access to Cortex chat API
+    "cortex:chat",
+    # Access to Cortex completions
+    "cortex:completions",
+    # Read billing information
+    "billing:read",
+    # Modify billing information
+    "billing:write",
+    # Read organization data
+    "organizations:read",
+    # Modify organization data
+    "organizations:write"
   ]
 
   @all_valid_scopes @standard_scopes ++ @zea_scopes

@@ -65,17 +65,20 @@ defmodule Thalamus.Application.UseCases.GenerateTokensTest do
       # Setup test client
       {:ok, client_id} = ClientId.new("test_client_123")
       {:ok, grant_type} = GrantType.new(:client_credentials)
-      client_secret = "secret_" <> (:crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false))
+
+      client_secret =
+        "secret_" <> (:crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false))
 
       client = %OAuth2Client{
         id: client_id,
         name: "Test Client",
         client_type: :confidential,
         client_secret: client_secret,
-        allowed_grant_types: [grant_type],
+        grant_types: [grant_type],
         allowed_scopes: ["api:read", "api:write"],
         redirect_uris: [],
         is_active: true,
+        trusted: false,
         created_at: DateTime.utc_now(),
         updated_at: DateTime.utc_now()
       }
@@ -129,14 +132,16 @@ defmodule Thalamus.Application.UseCases.GenerateTokensTest do
     test "returns error for invalid scope" do
       {:ok, client_id} = ClientId.new("test_client_123")
       {:ok, grant_type} = GrantType.new(:client_credentials)
-      client_secret = "secret_" <> (:crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false))
+
+      client_secret =
+        "secret_" <> (:crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false))
 
       client = %OAuth2Client{
         id: client_id,
         name: "Test Client",
         client_type: :confidential,
         client_secret: client_secret,
-        allowed_grant_types: [grant_type],
+        grant_types: [grant_type],
         allowed_scopes: ["api:read"],
         redirect_uris: [],
         is_active: true,
@@ -169,14 +174,16 @@ defmodule Thalamus.Application.UseCases.GenerateTokensTest do
     test "returns error for inactive client" do
       {:ok, client_id} = ClientId.new("test_client_123")
       {:ok, grant_type} = GrantType.new(:client_credentials)
-      client_secret = "secret_" <> (:crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false))
+
+      client_secret =
+        "secret_" <> (:crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false))
 
       client = %OAuth2Client{
         id: client_id,
         name: "Test Client",
         client_type: :confidential,
         client_secret: client_secret,
-        allowed_grant_types: [grant_type],
+        grant_types: [grant_type],
         allowed_scopes: ["api:read"],
         redirect_uris: [],
         is_active: false,
@@ -209,14 +216,16 @@ defmodule Thalamus.Application.UseCases.GenerateTokensTest do
     test "returns error for invalid client secret" do
       {:ok, client_id} = ClientId.new("test_client_123")
       {:ok, grant_type} = GrantType.new(:client_credentials)
-      client_secret = "secret_" <> (:crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false))
+
+      client_secret =
+        "secret_" <> (:crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false))
 
       client = %OAuth2Client{
         id: client_id,
         name: "Test Client",
         client_type: :confidential,
         client_secret: client_secret,
-        allowed_grant_types: [grant_type],
+        grant_types: [grant_type],
         allowed_scopes: ["api:read"],
         redirect_uris: [],
         is_active: true,
@@ -248,14 +257,16 @@ defmodule Thalamus.Application.UseCases.GenerateTokensTest do
 
     test "returns error for unsupported grant type" do
       {:ok, client_id} = ClientId.new("test_client_123")
-      client_secret = "secret_" <> (:crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false))
+
+      client_secret =
+        "secret_" <> (:crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false))
 
       client = %OAuth2Client{
         id: client_id,
         name: "Test Client",
         client_type: :confidential,
         client_secret: client_secret,
-        allowed_grant_types: [],
+        grant_types: [],
         allowed_scopes: ["api:read"],
         redirect_uris: [],
         is_active: true,
@@ -292,14 +303,16 @@ defmodule Thalamus.Application.UseCases.GenerateTokensTest do
       {:ok, client_id} = ClientId.new("test_client_123")
       {:ok, user_id} = UserId.generate()
       {:ok, grant_type} = GrantType.new(:authorization_code)
-      client_secret = "secret_" <> (:crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false))
+
+      client_secret =
+        "secret_" <> (:crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false))
 
       client = %OAuth2Client{
         id: client_id,
         name: "Test Client",
         client_type: :confidential,
         client_secret: client_secret,
-        allowed_grant_types: [grant_type],
+        grant_types: [grant_type],
         allowed_scopes: ["openid", "profile"],
         redirect_uris: ["https://example.com/callback"],
         is_active: true,
@@ -365,14 +378,16 @@ defmodule Thalamus.Application.UseCases.GenerateTokensTest do
     test "returns error for invalid redirect_uri" do
       {:ok, client_id} = ClientId.new("test_client_123")
       {:ok, grant_type} = GrantType.new(:authorization_code)
-      client_secret = "secret_" <> (:crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false))
+
+      client_secret =
+        "secret_" <> (:crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false))
 
       client = %OAuth2Client{
         id: client_id,
         name: "Test Client",
         client_type: :confidential,
         client_secret: client_secret,
-        allowed_grant_types: [grant_type],
+        grant_types: [grant_type],
         allowed_scopes: ["openid"],
         redirect_uris: ["https://example.com/callback"],
         is_active: true,
@@ -409,14 +424,16 @@ defmodule Thalamus.Application.UseCases.GenerateTokensTest do
       {:ok, client_id} = ClientId.new("test_client_123")
       {:ok, user_id} = UserId.generate()
       {:ok, grant_type} = GrantType.new(:refresh_token)
-      client_secret = "secret_" <> (:crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false))
+
+      client_secret =
+        "secret_" <> (:crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false))
 
       client = %OAuth2Client{
         id: client_id,
         name: "Test Client",
         client_type: :confidential,
         client_secret: client_secret,
-        allowed_grant_types: [grant_type],
+        grant_types: [grant_type],
         allowed_scopes: ["openid", "profile"],
         redirect_uris: [],
         is_active: true,
@@ -484,14 +501,16 @@ defmodule Thalamus.Application.UseCases.GenerateTokensTest do
       {:ok, other_client_id} = ClientId.new("other_client_456")
       {:ok, user_id} = UserId.generate()
       {:ok, grant_type} = GrantType.new(:refresh_token)
-      client_secret = "secret_" <> (:crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false))
+
+      client_secret =
+        "secret_" <> (:crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false))
 
       client = %OAuth2Client{
         id: client_id,
         name: "Test Client",
         client_type: :confidential,
         client_secret: client_secret,
-        allowed_grant_types: [grant_type],
+        grant_types: [grant_type],
         allowed_scopes: ["openid"],
         redirect_uris: [],
         is_active: true,
@@ -542,14 +561,16 @@ defmodule Thalamus.Application.UseCases.GenerateTokensTest do
     test "returns error for password grant type" do
       {:ok, client_id} = ClientId.new("test_client_123")
       {:ok, grant_type} = GrantType.new(:password)
-      client_secret = "secret_" <> (:crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false))
+
+      client_secret =
+        "secret_" <> (:crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false))
 
       client = %OAuth2Client{
         id: client_id,
         name: "Test Client",
         client_type: :confidential,
         client_secret: client_secret,
-        allowed_grant_types: [grant_type],
+        grant_types: [grant_type],
         allowed_scopes: ["openid"],
         redirect_uris: [],
         is_active: true,
@@ -591,7 +612,7 @@ defmodule Thalamus.Application.UseCases.GenerateTokensTest do
         name: "Test Public Client",
         client_type: :public,
         client_secret: nil,
-        allowed_grant_types: [grant_type],
+        grant_types: [grant_type],
         allowed_scopes: ["api:read"],
         redirect_uris: [],
         is_active: true,

@@ -33,6 +33,27 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.TokenSchema do
     # Token family for refresh token rotation
     field :token_family_id, :binary_id
 
+    # Flexible metadata for custom claims
+    field :metadata, :map, default: %{}
+
+    # Agent Identity
+    field :agent_type, :string
+    field :delegated_by_user_id, :binary_id
+    field :delegation_chain, {:array, :binary_id}, default: []
+
+    # Task Scoping
+    field :task_id, :string
+    field :task_type, :string
+    field :task_scopes, {:array, :string}, default: []
+    field :max_operations, :integer
+    field :operations_count, :integer, default: 0
+    field :expires_on_completion, :boolean, default: false
+
+    # Attestation (Compliance)
+    field :intent_description, :string
+    field :orchestrator_id, :string
+    field :environment, :string
+
     # Relationships
     belongs_to :user, UserSchema
     belongs_to :client, OAuth2ClientSchema, foreign_key: :client_id
@@ -62,7 +83,21 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.TokenSchema do
       :expires_at,
       :code_challenge,
       :code_challenge_method,
-      :token_family_id
+      :token_family_id,
+      :metadata,
+      # Agent fields
+      :agent_type,
+      :delegated_by_user_id,
+      :delegation_chain,
+      :task_id,
+      :task_type,
+      :task_scopes,
+      :max_operations,
+      :operations_count,
+      :expires_on_completion,
+      :intent_description,
+      :orchestrator_id,
+      :environment
     ])
     |> validate_required([:token, :type, :client_id, :expires_at])
     |> validate_token_type()

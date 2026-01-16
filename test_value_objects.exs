@@ -30,7 +30,8 @@ defmodule Thalamus.Domain.ValueObjects.UserIdTest do
     end
 
     test "creates valid user ID with maximum length" do
-      long_id = "user_" <> String.duplicate("a", 95)  # Total 100 chars
+      # Total 100 chars
+      long_id = "user_" <> String.duplicate("a", 95)
       assert {:ok, %UserId{value: ^long_id}} = UserId.new(long_id)
     end
 
@@ -76,7 +77,8 @@ defmodule Thalamus.Domain.ValueObjects.UserIdTest do
     test "generates a valid user ID" do
       assert {:ok, %UserId{value: value}} = UserId.generate()
       assert String.starts_with?(value, "user_")
-      assert String.length(value) > 10  # Should be longer than just "user_"
+      # Should be longer than just "user_"
+      assert String.length(value) > 10
     end
 
     test "generates unique user IDs" do

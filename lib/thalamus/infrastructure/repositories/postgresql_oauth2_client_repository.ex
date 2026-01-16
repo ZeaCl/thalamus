@@ -18,7 +18,7 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository 
   alias Thalamus.Repo
   alias Thalamus.Infrastructure.Persistence.Schemas.OAuth2ClientSchema
   alias Thalamus.Domain.Entities.OAuth2Client
-  alias Thalamus.Domain.ValueObjects.{ClientId, GrantType, OrganizationId}
+  alias Thalamus.Domain.ValueObjects.{ClientId, GrantType, OrganizationId, Scope, RedirectUri}
 
   @impl true
   def find_by_id(%ClientId{} = client_id) do
@@ -57,6 +57,7 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository 
         nil ->
           # New client - insert
           schema_map = Map.from_struct(schema)
+
           OAuth2ClientSchema.create_changeset(schema_map)
           |> Repo.insert()
 
@@ -65,16 +66,33 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository 
           schema_map = Map.from_struct(schema)
 
           # Check if client_secret has changed - if so, use rotate_secret_changeset
-          changeset = if schema_map[:client_secret] && schema_map[:client_secret] != existing_schema.client_secret do
-            # Secret has changed - use rotate_secret_changeset and update other fields
-            existing_schema
-            |> OAuth2ClientSchema.rotate_secret_changeset(schema_map[:client_secret])
-            |> Ecto.Changeset.change(Map.take(schema_map, [:name, :description, :logo_url, :terms_of_service_url, :privacy_policy_url, :is_active, :pkce_required, :allowed_grant_types, :allowed_scopes, :redirect_uris, :access_token_lifetime, :refresh_token_lifetime]))
-          else
-            # Normal update
-            existing_schema
-            |> OAuth2ClientSchema.update_changeset(schema_map)
-          end
+          changeset =
+            if schema_map[:client_secret] &&
+                 schema_map[:client_secret] != existing_schema.client_secret do
+              # Secret has changed - use rotate_secret_changeset and update other fields
+              existing_schema
+              |> OAuth2ClientSchema.rotate_secret_changeset(schema_map[:client_secret])
+              |> Ecto.Changeset.change(
+                Map.take(schema_map, [
+                  :name,
+                  :description,
+                  :logo_url,
+                  :terms_of_service_url,
+                  :privacy_policy_url,
+                  :is_active,
+                  :pkce_required,
+                  :allowed_grant_types,
+                  :allowed_scopes,
+                  :redirect_uris,
+                  :access_token_lifetime,
+                  :refresh_token_lifetime
+                ])
+              )
+            else
+              # Normal update
+              existing_schema
+              |> OAuth2ClientSchema.update_changeset(schema_map)
+            end
 
           Repo.update(changeset)
       end
@@ -163,11 +181,12 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository 
     client_id_string = "client_" <> schema.id
 
     # Convert client_secret from hash string to ClientSecret value object if present
-    client_secret = if schema.client_secret do
-      Thalamus.Domain.ValueObjects.ClientSecret.from_hash(schema.client_secret)
-    else
-      nil
-    end
+    client_secret =
+      if schema.client_secret do
+        Thalamus.Domain.ValueObjects.ClientSecret.from_hash(schema.client_secret)
+      else
+        nil
+      end
 
     with {:ok, client_id} <- ClientId.from_string(client_id_string),
          {:ok, org_id} <- OrganizationId.from_string(schema.organization_id),
@@ -193,33 +212,41 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository 
 
   defp entity_to_schema(%OAuth2Client{} = client) do
     grant_types_strings = convert_grant_types_to_db(client.grant_types)
+    scopes_strings = convert_scopes_to_db(client.allowed_scopes)
+    redirect_uris_strings = convert_redirect_uris_to_db(client.redirect_uris)
 
     # Extract UUID from ClientId (removes "client_" prefix)
     # ClientId.to_string returns "client_<uuid>", but DB expects just "<uuid>"
-    client_uuid = if client.id do
-      client_id_string = ClientId.to_string(client.id)
-      String.replace_prefix(client_id_string, "client_", "")
-    else
-      nil
-    end
+    client_uuid =
+      if client.id do
+        client_id_string = ClientId.to_string(client.id)
+        String.replace_prefix(client_id_string, "client_", "")
+      else
+        nil
+      end
 
     # Extract organization_id string (could have "org_" prefix or be pure UUID)
-    org_id_string = if client.organization_id do
-      OrganizationId.to_string(client.organization_id)
-    else
-      nil
-    end
+    org_id_string =
+      if client.organization_id do
+        OrganizationId.to_string(client.organization_id)
+      else
+        nil
+      end
 
     # Extract client_secret hash for database storage
     # Handle both string (plain secret) and ClientSecret value object
-    client_secret_hash = case client.client_secret do
-      nil -> nil
-      %Thalamus.Domain.ValueObjects.ClientSecret{} = secret ->
-        Thalamus.Domain.ValueObjects.ClientSecret.to_string(secret)
-      secret when is_binary(secret) ->
-        # Plain text secret - hash it before storing
-        Bcrypt.hash_pwd_salt(secret)
-    end
+    client_secret_hash =
+      case client.client_secret do
+        nil ->
+          nil
+
+        %Thalamus.Domain.ValueObjects.ClientSecret{} = secret ->
+          Thalamus.Domain.ValueObjects.ClientSecret.to_string(secret)
+
+        secret when is_binary(secret) ->
+          # Plain text secret - hash it before storing
+          Bcrypt.hash_pwd_salt(secret)
+      end
 
     %OAuth2ClientSchema{
       id: client_uuid,
@@ -229,8 +256,8 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository 
       client_secret: client_secret_hash,
       organization_id: org_id_string,
       allowed_grant_types: grant_types_strings,
-      allowed_scopes: client.allowed_scopes,
-      redirect_uris: client.redirect_uris,
+      allowed_scopes: scopes_strings,
+      redirect_uris: redirect_uris_strings,
       is_active: client.is_active,
       inserted_at: client.created_at,
       updated_at: client.updated_at
@@ -262,6 +289,22 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository 
 
   defp convert_grant_types_to_db(_), do: []
 
+  defp convert_scopes_to_db(scopes) when is_list(scopes) do
+    Enum.map(scopes, fn %Scope{} = scope ->
+      Scope.to_string(scope)
+    end)
+  end
+
+  defp convert_scopes_to_db(_), do: []
+
+  defp convert_redirect_uris_to_db(uris) when is_list(uris) do
+    Enum.map(uris, fn %RedirectUri{} = uri ->
+      RedirectUri.to_string(uri)
+    end)
+  end
+
+  defp convert_redirect_uris_to_db(_), do: []
+
   defp build_query(filters) do
     query = from(c in OAuth2ClientSchema)
 
@@ -275,16 +318,19 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository 
   end
 
   defp filter_by_active(query, nil), do: query
+
   defp filter_by_active(query, is_active) when is_boolean(is_active) do
     where(query, [c], c.is_active == ^is_active)
   end
 
   defp filter_by_client_type(query, nil), do: query
+
   defp filter_by_client_type(query, client_type) when is_atom(client_type) do
     where(query, [c], c.client_type == ^client_type)
   end
 
   defp filter_by_organization(query, nil), do: query
+
   defp filter_by_organization(query, org_id) when is_binary(org_id) do
     where(query, [c], c.organization_id == ^org_id)
   end

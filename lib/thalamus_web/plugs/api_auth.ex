@@ -50,7 +50,10 @@ defmodule ThalamusWeb.Plugs.APIAuth do
         validate_api_key(conn, api_key)
 
       _ ->
-        unauthorized(conn, "Missing or invalid Authorization header. Use 'Bearer <jwt>' or 'ApiKey <key>'")
+        unauthorized(
+          conn,
+          "Missing or invalid Authorization header. Use 'Bearer <jwt>' or 'ApiKey <key>'"
+        )
     end
   end
 

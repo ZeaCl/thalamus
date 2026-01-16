@@ -45,7 +45,8 @@ defmodule ThalamusWeb.Plugs.CORS do
   @default_methods ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
   @default_headers ["Accept", "Authorization", "Content-Type", "Origin"]
   @default_expose_headers []
-  @default_max_age 86400  # 24 hours
+  # 24 hours
+  @default_max_age 86400
   @default_allow_credentials false
 
   def init(opts), do: opts

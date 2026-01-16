@@ -135,6 +135,7 @@ defmodule Thalamus.Domain.Entities.User do
   """
   def verify_email(%__MODULE__{status: :pending_verification} = user) do
     now = DateTime.truncate(DateTime.utc_now(), :second)
+
     {:ok,
      %{
        user
@@ -185,7 +186,12 @@ defmodule Thalamus.Domain.Entities.User do
       when is_binary(current_password) and is_binary(new_password) do
     with :ok <- verify_password(user, current_password),
          {:ok, new_hash} <- PasswordHash.from_password(new_password) do
-      {:ok, %{user | password_hash: new_hash, updated_at: DateTime.truncate(DateTime.utc_now(), :second)}}
+      {:ok,
+       %{
+         user
+         | password_hash: new_hash,
+           updated_at: DateTime.truncate(DateTime.utc_now(), :second)
+       }}
     else
       {:error, :invalid_password} -> {:error, :invalid_current_password}
       {:error, reason} -> {:error, reason}
@@ -293,7 +299,12 @@ defmodule Thalamus.Domain.Entities.User do
     if mfa_method_exists?(user, new_method) do
       {:error, :mfa_method_already_exists}
     else
-      {:ok, %{user | mfa_methods: [new_method | methods], updated_at: DateTime.truncate(DateTime.utc_now(), :second)}}
+      {:ok,
+       %{
+         user
+         | mfa_methods: [new_method | methods],
+           updated_at: DateTime.truncate(DateTime.utc_now(), :second)
+       }}
     end
   end
 
@@ -318,7 +329,12 @@ defmodule Thalamus.Domain.Entities.User do
     if length(new_methods) == length(methods) do
       {:error, :mfa_method_not_found}
     else
-      {:ok, %{user | mfa_methods: new_methods, updated_at: DateTime.truncate(DateTime.utc_now(), :second)}}
+      {:ok,
+       %{
+         user
+         | mfa_methods: new_methods,
+           updated_at: DateTime.truncate(DateTime.utc_now(), :second)
+       }}
     end
   end
 
@@ -367,7 +383,8 @@ defmodule Thalamus.Domain.Entities.User do
       {:ok, %User{status: :suspended}}
   """
   def suspend(%__MODULE__{} = user) do
-    {:ok, %{user | status: :suspended, updated_at: DateTime.truncate(DateTime.utc_now(), :second)}}
+    {:ok,
+     %{user | status: :suspended, updated_at: DateTime.truncate(DateTime.utc_now(), :second)}}
   end
 
   @doc """
@@ -396,7 +413,8 @@ defmodule Thalamus.Domain.Entities.User do
       {:ok, %User{status: :deactivated}}
   """
   def deactivate(%__MODULE__{} = user) do
-    {:ok, %{user | status: :deactivated, updated_at: DateTime.truncate(DateTime.utc_now(), :second)}}
+    {:ok,
+     %{user | status: :deactivated, updated_at: DateTime.truncate(DateTime.utc_now(), :second)}}
   end
 
   # Private functions

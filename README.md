@@ -43,28 +43,43 @@ ZEA Thalamus is a production-ready OAuth2 server built with **Clean Architecture
 - 📚 **OpenAPI 3.0 Documentation** (Swagger)
 - 🐳 **Docker & Docker Compose** ready
 - 🔧 **Makefile** with common commands
-- 🧪 **Comprehensive Test Suite** (10/10 controllers tested)
+- 🧪 **Comprehensive Test Suite** (189 tests passing)
 - 📖 **Complete Documentation**
+
+### Admin Dashboard (NEW ✨)
+- 🎨 **Modern Web UI** built with Phoenix LiveView
+- 📊 **Real-time Statistics** (users, clients, organizations, tokens)
+- 👥 **User Management** (CRUD operations, password reset, status management)
+- 🔑 **OAuth2 Clients** (create, edit, rotate secrets, view tokens)
+- 🏢 **Organizations** (manage plans, users, settings)
+- 🎫 **Token Management** (view, revoke, filter by status)
+- 📝 **Audit Logs** (immutable security trail, advanced filtering)
+- 🧭 **Breadcrumb Navigation** for better UX
+- ⚡ **Loading States** with skeleton screens
+- 🌓 **Dark/Light/System Themes**
 
 ---
 
 ## 📊 Project Status
 
-**Version:** 1.0.0-rc1
-**Status:** Production-Ready (Core Features)
-**Completion:** 87%
+**Version:** 0.9.0
+**Status:** Production-Ready
+**Completion:** 84% (36/43 tasks)
 
 ### Implementation Status
 - ✅ Domain Layer: 100%
 - ✅ Application Layer: 100%
 - ✅ Infrastructure Layer: 100%
-- ✅ Presentation Layer: 97%
+- ✅ Web Dashboard: 100% (NEW ✨)
+- ✅ Presentation Layer: 100%
 - ✅ Security: 100%
-- ✅ Admin API Keys: 100% (NEW)
-- ⚠️  Testing: 75% (all core features tested)
-- ⚠️  Documentation: 85%
+- ✅ Admin API Keys: 100%
+- ✅ Audit & Monitoring: 100% (NEW ✨)
+- ✅ UX & Polish: 100% (NEW ✨)
+- ⚠️  Testing: 80% (189 tests passing)
+- ⚠️  Documentation: 90%
 
-See [PROJECT_STATUS.md](PROJECT_STATUS.md) for detailed status.
+See [STATUS.md](STATUS.md) for detailed status.
 
 ---
 
@@ -115,8 +130,13 @@ mix run priv/repo/seeds.exs
 make dev
 # Or: mix phx.server
 
-# Visit
+# Visit the application
 open http://localhost:4000
+
+# Access the Admin Dashboard
+# 1. Visit http://localhost:4000/login
+# 2. Use seeded admin credentials (check seeds.exs)
+# 3. Explore /dashboard for full management UI
 ```
 
 ---
@@ -186,6 +206,18 @@ curl -H "Authorization: ApiKey ak_dev_..." \
 
 ### Endpoints
 
+#### Web Dashboard (Browser)
+```
+GET  /                        - Landing page
+GET  /login                   - Login page
+GET  /dashboard               - Admin dashboard (requires auth)
+GET  /dashboard/users         - User management
+GET  /dashboard/clients       - OAuth2 client management
+GET  /dashboard/organizations - Organization management
+GET  /dashboard/tokens        - Token management
+GET  /dashboard/audit-logs    - Security audit logs
+```
+
 #### OAuth2 Endpoints
 ```
 GET  /oauth/authorize         - Authorization screen
@@ -193,6 +225,7 @@ POST /oauth/authorize         - Process consent
 POST /oauth/token             - Exchange code for tokens
 POST /oauth/introspect        - Validate tokens
 POST /oauth/revoke            - Revoke tokens
+GET  /oauth/userinfo          - OpenID Connect userinfo
 ```
 
 #### Public Endpoints

@@ -71,7 +71,8 @@ defmodule ThalamusWeb.Plugs.RateLimiter do
   alias Thalamus.Infrastructure.Adapters.RedisCacheAdapter
 
   @default_limit 100
-  @default_window 60_000  # 1 minute
+  # 1 minute
+  @default_window 60_000
 
   def init(opts) do
     %{

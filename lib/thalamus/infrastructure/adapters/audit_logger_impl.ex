@@ -27,6 +27,25 @@ defmodule Thalamus.Infrastructure.Adapters.AuditLoggerImpl do
 
   require Logger
 
+  alias Thalamus.Repo
+  alias Thalamus.Infrastructure.Persistence.Schemas.AuditLogSchema
+
+  @doc """
+  Generic logging function that accepts a map of audit data.
+  Used for custom event types like agent token generation.
+  """
+  @impl true
+  def log(audit_data) when is_map(audit_data) do
+    event_type = Map.get(audit_data, :event_type, "generic_event")
+
+    Logger.info("[AUDIT] #{event_type}",
+      event_type: event_type,
+      data: audit_data
+    )
+
+    :ok
+  end
+
   @impl true
   def log_authentication_success(user_id, context) do
     log_event(
@@ -163,21 +182,74 @@ defmodule Thalamus.Infrastructure.Adapters.AuditLoggerImpl do
     :ok
   end
 
-  defp persist_audit_log(_audit_entry) do
-    # In production, this would insert into an audit_logs table
-    # For now, we'll just ensure it's logged to the logger backend
-    # which can be configured to send to external SIEM systems
-
-    case Application.get_env(:thalamus, :persist_audit_logs, false) do
+  defp persist_audit_log(audit_entry) do
+    # Persist audit logs to database for compliance and auditing
+    # This is enabled by default in production
+    case Application.get_env(:thalamus, :persist_audit_logs, true) do
       true ->
-        # TODO: Insert into audit_logs table
-        # Repo.insert(%AuditLogSchema{event_type: audit_entry.event_type, ...})
-        :ok
+        attrs = %{
+          event_type: to_string(audit_entry.event_type),
+          user_id: extract_user_id(audit_entry.metadata),
+          organization_id: extract_organization_id(audit_entry.metadata),
+          client_id: extract_client_id(audit_entry.metadata),
+          metadata: audit_entry.metadata,
+          ip_address: extract_ip_address(audit_entry.metadata),
+          user_agent: extract_user_agent(audit_entry.metadata),
+          request_id: extract_request_id(audit_entry.metadata),
+          environment: to_string(audit_entry.environment),
+          node: to_string(audit_entry.node)
+        }
+
+        case AuditLogSchema.create_changeset(attrs) |> Repo.insert() do
+          {:ok, _log} ->
+            :ok
+
+          {:error, changeset} ->
+            Logger.error("[AUDIT] Failed to persist audit log: #{inspect(changeset.errors)}")
+            :ok
+        end
 
       false ->
         :ok
     end
   end
+
+  defp extract_user_id(%{user_id: user_id}) when is_binary(user_id) do
+    # Try to parse as UUID
+    case Ecto.UUID.cast(user_id) do
+      {:ok, uuid} -> uuid
+      :error -> nil
+    end
+  end
+
+  defp extract_user_id(_), do: nil
+
+  defp extract_organization_id(%{organization_id: org_id}) when is_binary(org_id) do
+    case Ecto.UUID.cast(org_id) do
+      {:ok, uuid} -> uuid
+      :error -> nil
+    end
+  end
+
+  defp extract_organization_id(_), do: nil
+
+  defp extract_client_id(%{client_id: client_id}) when is_binary(client_id) do
+    case Ecto.UUID.cast(client_id) do
+      {:ok, uuid} -> uuid
+      :error -> nil
+    end
+  end
+
+  defp extract_client_id(_), do: nil
+
+  defp extract_ip_address(%{ip_address: ip}), do: ip
+  defp extract_ip_address(_), do: nil
+
+  defp extract_user_agent(%{user_agent: ua}), do: ua
+  defp extract_user_agent(_), do: nil
+
+  defp extract_request_id(%{request_id: req_id}), do: req_id
+  defp extract_request_id(_), do: nil
 
   defp sanitize_user_id(user_id) do
     # Convert UserId to string representation

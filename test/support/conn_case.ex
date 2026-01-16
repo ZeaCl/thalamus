@@ -35,4 +35,47 @@ defmodule ThalamusWeb.ConnCase do
     Thalamus.DataCase.setup_sandbox(tags)
     {:ok, conn: Phoenix.ConnTest.build_conn()}
   end
+
+  @doc """
+  Helper to log in a user for testing protected routes.
+  Creates a test user if user_id is not provided.
+  """
+  def log_in_user(conn, user_id \\ nil) do
+    user_id = user_id || create_test_user()
+
+    conn
+    |> Plug.Test.init_test_session(%{})
+    |> Plug.Conn.put_session(:user_id, user_id)
+  end
+
+  defp create_test_user do
+    alias Thalamus.Repo
+    alias Thalamus.Infrastructure.Persistence.Schemas.{UserSchema, OrganizationSchema}
+
+    # Create or get test organization
+    org =
+      case Repo.get_by(OrganizationSchema, name: "Test Organization") do
+        nil ->
+          OrganizationSchema.create_changeset(%{
+            "name" => "Test Organization",
+            "plan_type" => "free"
+          })
+          |> Repo.insert!()
+
+        org ->
+          org
+      end
+
+    # Create test user
+    user =
+      UserSchema.create_changeset(%{
+        "email" => "test#{System.unique_integer()}@example.com",
+        "password" => "TestPassword123!",
+        "organization_id" => org.id,
+        "status" => "active"
+      })
+      |> Repo.insert!()
+
+    user.id
+  end
 end

@@ -8,7 +8,12 @@ defmodule ThalamusWeb.OAuth2.UserinfoController do
 
   use ThalamusWeb, :controller
 
-  alias Thalamus.Infrastructure.Repositories.{PostgreSQLTokenRepository, PostgreSQLUserRepository, PostgreSQLOrganizationRepository}
+  alias Thalamus.Infrastructure.Repositories.{
+    PostgreSQLTokenRepository,
+    PostgreSQLUserRepository,
+    PostgreSQLOrganizationRepository
+  }
+
   alias Thalamus.Infrastructure.Persistence.Schemas.UserSchema
   alias Thalamus.Domain.ValueObjects.OrganizationId
   alias Thalamus.Repo
@@ -28,7 +33,6 @@ defmodule ThalamusWeb.OAuth2.UserinfoController do
          {:ok, user_schema} <- get_user_schema(token_data.user_id),
          {:ok, org_id} <- OrganizationId.from_string(user_schema.organization_id),
          {:ok, organization} <- PostgreSQLOrganizationRepository.find_by_id(org_id) do
-
       # Return user info with nested organization object
       conn
       |> put_resp_header("cache-control", "no-store")
@@ -86,6 +90,7 @@ defmodule ThalamusWeb.OAuth2.UserinfoController do
 
   defp validate_token_not_expired(%{expires_at: expires_at}) do
     now = DateTime.utc_now()
+
     if DateTime.compare(expires_at, now) == :gt do
       :ok
     else
@@ -103,10 +108,11 @@ defmodule ThalamusWeb.OAuth2.UserinfoController do
   end
 
   defp get_user_schema(user_id_vo) do
-    user_id_string = case user_id_vo do
-      %{__struct__: _} -> to_string(user_id_vo)
-      str when is_binary(str) -> str
-    end
+    user_id_string =
+      case user_id_vo do
+        %{__struct__: _} -> to_string(user_id_vo)
+        str when is_binary(str) -> str
+      end
 
     case Repo.get(UserSchema, user_id_string) do
       nil -> {:error, :not_found}

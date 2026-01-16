@@ -199,6 +199,7 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
         else
           # Check if expired
           now = DateTime.utc_now()
+
           if DateTime.compare(token_data.expires_at, now) == :lt do
             {:error, :expired_authorization_code}
           else
@@ -208,7 +209,8 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
                user_id: token_data.user_id,
                client_id: token_data.client_id,
                scopes: token_data.scopes,
-               pkce_challenge: nil  # TODO: Get from token_data once schema is updated
+               # TODO: Get from token_data once schema is updated
+               pkce_challenge: nil
              }}
           end
         end
@@ -268,15 +270,18 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
 
   defp parse_scopes(nil), do: []
   defp parse_scopes(""), do: []
-  defp parse_scopes(scope_string) when is_binary(scope_string), do: String.split(scope_string, " ")
+
+  defp parse_scopes(scope_string) when is_binary(scope_string),
+    do: String.split(scope_string, " ")
 
   defp store_tokens(token_data, %{token_repository: repo}) do
     # Extract UUID from ClientId value object if needed (removes "client_" prefix)
-    client_uuid = if is_struct(token_data.client_id) do
-      token_data.client_id.value |> String.replace_prefix("client_", "")
-    else
-      token_data.client_id
-    end
+    client_uuid =
+      if is_struct(token_data.client_id) do
+        token_data.client_id.value |> String.replace_prefix("client_", "")
+      else
+        token_data.client_id
+      end
 
     # Store access token
     repo.store(%{

@@ -71,7 +71,9 @@ defmodule Thalamus.Domain.Entities.OAuth2ClientTest do
       assert {:ok, rotated_client} = OAuth2Client.rotate_secret(client)
       assert rotated_client.client_secret != old_secret
       assert :ok = OAuth2Client.verify_secret(rotated_client, rotated_client.client_secret)
-      assert {:error, :invalid_client_secret} = OAuth2Client.verify_secret(rotated_client, old_secret)
+
+      assert {:error, :invalid_client_secret} =
+               OAuth2Client.verify_secret(rotated_client, old_secret)
     end
 
     test "fails for public client" do
@@ -146,7 +148,10 @@ defmodule Thalamus.Domain.Entities.OAuth2ClientTest do
       {:ok, uri} = RedirectUri.new("https://app.example.com/callback")
 
       {:ok, client} = OAuth2Client.add_redirect_uri(client, uri)
-      assert {:ok, updated} = OAuth2Client.remove_redirect_uri(client, "https://app.example.com/callback")
+
+      assert {:ok, updated} =
+               OAuth2Client.remove_redirect_uri(client, "https://app.example.com/callback")
+
       refute OAuth2Client.valid_redirect_uri?(updated, "https://app.example.com/callback")
     end
 

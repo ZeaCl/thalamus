@@ -209,7 +209,10 @@ defmodule Thalamus.Domain.Entities.OAuth2Client do
     {:error, :public_client_no_secret}
   end
 
-  def verify_secret(%__MODULE__{client_secret: %Thalamus.Domain.ValueObjects.ClientSecret{} = stored_secret}, provided_secret)
+  def verify_secret(
+        %__MODULE__{client_secret: %Thalamus.Domain.ValueObjects.ClientSecret{} = stored_secret},
+        provided_secret
+      )
       when is_binary(provided_secret) do
     # Use ClientSecret value object's verify method for bcrypt comparison
     if Thalamus.Domain.ValueObjects.ClientSecret.verify(stored_secret, provided_secret) do
@@ -306,7 +309,8 @@ defmodule Thalamus.Domain.Entities.OAuth2Client do
       iex> OAuth2Client.add_redirect_uri(client, uri)
       {:ok, %OAuth2Client{redirect_uris: [_, _]}}
   """
-  def add_redirect_uri(%__MODULE__{redirect_uris: uris} = client, new_uri) when is_binary(new_uri) do
+  def add_redirect_uri(%__MODULE__{redirect_uris: uris} = client, new_uri)
+      when is_binary(new_uri) do
     if redirect_uri_exists?(client, new_uri) do
       {:error, :redirect_uri_already_exists}
     else
@@ -322,7 +326,8 @@ defmodule Thalamus.Domain.Entities.OAuth2Client do
       iex> OAuth2Client.remove_redirect_uri(client, "https://app.example.com/callback")
       {:ok, %OAuth2Client{}}
   """
-  def remove_redirect_uri(%__MODULE__{redirect_uris: uris} = client, uri_string) when is_binary(uri_string) do
+  def remove_redirect_uri(%__MODULE__{redirect_uris: uris} = client, uri_string)
+      when is_binary(uri_string) do
     new_uris = Enum.reject(uris, fn uri -> uri == uri_string end)
 
     {:ok, %{client | redirect_uris: new_uris, updated_at: DateTime.utc_now()}}
@@ -353,7 +358,8 @@ defmodule Thalamus.Domain.Entities.OAuth2Client do
       iex> OAuth2Client.add_scope(client, scope)
       {:ok, %OAuth2Client{allowed_scopes: [_, _]}}
   """
-  def add_scope(%__MODULE__{allowed_scopes: scopes} = client, new_scope) when is_binary(new_scope) do
+  def add_scope(%__MODULE__{allowed_scopes: scopes} = client, new_scope)
+      when is_binary(new_scope) do
     if new_scope in scopes do
       {:error, :scope_already_exists}
     else
@@ -369,7 +375,8 @@ defmodule Thalamus.Domain.Entities.OAuth2Client do
       iex> OAuth2Client.remove_scope(client, "email")
       {:ok, %OAuth2Client{}}
   """
-  def remove_scope(%__MODULE__{allowed_scopes: scopes} = client, scope_string) when is_binary(scope_string) do
+  def remove_scope(%__MODULE__{allowed_scopes: scopes} = client, scope_string)
+      when is_binary(scope_string) do
     new_scopes = Enum.reject(scopes, fn scope -> scope == scope_string end)
 
     if length(new_scopes) == 0 do
@@ -389,10 +396,12 @@ defmodule Thalamus.Domain.Entities.OAuth2Client do
   """
   def valid_scopes?(%__MODULE__{allowed_scopes: allowed}, requested_scope_strings) do
     # Handle both string scopes (from database) and Scope value objects
-    allowed_strings = Enum.map(allowed, fn
-      scope when is_binary(scope) -> scope
-      scope -> Scope.to_string(scope)
-    end)
+    allowed_strings =
+      Enum.map(allowed, fn
+        scope when is_binary(scope) -> scope
+        scope -> Scope.to_string(scope)
+      end)
+
     Enum.all?(requested_scope_strings, fn scope -> scope in allowed_strings end)
   end
 

@@ -25,7 +25,8 @@ defmodule Thalamus.Domain.ValueObjects.AccessToken do
   defstruct [:token, :token_type, :expires_at, :scopes, :subject, :issued_at]
 
   @default_token_type :bearer
-  @default_expires_in_seconds 3600  # 1 hour
+  # 1 hour
+  @default_expires_in_seconds 3600
   @min_token_length 32
   @max_token_length 512
 
@@ -42,27 +43,33 @@ defmodule Thalamus.Domain.ValueObjects.AccessToken do
       iex> AccessToken.new("", [], %UserId{value: "user_123"}, 3600)
       {:error, :invalid_token}
   """
-  def new(token, scopes, subject, expires_in_seconds \\ @default_expires_in_seconds, token_type \\ @default_token_type)
+  def new(
+        token,
+        scopes,
+        subject,
+        expires_in_seconds \\ @default_expires_in_seconds,
+        token_type \\ @default_token_type
+      )
 
   def new(token, scopes, subject, expires_in_seconds, token_type)
-      when is_binary(token) and is_list(scopes) and is_integer(expires_in_seconds) and expires_in_seconds > 0 do
-
+      when is_binary(token) and is_list(scopes) and is_integer(expires_in_seconds) and
+             expires_in_seconds > 0 do
     with :ok <- validate_token(token),
          :ok <- validate_scopes(scopes),
          :ok <- validate_subject(subject),
          :ok <- validate_token_type(token_type) do
-
       now = DateTime.utc_now()
       expires_at = DateTime.add(now, expires_in_seconds, :second)
 
-      {:ok, %__MODULE__{
-        token: token,
-        token_type: token_type,
-        expires_at: expires_at,
-        scopes: scopes,
-        subject: subject,
-        issued_at: now
-      }}
+      {:ok,
+       %__MODULE__{
+         token: token,
+         token_type: token_type,
+         expires_at: expires_at,
+         scopes: scopes,
+         subject: subject,
+         issued_at: now
+       }}
     end
   end
 
@@ -78,7 +85,12 @@ defmodule Thalamus.Domain.ValueObjects.AccessToken do
       iex> AccessToken.generate(scopes, user_id)
       {:ok, %AccessToken{token: "at_" <> _secure_token, ...}}
   """
-  def generate(scopes, subject, expires_in_seconds \\ @default_expires_in_seconds, token_type \\ @default_token_type) do
+  def generate(
+        scopes,
+        subject,
+        expires_in_seconds \\ @default_expires_in_seconds,
+        token_type \\ @default_token_type
+      ) do
     secure_token = generate_secure_token()
     new(secure_token, scopes, subject, expires_in_seconds, token_type)
   end
@@ -223,6 +235,7 @@ defmodule Thalamus.Domain.ValueObjects.AccessToken do
   end
 
   defp validate_scopes([]), do: {:error, :no_scopes_provided}
+
   defp validate_scopes(scopes) when is_list(scopes) do
     if Enum.all?(scopes, &valid_scope?/1) do
       :ok
