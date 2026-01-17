@@ -1,7 +1,8 @@
 defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
   use ThalamusWeb.ConnCase, async: true
 
-  alias Thalamus.Domain.Entities.{User, Organization, OAuth2Client}
+  alias Thalamus.Domain.Entities.{User, Organization}
+  alias Thalamus.TestHelpers
 
   alias Thalamus.Infrastructure.Repositories.{
     PostgreSQLUserRepository,
@@ -21,12 +22,12 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
 
     # Create OAuth2 client
     {:ok, client} =
-      OAuth2Client.new(
+      TestHelpers.create_test_client(
         "Test Client",
         org.id,
-        ["http://localhost:3000/callback"],
-        [:authorization_code, :refresh_token],
-        [:read, :write]
+        ["openid", "profile", "email"],
+        redirect_uris: ["http://localhost:3000/callback"],
+        grant_types: [:authorization_code, :refresh_token]
       )
 
     {:ok, client} = PostgreSQLOAuth2ClientRepository.save(client)

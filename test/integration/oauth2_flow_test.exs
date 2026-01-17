@@ -9,13 +9,15 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
   use ThalamusWeb.ConnCase, async: false
   @moduletag :integration
 
-  alias Thalamus.Domain.Entities.{User, Organization, OAuth2Client}
+  alias Thalamus.Domain.Entities.{User, Organization}
 
   alias Thalamus.Infrastructure.Repositories.{
     PostgreSQLUserRepository,
     PostgreSQLOrganizationRepository,
     PostgreSQLOAuth2ClientRepository
   }
+
+  alias Thalamus.TestHelpers
 
   setup do
     # Create organization
@@ -29,12 +31,12 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
 
     # Create OAuth2 client
     {:ok, client} =
-      OAuth2Client.new(
+      TestHelpers.create_test_client(
         "Test Client",
         org.id,
-        ["http://localhost:3000/callback"],
-        [:authorization_code, :refresh_token, :client_credentials],
-        [:read, :write]
+        ["openid", "profile", "email"],
+        redirect_uris: ["http://localhost:3000/callback"],
+        grant_types: [:authorization_code, :refresh_token, :client_credentials]
       )
 
     {:ok, client} = PostgreSQLOAuth2ClientRepository.save(client)
@@ -59,7 +61,7 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
           response_type: "code",
           client_id: to_string(client.id),
           redirect_uri: "http://localhost:3000/callback",
-          scope: "read write",
+          scope: "openid profile email",
           state: state
         })
 
@@ -75,7 +77,7 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
           decision: "approve",
           client_id: to_string(client.id),
           redirect_uri: "http://localhost:3000/callback",
-          scope: "read write",
+          scope: "openid profile email",
           state: state
         })
 
@@ -294,7 +296,7 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
           grant_type: "client_credentials",
           client_id: to_string(client.id),
           client_secret: client.secret,
-          scope: "read write"
+          scope: "openid profile email"
         })
 
       assert %{
