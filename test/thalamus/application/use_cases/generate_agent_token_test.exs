@@ -233,9 +233,15 @@ defmodule Thalamus.Application.UseCases.GenerateAgentTokenTest do
 
     test "creates child token with valid parent" do
       parent_id = Ecto.UUID.generate()
-      request = %{valid_request() | parent_agent_id: parent_id}
+      # Child TTL must be less than parent's remaining TTL
+      request = %{valid_request() | parent_agent_id: parent_id, expires_in: 1800}
 
-      parent_token = build_saved_agent_token(%{id: parent_id, delegation_depth: 0})
+      # Parent must have all scopes that child will request (scope narrowing)
+      parent_token = build_saved_agent_token(%{
+        id: parent_id,
+        delegation_depth: 0,
+        scopes: ["read:data", "write:results"]  # Include all child scopes
+      })
 
       MockOAuth2ClientRepository
       |> expect(:find_by_client_id, fn _ -> {:ok, build_client(request.organization_id)} end)
@@ -244,7 +250,7 @@ defmodule Thalamus.Application.UseCases.GenerateAgentTokenTest do
       |> expect(:find_by_id, fn _ -> {:ok, build_user(request.organization_id)} end)
 
       MockAgentTokenRepository
-      |> expect(:find_by_id, fn ^parent_id -> {:ok, parent_token} end)
+      |> expect(:find_by_id, 2, fn ^parent_id -> {:ok, parent_token} end)  # Called twice: scope validation + delegation chain
       |> expect(:save, fn token -> {:ok, token} end)
 
       MockAuditLogger
@@ -278,7 +284,12 @@ defmodule Thalamus.Application.UseCases.GenerateAgentTokenTest do
       parent_id = Ecto.UUID.generate()
       request = %{valid_request() | parent_agent_id: parent_id}
 
-      parent_token = build_saved_agent_token(%{id: parent_id, status: :revoked})
+      # Parent must have required scopes even if revoked (scope check happens before status check)
+      parent_token = build_saved_agent_token(%{
+        id: parent_id,
+        status: :revoked,
+        scopes: ["read:data", "write:results"]
+      })
 
       MockOAuth2ClientRepository
       |> expect(:find_by_client_id, fn _ -> {:ok, build_client(request.organization_id)} end)
@@ -287,7 +298,7 @@ defmodule Thalamus.Application.UseCases.GenerateAgentTokenTest do
       |> expect(:find_by_id, fn _ -> {:ok, build_user(request.organization_id)} end)
 
       MockAgentTokenRepository
-      |> expect(:find_by_id, fn ^parent_id -> {:ok, parent_token} end)
+      |> expect(:find_by_id, 2, fn ^parent_id -> {:ok, parent_token} end)  # Called twice: scope validation + delegation chain
 
       deps = build_deps()
 
@@ -356,7 +367,7 @@ defmodule Thalamus.Application.UseCases.GenerateAgentTokenTest do
       agent_type: agent_type,
       task_id: task_id,
       task_description: "Test task",
-      scopes: ["read:data"],
+      scopes: Map.get(overrides, :scopes, ["read:data"]),
       delegation_chain: delegation_chain,
       delegator_user_id: Ecto.UUID.generate(),
       expires_in: 3600,

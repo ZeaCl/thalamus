@@ -155,7 +155,10 @@ defmodule Thalamus.Application.UseCases.ValidateStepAuthorization do
 
   @spec validate_not_expired(Thalamus.Domain.Entities.AgentToken.t()) :: :ok | {:error, atom()}
   defp validate_not_expired(agent_token) do
-    case DateTime.compare(agent_token.expires_at, DateTime.utc_now()) do
+    # Calculate expiration from created_at + expires_in (no expires_at field in AgentToken)
+    expires_at = DateTime.add(agent_token.created_at, agent_token.expires_in, :second)
+
+    case DateTime.compare(expires_at, DateTime.utc_now()) do
       :gt ->
         :ok
 

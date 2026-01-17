@@ -51,14 +51,14 @@ defmodule Thalamus.API do
   Internal modules (use cases, repositories, etc.) may change without notice.
   """
 
+  alias Thalamus.Application.DTOs.AgentTokenRequest
   alias Thalamus.DependencyBuilder
+
   alias Thalamus.Application.UseCases.{
     GenerateAgentToken,
-    ValidateStepAuthorization,
-    RevokeAgentToken
+    RevokeAgentToken,
+    ValidateStepAuthorization
   }
-
-  alias Thalamus.Application.DTOs.AgentTokenRequest
 
   # Public Functions
 

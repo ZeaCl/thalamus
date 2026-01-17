@@ -271,6 +271,9 @@ defmodule Thalamus.Application.UseCases.GenerateAgentToken do
       else
         {:error, :scopes_exceed_parent}
       end
+    else
+      {:error, :not_found} -> {:error, :parent_token_not_found}
+      error -> error
     end
   end
 
@@ -404,7 +407,9 @@ defmodule Thalamus.Application.UseCases.GenerateAgentToken do
   end
 
   defp validate_child_ttl_not_exceeds_parent(child_ttl, parent_token) do
-    parent_remaining = DateTime.diff(parent_token.expires_at, DateTime.utc_now(), :second)
+    # Calculate parent's expiration time from created_at + expires_in
+    parent_expires_at = DateTime.add(parent_token.created_at, parent_token.expires_in, :second)
+    parent_remaining = DateTime.diff(parent_expires_at, DateTime.utc_now(), :second)
 
     if child_ttl <= parent_remaining do
       :ok

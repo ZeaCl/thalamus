@@ -30,10 +30,10 @@ defmodule Thalamus.DependencyBuilder do
   """
 
   alias Thalamus.Infrastructure.Repositories.{
-    PostgresqlOAuth2ClientRepository,
-    PostgresqlUserRepository,
     PostgresqlAgentTokenRepository,
-    PostgresqlOrganizationRepository
+    PostgreSQLOAuth2ClientRepository,
+    PostgresqlOrganizationRepository,
+    PostgresqlUserRepository
   }
 
   alias Thalamus.Infrastructure.Adapters.AuditLoggerImpl
@@ -62,7 +62,7 @@ defmodule Thalamus.DependencyBuilder do
   @spec build_default() :: deps()
   def build_default do
     %{
-      client_repository: PostgresqlOAuth2ClientRepository,
+      client_repository: PostgreSQLOAuth2ClientRepository,
       user_repository: PostgresqlUserRepository,
       agent_token_repository: PostgresqlAgentTokenRepository,
       organization_repository: PostgresqlOrganizationRepository,
