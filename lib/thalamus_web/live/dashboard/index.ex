@@ -439,9 +439,9 @@ defmodule ThalamusWeb.Dashboard.Index do
                             <%= case activity.agent_type do %>
                               <% "autonomous" -> %>
                                 <span class="badge badge-accent badge-sm">🤖</span>
-                              <% "supervised" -> %>
+                              <% "supervisor" -> %>
                                 <span class="badge badge-info badge-sm">👁️</span>
-                              <% "ephemeral" -> %>
+                              <% "tool" -> %>
                                 <span class="badge badge-warning badge-sm">⚡</span>
                               <% _ -> %>
                                 <span class="text-base-content/50 text-xs">—</span>

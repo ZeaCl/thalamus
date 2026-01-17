@@ -3,139 +3,140 @@ defmodule Thalamus.Domain.ValueObjects.TaskIdTest do
 
   alias Thalamus.Domain.ValueObjects.TaskId
 
-  describe "new/1 with valid inputs" do
-    test "creates task ID with alphanumeric characters" do
-      assert {:ok, %TaskId{value: "task123"}} = TaskId.new("task123")
+  describe "new/1 with valid UUIDs" do
+    test "creates TaskId from valid UUID v4 string" do
+      uuid = "550e8400-e29b-41d4-a716-446655440000"
+      assert {:ok, %TaskId{value: ^uuid}} = TaskId.new(uuid)
     end
 
-    test "creates task ID with hyphens" do
-      assert {:ok, %TaskId{value: "task-123"}} = TaskId.new("task-123")
+    test "creates TaskId from lowercase UUID" do
+      uuid = "a1b2c3d4-e5f6-4789-abcd-ef0123456789"
+      assert {:ok, %TaskId{value: ^uuid}} = TaskId.new(uuid)
     end
 
-    test "creates task ID with underscores" do
-      assert {:ok, %TaskId{value: "task_123"}} = TaskId.new("task_123")
+    test "creates TaskId from uppercase UUID" do
+      uuid_upper = "A1B2C3D4-E5F6-4789-ABCD-EF0123456789"
+      uuid_lower = "a1b2c3d4-e5f6-4789-abcd-ef0123456789"
+      assert {:ok, %TaskId{value: ^uuid_lower}} = TaskId.new(uuid_upper)
     end
 
-    test "creates task ID with mixed valid characters" do
-      assert {:ok, %TaskId{value: "task_abc-123_XYZ"}} = TaskId.new("task_abc-123_XYZ")
+    test "creates TaskId from mixed case UUID" do
+      uuid_mixed = "A1b2C3d4-E5f6-4789-AbCd-Ef0123456789"
+      uuid_lower = "a1b2c3d4-e5f6-4789-abcd-ef0123456789"
+      assert {:ok, %TaskId{value: ^uuid_lower}} = TaskId.new(uuid_mixed)
     end
 
-    test "creates task ID with minimum length (1 char)" do
-      assert {:ok, %TaskId{value: "a"}} = TaskId.new("a")
-      assert {:ok, %TaskId{value: "1"}} = TaskId.new("1")
-      assert {:ok, %TaskId{value: "_"}} = TaskId.new("_")
-      assert {:ok, %TaskId{value: "-"}} = TaskId.new("-")
-    end
-
-    test "creates task ID with maximum length (255 chars)" do
-      max_id = String.duplicate("a", 255)
-      assert {:ok, %TaskId{value: ^max_id}} = TaskId.new(max_id)
-    end
-
-    test "creates task ID with uppercase letters" do
-      assert {:ok, %TaskId{value: "TASK_ABC"}} = TaskId.new("TASK_ABC")
-    end
-
-    test "creates task ID with numbers only" do
-      assert {:ok, %TaskId{value: "123456789"}} = TaskId.new("123456789")
-    end
-
-    test "creates task ID with UUID-like format" do
-      assert {:ok, %TaskId{value: "550e8400-e29b-41d4-a716-446655440000"}} =
-               TaskId.new("550e8400-e29b-41d4-a716-446655440000")
+    test "accepts UUID without dashes and normalizes it" do
+      uuid_no_dashes = "a1b2c3d4e5f64789abcdef0123456789"
+      uuid_normalized = "a1b2c3d4-e5f6-4789-abcd-ef0123456789"
+      assert {:ok, %TaskId{value: ^uuid_normalized}} = TaskId.new(uuid_no_dashes)
     end
   end
 
-  describe "new/1 with invalid inputs" do
-    test "fails with empty string" do
-      assert {:error, :task_id_too_short} = TaskId.new("")
+  describe "new/1 with invalid UUIDs" do
+    test "fails with invalid UUID format" do
+      assert {:error, :invalid_task_id} = TaskId.new("not-a-uuid")
+      assert {:error, :invalid_task_id} = TaskId.new("12345")
+      assert {:error, :invalid_task_id} = TaskId.new("invalid-uuid-format")
     end
 
+    test "fails with UUID that has wrong length" do
+      assert {:error, :invalid_task_id} = TaskId.new("550e8400-e29b-41d4-a716")
+      assert {:error, :invalid_task_id} = TaskId.new("550e8400-e29b-41d4-a716-446655440000-extra")
+    end
+
+    test "fails with UUID that has invalid characters" do
+      assert {:error, :invalid_task_id} = TaskId.new("550e8400-e29b-41d4-a716-44665544000g")
+      assert {:error, :invalid_task_id} = TaskId.new("xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx")
+    end
+
+    test "fails with empty string" do
+      assert {:error, :invalid_task_id} = TaskId.new("")
+    end
+
+    test "fails with whitespace string" do
+      assert {:error, :invalid_task_id} = TaskId.new("   ")
+    end
+
+    test "fails with UUID containing whitespace" do
+      assert {:error, :invalid_task_id} = TaskId.new("550e8400-e29b-41d4-a716-446655440000 ")
+      assert {:error, :invalid_task_id} = TaskId.new(" 550e8400-e29b-41d4-a716-446655440000")
+      assert {:error, :invalid_task_id} = TaskId.new("550e8400 -e29b-41d4-a716-446655440000")
+    end
+  end
+
+  describe "new/1 with invalid input types" do
     test "fails with nil" do
       assert {:error, :invalid_task_id} = TaskId.new(nil)
     end
 
-    test "fails with non-string input" do
+    test "fails with integer" do
       assert {:error, :invalid_task_id} = TaskId.new(12345)
-      assert {:error, :invalid_task_id} = TaskId.new(:atom)
-      assert {:error, :invalid_task_id} = TaskId.new(%{})
-      assert {:error, :invalid_task_id} = TaskId.new([:list])
+      assert {:error, :invalid_task_id} = TaskId.new(0)
     end
 
-    test "fails with too long string (> 255 chars)" do
-      too_long = String.duplicate("a", 256)
-      assert {:error, :task_id_too_long} = TaskId.new(too_long)
+    test "fails with float" do
+      assert {:error, :invalid_task_id} = TaskId.new(123.45)
     end
 
-    test "fails with invalid characters (spaces)" do
-      assert {:error, :invalid_task_id_format} = TaskId.new("task 123")
+    test "fails with boolean" do
+      assert {:error, :invalid_task_id} = TaskId.new(true)
+      assert {:error, :invalid_task_id} = TaskId.new(false)
     end
 
-    test "fails with invalid characters (special chars)" do
-      assert {:error, :invalid_task_id_format} = TaskId.new("task@123")
-      assert {:error, :invalid_task_id_format} = TaskId.new("task#123")
-      assert {:error, :invalid_task_id_format} = TaskId.new("task$123")
-      assert {:error, :invalid_task_id_format} = TaskId.new("task%123")
-      assert {:error, :invalid_task_id_format} = TaskId.new("task&123")
-      assert {:error, :invalid_task_id_format} = TaskId.new("task*123")
+    test "fails with atom" do
+      assert {:error, :invalid_task_id} = TaskId.new(:task_id)
     end
 
-    test "fails with invalid characters (dots)" do
-      assert {:error, :invalid_task_id_format} = TaskId.new("task.123")
+    test "fails with list" do
+      assert {:error, :invalid_task_id} = TaskId.new(["550e8400-e29b-41d4-a716-446655440000"])
     end
 
-    test "fails with invalid characters (slashes)" do
-      assert {:error, :invalid_task_id_format} = TaskId.new("task/123")
-      assert {:error, :invalid_task_id_format} = TaskId.new("task\\123")
-    end
-
-    test "fails with invalid characters (unicode)" do
-      assert {:error, :invalid_task_id_format} = TaskId.new("task_café")
-      assert {:error, :invalid_task_id_format} = TaskId.new("task_测试")
-      assert {:error, :invalid_task_id_format} = TaskId.new("task_🚀")
-    end
-
-    test "fails with leading whitespace" do
-      assert {:error, :invalid_task_id_format} = TaskId.new(" task123")
-    end
-
-    test "fails with trailing whitespace" do
-      assert {:error, :invalid_task_id_format} = TaskId.new("task123 ")
+    test "fails with map" do
+      assert {:error, :invalid_task_id} =
+               TaskId.new(%{id: "550e8400-e29b-41d4-a716-446655440000"})
     end
   end
 
   describe "to_string/1" do
-    test "converts task ID to string" do
-      {:ok, task_id} = TaskId.new("task_abc-123")
-      assert TaskId.to_string(task_id) == "task_abc-123"
+    test "converts TaskId to UUID string" do
+      uuid = "550e8400-e29b-41d4-a716-446655440000"
+      {:ok, task_id} = TaskId.new(uuid)
+      assert TaskId.to_string(task_id) == uuid
     end
 
-    test "preserves case" do
-      {:ok, task_id} = TaskId.new("Task_ABC-123")
-      assert TaskId.to_string(task_id) == "Task_ABC-123"
+    test "returns normalized lowercase UUID" do
+      uuid_upper = "A1B2C3D4-E5F6-4789-ABCD-EF0123456789"
+      uuid_lower = "a1b2c3d4-e5f6-4789-abcd-ef0123456789"
+      {:ok, task_id} = TaskId.new(uuid_upper)
+      assert TaskId.to_string(task_id) == uuid_lower
     end
   end
 
   describe "String.Chars protocol" do
-    test "implements String.Chars protocol" do
-      {:ok, task_id} = TaskId.new("task_123")
-      assert to_string(task_id) == "task_123"
+    test "implements String.Chars" do
+      uuid = "550e8400-e29b-41d4-a716-446655440000"
+      {:ok, task_id} = TaskId.new(uuid)
+      assert to_string(task_id) == uuid
     end
 
     test "works with string interpolation" do
-      {:ok, task_id} = TaskId.new("task_abc")
-      assert "Task: #{task_id}" == "Task: task_abc"
+      uuid = "550e8400-e29b-41d4-a716-446655440000"
+      {:ok, task_id} = TaskId.new(uuid)
+      assert "Task: #{task_id}" == "Task: #{uuid}"
     end
   end
 
   describe "Jason.Encoder protocol" do
-    test "encodes to JSON string" do
-      {:ok, task_id} = TaskId.new("task_123")
-      assert Jason.encode!(task_id) == ~s("task_123")
+    test "encodes TaskId to JSON string" do
+      uuid = "550e8400-e29b-41d4-a716-446655440000"
+      {:ok, task_id} = TaskId.new(uuid)
+      assert Jason.encode!(task_id) == ~s("#{uuid}")
     end
 
     test "encodes and decodes roundtrip" do
-      {:ok, task_id} = TaskId.new("task_abc-123")
+      uuid = "550e8400-e29b-41d4-a716-446655440000"
+      {:ok, task_id} = TaskId.new(uuid)
       json = Jason.encode!(task_id)
       decoded_string = Jason.decode!(json)
       assert {:ok, roundtrip_id} = TaskId.new(decoded_string)
@@ -144,140 +145,82 @@ defmodule Thalamus.Domain.ValueObjects.TaskIdTest do
   end
 
   describe "equality and comparison" do
-    test "task IDs with same value are equal" do
-      {:ok, id1} = TaskId.new("task_123")
-      {:ok, id2} = TaskId.new("task_123")
+    test "TaskIds with same UUID are equal" do
+      uuid = "550e8400-e29b-41d4-a716-446655440000"
+      {:ok, id1} = TaskId.new(uuid)
+      {:ok, id2} = TaskId.new(uuid)
       assert id1 == id2
     end
 
-    test "task IDs with different values are not equal" do
-      {:ok, id1} = TaskId.new("task_123")
-      {:ok, id2} = TaskId.new("task_456")
+    test "TaskIds with same UUID in different cases are equal" do
+      uuid_lower = "550e8400-e29b-41d4-a716-446655440000"
+      uuid_upper = "550E8400-E29B-41D4-A716-446655440000"
+      {:ok, id1} = TaskId.new(uuid_lower)
+      {:ok, id2} = TaskId.new(uuid_upper)
+      assert id1 == id2
+    end
+
+    test "TaskIds with different UUIDs are not equal" do
+      {:ok, id1} = TaskId.new("550e8400-e29b-41d4-a716-446655440000")
+      {:ok, id2} = TaskId.new("a1b2c3d4-e5f6-4789-abcd-ef0123456789")
       assert id1 != id2
-    end
-
-    test "task IDs are case-sensitive" do
-      {:ok, id1} = TaskId.new("task_ABC")
-      {:ok, id2} = TaskId.new("task_abc")
-      assert id1 != id2
-    end
-  end
-
-  describe "real-world task ID patterns" do
-    test "accepts common UUID format" do
-      uuid = "550e8400-e29b-41d4-a716-446655440000"
-      assert {:ok, %TaskId{value: ^uuid}} = TaskId.new(uuid)
-    end
-
-    test "accepts Anthropic-style prefixed IDs" do
-      assert {:ok, %TaskId{}} = TaskId.new("task_abc123xyz")
-      assert {:ok, %TaskId{}} = TaskId.new("run_xyz789")
-      assert {:ok, %TaskId{}} = TaskId.new("job_123abc")
-    end
-
-    test "accepts GitHub Actions style IDs" do
-      assert {:ok, %TaskId{}} = TaskId.new("workflow-run-12345")
-      assert {:ok, %TaskId{}} = TaskId.new("job-2024-01-15-abc")
-    end
-
-    test "accepts timestamp-based IDs" do
-      assert {:ok, %TaskId{}} = TaskId.new("20240115-123456-abc")
-      assert {:ok, %TaskId{}} = TaskId.new("1705334400-task-xyz")
-    end
-
-    test "accepts composite IDs" do
-      assert {:ok, %TaskId{}} = TaskId.new("user_123-task_456-run_789")
-      assert {:ok, %TaskId{}} = TaskId.new("org_abc-project_xyz-workflow_001")
-    end
-  end
-
-  describe "edge cases" do
-    test "accepts single character" do
-      assert {:ok, %TaskId{value: "a"}} = TaskId.new("a")
-      assert {:ok, %TaskId{value: "1"}} = TaskId.new("1")
-      assert {:ok, %TaskId{value: "-"}} = TaskId.new("-")
-      assert {:ok, %TaskId{value: "_"}} = TaskId.new("_")
-    end
-
-    test "accepts all hyphens" do
-      assert {:ok, %TaskId{value: "---"}} = TaskId.new("---")
-    end
-
-    test "accepts all underscores" do
-      assert {:ok, %TaskId{value: "___"}} = TaskId.new("___")
-    end
-
-    test "accepts mixed hyphens and underscores" do
-      assert {:ok, %TaskId{value: "-_-_-"}} = TaskId.new("-_-_-")
-    end
-
-    test "exactly 255 characters is valid" do
-      exactly_255 = String.duplicate("a", 255)
-      assert {:ok, %TaskId{value: ^exactly_255}} = TaskId.new(exactly_255)
-    end
-
-    test "256 characters is invalid" do
-      exactly_256 = String.duplicate("a", 256)
-      assert {:error, :task_id_too_long} = TaskId.new(exactly_256)
     end
   end
 
   describe "pattern matching" do
     test "can pattern match on value" do
-      {:ok, task_id} = TaskId.new("task_123")
+      uuid = "550e8400-e29b-41d4-a716-446655440000"
+      {:ok, task_id} = TaskId.new(uuid)
 
       result =
         case task_id do
-          %TaskId{value: "task_123"} -> :matched
-          %TaskId{} -> :not_matched
+          %TaskId{value: ^uuid} -> :matched
+          _ -> :not_matched
         end
 
       assert result == :matched
     end
+  end
 
-    test "can pattern match on different task IDs" do
-      {:ok, task_id} = TaskId.new("workflow_xyz")
+  describe "semantic meaning" do
+    test "TaskId represents a unique task identifier" do
+      uuid = "550e8400-e29b-41d4-a716-446655440000"
+      {:ok, task_id} = TaskId.new(uuid)
+      # In production, TaskId is used to track agent delegation chains
+      assert task_id.value == uuid
+    end
 
-      result =
-        case task_id do
-          %TaskId{value: "task_" <> _} -> :is_task
-          %TaskId{value: "workflow_" <> _} -> :is_workflow
-          %TaskId{} -> :is_other
-        end
-
-      assert result == :is_workflow
+    test "TaskId is immutable" do
+      uuid = "550e8400-e29b-41d4-a716-446655440000"
+      {:ok, task_id} = TaskId.new(uuid)
+      # Structs in Elixir are immutable by design
+      # Any "modification" creates a new struct
+      modified = %{task_id | value: "different-uuid"}
+      assert task_id.value == uuid
+      assert modified.value == "different-uuid"
+      assert task_id != modified
     end
   end
 
-  describe "performance" do
-    test "validates large number of task IDs efficiently" do
-      start_time = System.monotonic_time(:microsecond)
-
-      # Validate 1000 task IDs
-      results =
-        for i <- 1..1000 do
-          TaskId.new("task_#{i}")
-        end
-
-      end_time = System.monotonic_time(:microsecond)
-      duration = end_time - start_time
-
-      # Should complete in reasonable time (less than 100ms)
-      assert duration < 100_000
-      assert Enum.all?(results, fn result -> match?({:ok, %TaskId{}}, result) end)
+  describe "edge cases" do
+    test "handles UUID with all zeros" do
+      uuid = "00000000-0000-0000-0000-000000000000"
+      assert {:ok, %TaskId{value: ^uuid}} = TaskId.new(uuid)
     end
 
-    test "handles maximum length IDs efficiently" do
-      max_id = String.duplicate("a", 255)
+    test "handles UUID with all Fs" do
+      uuid_upper = "FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF"
+      uuid_lower = "ffffffff-ffff-ffff-ffff-ffffffffffff"
+      assert {:ok, %TaskId{value: ^uuid_lower}} = TaskId.new(uuid_upper)
+    end
 
-      start_time = System.monotonic_time(:microsecond)
-      result = TaskId.new(max_id)
-      end_time = System.monotonic_time(:microsecond)
-      duration = end_time - start_time
+    test "rejects UUID with curly braces" do
+      assert {:error, :invalid_task_id} = TaskId.new("{550e8400-e29b-41d4-a716-446655440000}")
+    end
 
-      assert {:ok, %TaskId{}} = result
-      # Should validate in less than 1ms
-      assert duration < 1000
+    test "rejects URN format UUID" do
+      assert {:error, :invalid_task_id} =
+               TaskId.new("urn:uuid:550e8400-e29b-41d4-a716-446655440000")
     end
   end
 end

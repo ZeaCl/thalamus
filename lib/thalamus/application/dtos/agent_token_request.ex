@@ -13,7 +13,7 @@ defmodule Thalamus.Application.DTOs.AgentTokenRequest do
           # Agent-Specific Fields (REQUIRED)
           # Human who authorized the agent
           delegated_by_user_id: String.t(),
-          # "autonomous" | "supervised" | "ephemeral"
+          # "autonomous" | "supervisor" | "tool"
           agent_type: String.t(),
 
           # Task-Scoping Fields (OPTIONAL)

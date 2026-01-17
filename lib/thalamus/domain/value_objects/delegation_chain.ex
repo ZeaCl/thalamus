@@ -1,142 +1,167 @@
 defmodule Thalamus.Domain.ValueObjects.DelegationChain do
   @moduledoc """
-  Value Object representing a chain of delegation from human to agent(s).
+  Value Object representing an agent token delegation chain.
+
+  Tracks the hierarchy of token delegations to prevent infinite delegation
+  and maintain auditability.
 
   SOLID Principles Applied:
-  - Single Responsibility: Only manages delegation chain
-  - Open/Closed: Supports arbitrary depth
+  - Single Responsibility: Only manages delegation chain state and validation
+  - Open/Closed: Extensible via protocols without modifying core logic
   """
 
-  alias Thalamus.Domain.ValueObjects.UserId
+  @type t :: %__MODULE__{
+          parent_token_id: String.t() | nil,
+          depth: non_neg_integer(),
+          path: [String.t()]
+        }
 
-  @type t :: %__MODULE__{chain: [UserId.t() | String.t()]}
+  @max_depth 4
 
-  defstruct chain: []
-
-  # Prevent infinite delegation chains
-  @max_depth 10
+  defstruct [:parent_token_id, :depth, :path]
 
   @doc """
-  Creates a new DelegationChain from a list of user IDs.
+  Creates a new DelegationChain value object.
+
+  ## Fields
+
+  - `parent_token_id` - UUID of the parent token (nil for root tokens)
+  - `depth` - Delegation depth (0 for root, max #{@max_depth})
+  - `path` - List of token IDs from root to current (ordered)
 
   ## Examples
 
-      iex> DelegationChain.new(["user_abc", "user_def"])
-      {:ok, %DelegationChain{chain: [...]}}
+      iex> DelegationChain.new(%{parent_token_id: nil, depth: 0, path: []})
+      {:ok, %DelegationChain{parent_token_id: nil, depth: 0, path: []}}
+
+      iex> DelegationChain.new(%{parent_token_id: "token-1", depth: 1, path: ["token-1"]})
+      {:ok, %DelegationChain{parent_token_id: "token-1", depth: 1, path: ["token-1"]}}
+
+      iex> DelegationChain.new(%{parent_token_id: "token-5", depth: 5, path: ["token-1", "token-2", "token-3", "token-4", "token-5"]})
+      {:error, :max_delegation_depth_exceeded}
   """
-  @spec new([String.t()]) :: {:ok, t()} | {:error, atom()}
-  def new(user_ids) when is_list(user_ids) do
-    with :ok <- validate_depth(user_ids),
-         {:ok, chain} <- parse_user_ids(user_ids) do
-      {:ok, %__MODULE__{chain: chain}}
+  @spec new(map()) :: {:ok, t()} | {:error, atom()}
+  def new(%{parent_token_id: parent_id, depth: depth, path: path} = attrs)
+      when is_map(attrs) do
+    with :ok <- validate_depth(depth),
+         :ok <- validate_path(path, depth) do
+      {:ok, %__MODULE__{parent_token_id: parent_id, depth: depth, path: path}}
     end
   end
 
   def new(_), do: {:error, :invalid_delegation_chain}
 
-  @doc "Creates a delegation chain with a single delegator"
-  @spec from_delegator(String.t()) :: {:ok, t()} | {:error, atom()}
-  def from_delegator(user_id) do
-    new([user_id])
+  @doc """
+  Creates a root delegation chain (no parent).
+
+  Convenience function for creating a root chain without specifying all fields.
+
+  ## Examples
+
+      iex> DelegationChain.from_delegator("user-123")
+      {:ok, %DelegationChain{parent_token_id: nil, depth: 0, path: []}}
+  """
+  @spec from_delegator(any()) :: {:ok, t()} | {:error, atom()}
+  def from_delegator(_delegator_id) do
+    new(%{parent_token_id: nil, depth: 0, path: []})
   end
 
-  @doc "Returns the depth of the delegation chain"
-  @spec depth(t()) :: non_neg_integer()
-  def depth(%__MODULE__{chain: chain}), do: length(chain)
+  @doc """
+  Checks if delegation chain exceeds maximum depth.
 
-  @doc "Returns the original delegator (first in chain)"
-  @spec original_delegator(t()) :: UserId.t() | String.t() | nil
-  def original_delegator(%__MODULE__{chain: []}), do: nil
-  def original_delegator(%__MODULE__{chain: [first | _]}), do: first
+  Returns true if depth is >= #{@max_depth + 1}, false otherwise.
+  """
+  @spec exceeds_max_depth?(t()) :: boolean()
+  def exceeds_max_depth?(%__MODULE__{depth: depth}), do: depth > @max_depth
 
-  @doc "Returns the immediate delegator (last in chain)"
-  @spec immediate_delegator(t()) :: UserId.t() | String.t() | nil
-  def immediate_delegator(%__MODULE__{chain: []}), do: nil
-  def immediate_delegator(%__MODULE__{chain: chain}), do: List.last(chain)
+  @doc """
+  Checks if this is a root delegation chain (no parent).
+  """
+  @spec root?(t()) :: boolean()
+  def root?(%__MODULE__{parent_token_id: nil, depth: 0}), do: true
+  def root?(_), do: false
 
-  @doc "Appends a user ID to the delegation chain"
-  @spec append(t(), String.t()) :: {:ok, t()} | {:error, atom()}
-  def append(%__MODULE__{chain: chain}, user_id) when is_binary(user_id) do
-    new_chain = chain ++ [user_id]
+  @doc """
+  Adds a new delegation to the chain.
 
-    with :ok <- validate_depth(new_chain),
-         {:ok, validated_chain} <- parse_user_ids(new_chain) do
-      {:ok, %__MODULE__{chain: validated_chain}}
+  Returns error if adding would exceed maximum depth.
+
+  ## Examples
+
+      iex> {:ok, root} = DelegationChain.new(%{parent_token_id: nil, depth: 0, path: []})
+      iex> DelegationChain.add_delegation(root, "token-1")
+      {:ok, %DelegationChain{parent_token_id: "token-1", depth: 1, path: ["token-1"]}}
+  """
+  @spec add_delegation(t(), String.t()) :: {:ok, t()} | {:error, atom()}
+  def add_delegation(%__MODULE__{depth: depth}, _token_id) when depth >= @max_depth do
+    {:error, :max_delegation_depth_exceeded}
+  end
+
+  def add_delegation(%__MODULE__{depth: depth, path: path}, token_id) do
+    new(%{
+      parent_token_id: token_id,
+      depth: depth + 1,
+      path: path ++ [token_id]
+    })
+  end
+
+  # Private validation functions
+
+  defp validate_depth(depth) when is_integer(depth) and depth >= 0 and depth <= @max_depth do
+    :ok
+  end
+
+  defp validate_depth(depth) when is_integer(depth) and depth > @max_depth do
+    {:error, :max_delegation_depth_exceeded}
+  end
+
+  defp validate_depth(_), do: {:error, :invalid_delegation_chain}
+
+  defp validate_path(path, depth) when is_list(path) do
+    cond do
+      length(path) != depth ->
+        {:error, :invalid_delegation_chain}
+
+      depth == 0 and path == [] ->
+        :ok
+
+      Enum.any?(path, fn item -> is_nil(item) or item == "" end) ->
+        {:error, :invalid_delegation_chain}
+
+      true ->
+        :ok
     end
   end
 
-  def append(_, _), do: {:error, :invalid_user_id_in_chain}
+  defp validate_path(_, _), do: {:error, :invalid_delegation_chain}
 
-  defp validate_depth(user_ids) do
-    if length(user_ids) <= @max_depth do
-      :ok
-    else
-      {:error, :delegation_chain_too_deep}
-    end
+  @doc "Converts DelegationChain to string representation"
+  @spec to_string(t()) :: String.t()
+  def to_string(%__MODULE__{parent_token_id: nil, depth: 0}) do
+    "root (depth: 0)"
   end
 
-  defp parse_user_ids([]), do: {:error, :empty_delegation_chain}
-
-  defp parse_user_ids(user_ids) do
-    # Validate that all IDs are valid UUIDs
-    result =
-      Enum.reduce_while(user_ids, {:ok, []}, fn id, {:ok, acc} ->
-        cond do
-          is_binary(id) and valid_uuid?(id) ->
-            {:cont, {:ok, acc ++ [id]}}
-
-          is_binary(id) and String.length(id) > 0 ->
-            # Accept non-UUID strings for backwards compatibility
-            {:cont, {:ok, acc ++ [id]}}
-
-          true ->
-            {:halt, {:error, :invalid_user_id_in_chain}}
-        end
-      end)
-
-    result
-  end
-
-  defp valid_uuid?(string) when is_binary(string) do
-    case Ecto.UUID.cast(string) do
-      {:ok, _} -> true
-      :error -> false
-    end
-  end
-
-  defp valid_uuid?(_), do: false
-
-  @doc "Converts delegation chain to list of string user IDs"
-  @spec to_list(t()) :: [String.t()]
-  def to_list(%__MODULE__{chain: chain}) do
-    Enum.map(chain, fn
-      %UserId{value: id} -> id
-      id when is_binary(id) -> id
-    end)
+  def to_string(%__MODULE__{parent_token_id: parent_id, depth: depth}) do
+    "delegated from #{parent_id} (depth: #{depth})"
   end
 end
 
 # Protocol implementations
 defimpl String.Chars, for: Thalamus.Domain.ValueObjects.DelegationChain do
-  def to_string(%{chain: chain}) do
-    chain_strings =
-      Enum.map(chain, fn
-        %{value: id} -> id
-        id when is_binary(id) -> id
-      end)
-
-    Enum.join(chain_strings, " -> ")
+  def to_string(chain) do
+    Thalamus.Domain.ValueObjects.DelegationChain.to_string(chain)
   end
 end
 
 defimpl Jason.Encoder, for: Thalamus.Domain.ValueObjects.DelegationChain do
-  def encode(%{chain: chain}, opts) do
-    chain_strings =
-      Enum.map(chain, fn
-        %{value: id} -> id
-        id when is_binary(id) -> id
-      end)
-
-    Jason.Encode.list(chain_strings, opts)
+  def encode(%{parent_token_id: parent_id, depth: depth, path: path}, opts) do
+    Jason.Encode.map(
+      %{
+        parent_token_id: parent_id,
+        depth: depth,
+        path: path
+      },
+      opts
+    )
   end
 end

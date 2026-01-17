@@ -288,9 +288,9 @@ defmodule Thalamus.Application.UseCases.GenerateAgentToken do
   defp calculate_ttl(ttl) when ttl > @max_ttl, do: @max_ttl
   defp calculate_ttl(ttl), do: ttl
 
-  defp extract_delegation_chain_ids(%DelegationChain{chain: chain}) do
-    Enum.map(chain, fn user_id ->
-      case user_id do
+  defp extract_delegation_chain_ids(%DelegationChain{path: path}) do
+    Enum.map(path, fn token_id ->
+      case token_id do
         %{value: uuid} -> uuid
         uuid when is_binary(uuid) -> uuid
       end

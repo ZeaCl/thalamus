@@ -4,417 +4,341 @@ defmodule Thalamus.Domain.ValueObjects.DelegationChainTest do
   alias Thalamus.Domain.ValueObjects.DelegationChain
 
   describe "new/1 with valid inputs" do
-    test "creates delegation chain with single user ID" do
-      user_id = Ecto.UUID.generate()
-      assert {:ok, %DelegationChain{chain: [^user_id]}} = DelegationChain.new([user_id])
+    test "creates root delegation chain with nil parent" do
+      assert {:ok, chain} = DelegationChain.new(%{parent_token_id: nil, depth: 0, path: []})
+      assert chain.parent_token_id == nil
+      assert chain.depth == 0
+      assert chain.path == []
     end
 
-    test "creates delegation chain with multiple user IDs" do
-      user_id1 = Ecto.UUID.generate()
-      user_id2 = Ecto.UUID.generate()
-      user_id3 = Ecto.UUID.generate()
+    test "creates delegation chain with parent" do
+      parent_id = "550e8400-e29b-41d4-a716-446655440000"
 
-      assert {:ok, %DelegationChain{chain: [^user_id1, ^user_id2, ^user_id3]}} =
-               DelegationChain.new([user_id1, user_id2, user_id3])
+      assert {:ok, chain} =
+               DelegationChain.new(%{parent_token_id: parent_id, depth: 1, path: [parent_id]})
+
+      assert chain.parent_token_id == parent_id
+      assert chain.depth == 1
+      assert chain.path == [parent_id]
     end
 
-    test "creates delegation chain with maximum depth (10 levels)" do
-      chain = for _i <- 1..10, do: Ecto.UUID.generate()
-      assert {:ok, %DelegationChain{chain: ^chain}} = DelegationChain.new(chain)
+    test "creates delegation chain at depth 2" do
+      parent1 = "550e8400-e29b-41d4-a716-446655440000"
+      parent2 = "a1b2c3d4-e5f6-4789-abcd-ef0123456789"
+
+      assert {:ok, chain} =
+               DelegationChain.new(%{
+                 parent_token_id: parent2,
+                 depth: 2,
+                 path: [parent1, parent2]
+               })
+
+      assert chain.parent_token_id == parent2
+      assert chain.depth == 2
+      assert chain.path == [parent1, parent2]
     end
 
-    test "preserves order of delegation" do
-      user_id1 = Ecto.UUID.generate()
-      user_id2 = Ecto.UUID.generate()
-      user_id3 = Ecto.UUID.generate()
+    test "creates delegation chain at maximum depth (4)" do
+      path = [
+        "550e8400-e29b-41d4-a716-446655440000",
+        "a1b2c3d4-e5f6-4789-abcd-ef0123456789",
+        "b2c3d4e5-f6a7-4890-bcde-f01234567890",
+        "c3d4e5f6-a7b8-4901-cdef-012345678901"
+      ]
 
-      {:ok, delegation_chain} = DelegationChain.new([user_id1, user_id2, user_id3])
+      assert {:ok, chain} =
+               DelegationChain.new(%{
+                 parent_token_id: List.last(path),
+                 depth: 4,
+                 path: path
+               })
 
-      assert delegation_chain.chain == [user_id1, user_id2, user_id3]
+      assert chain.depth == 4
+      assert length(chain.path) == 4
+    end
+  end
+
+  describe "new/1 with depth validation" do
+    test "fails when depth exceeds maximum (5)" do
+      path = List.duplicate("550e8400-e29b-41d4-a716-446655440000", 5)
+
+      assert {:error, :max_delegation_depth_exceeded} =
+               DelegationChain.new(%{
+                 parent_token_id: "550e8400-e29b-41d4-a716-446655440000",
+                 depth: 5,
+                 path: path
+               })
     end
 
-    test "allows duplicate user IDs (re-delegation)" do
-      user_id = Ecto.UUID.generate()
+    test "fails when depth is greater than 5" do
+      assert {:error, :max_delegation_depth_exceeded} =
+               DelegationChain.new(%{
+                 parent_token_id: "550e8400-e29b-41d4-a716-446655440000",
+                 depth: 10,
+                 path: []
+               })
+    end
 
-      assert {:ok, %DelegationChain{chain: [^user_id, ^user_id]}} =
-               DelegationChain.new([user_id, user_id])
+    test "fails with negative depth" do
+      assert {:error, :invalid_delegation_chain} =
+               DelegationChain.new(%{parent_token_id: nil, depth: -1, path: []})
+    end
+  end
+
+  describe "new/1 with path validation" do
+    test "fails when depth doesn't match path length" do
+      assert {:error, :invalid_delegation_chain} =
+               DelegationChain.new(%{
+                 parent_token_id: "550e8400-e29b-41d4-a716-446655440000",
+                 depth: 2,
+                 path: ["550e8400-e29b-41d4-a716-446655440000"]
+               })
+    end
+
+    test "fails when path contains nil values" do
+      assert {:error, :invalid_delegation_chain} =
+               DelegationChain.new(%{parent_token_id: nil, depth: 1, path: [nil]})
+    end
+
+    test "fails when path contains empty strings" do
+      assert {:error, :invalid_delegation_chain} =
+               DelegationChain.new(%{parent_token_id: "", depth: 1, path: [""]})
+    end
+
+    test "succeeds when root has empty path" do
+      assert {:ok, chain} = DelegationChain.new(%{parent_token_id: nil, depth: 0, path: []})
+      assert chain.path == []
     end
   end
 
   describe "new/1 with invalid inputs" do
-    test "fails with empty list" do
-      assert {:error, :empty_delegation_chain} = DelegationChain.new([])
+    test "fails with missing parent_token_id key" do
+      assert {:error, :invalid_delegation_chain} =
+               DelegationChain.new(%{depth: 0, path: []})
     end
 
-    test "fails with nil" do
+    test "fails with missing depth key" do
+      assert {:error, :invalid_delegation_chain} =
+               DelegationChain.new(%{parent_token_id: nil, path: []})
+    end
+
+    test "fails with missing path key" do
+      assert {:error, :invalid_delegation_chain} =
+               DelegationChain.new(%{parent_token_id: nil, depth: 0})
+    end
+
+    test "fails with non-integer depth" do
+      assert {:error, :invalid_delegation_chain} =
+               DelegationChain.new(%{parent_token_id: nil, depth: "0", path: []})
+    end
+
+    test "fails with non-list path" do
+      assert {:error, :invalid_delegation_chain} =
+               DelegationChain.new(%{parent_token_id: nil, depth: 0, path: "not a list"})
+    end
+
+    test "fails with nil input" do
       assert {:error, :invalid_delegation_chain} = DelegationChain.new(nil)
     end
 
-    test "fails with non-list input" do
-      assert {:error, :invalid_delegation_chain} = DelegationChain.new("user_123")
+    test "fails with non-map input" do
+      assert {:error, :invalid_delegation_chain} = DelegationChain.new("not a map")
+      assert {:error, :invalid_delegation_chain} = DelegationChain.new([])
       assert {:error, :invalid_delegation_chain} = DelegationChain.new(123)
-      assert {:error, :invalid_delegation_chain} = DelegationChain.new(%{})
-    end
-
-    test "fails with chain exceeding max depth (> 10 levels)" do
-      chain = for _i <- 1..11, do: Ecto.UUID.generate()
-      assert {:error, :delegation_chain_too_deep} = DelegationChain.new(chain)
-    end
-
-    test "fails with very deep chain (100 levels)" do
-      chain = for _i <- 1..100, do: Ecto.UUID.generate()
-      assert {:error, :delegation_chain_too_deep} = DelegationChain.new(chain)
-    end
-
-    test "accepts non-UUID strings in chain for flexibility" do
-      user_id1 = Ecto.UUID.generate()
-      # Non-UUID but valid string
-      custom_id = "user_12345"
-      user_id2 = Ecto.UUID.generate()
-
-      assert {:ok, %DelegationChain{chain: [^user_id1, ^custom_id, ^user_id2]}} =
-               DelegationChain.new([user_id1, custom_id, user_id2])
-    end
-
-    test "fails with non-binary user ID" do
-      user_id1 = Ecto.UUID.generate()
-
-      assert {:error, :invalid_user_id_in_chain} =
-               DelegationChain.new([user_id1, 123, Ecto.UUID.generate()])
     end
   end
 
-  describe "from_delegator/1" do
-    test "creates delegation chain from single delegator ID" do
-      user_id = Ecto.UUID.generate()
-      {:ok, chain} = DelegationChain.from_delegator(user_id)
-
-      assert chain.chain == [user_id]
+  describe "exceeds_max_depth?/1" do
+    test "returns false for root chain" do
+      {:ok, chain} = DelegationChain.new(%{parent_token_id: nil, depth: 0, path: []})
+      refute DelegationChain.exceeds_max_depth?(chain)
     end
 
-    test "creates valid delegation chain ready for extension" do
-      user_id = Ecto.UUID.generate()
-      {:ok, chain} = DelegationChain.from_delegator(user_id)
+    test "returns false for depth 1" do
+      {:ok, chain} =
+        DelegationChain.new(%{
+          parent_token_id: "550e8400-e29b-41d4-a716-446655440000",
+          depth: 1,
+          path: ["550e8400-e29b-41d4-a716-446655440000"]
+        })
 
-      assert DelegationChain.depth(chain) == 1
-    end
-  end
-
-  describe "append/2" do
-    test "appends new user to delegation chain" do
-      user_id1 = Ecto.UUID.generate()
-      user_id2 = Ecto.UUID.generate()
-
-      {:ok, chain} = DelegationChain.from_delegator(user_id1)
-      {:ok, new_chain} = DelegationChain.append(chain, user_id2)
-
-      assert new_chain.chain == [user_id1, user_id2]
+      refute DelegationChain.exceeds_max_depth?(chain)
     end
 
-    test "appends multiple users sequentially" do
-      user_id1 = Ecto.UUID.generate()
-      user_id2 = Ecto.UUID.generate()
-      user_id3 = Ecto.UUID.generate()
+    test "returns false for depth 4 (at maximum)" do
+      path = List.duplicate("550e8400-e29b-41d4-a716-446655440000", 4)
 
-      {:ok, chain} = DelegationChain.from_delegator(user_id1)
-      {:ok, chain} = DelegationChain.append(chain, user_id2)
-      {:ok, chain} = DelegationChain.append(chain, user_id3)
+      {:ok, chain} =
+        DelegationChain.new(%{
+          parent_token_id: "550e8400-e29b-41d4-a716-446655440000",
+          depth: 4,
+          path: path
+        })
 
-      assert chain.chain == [user_id1, user_id2, user_id3]
-    end
-
-    test "fails when appending would exceed max depth" do
-      # Create chain at max depth
-      chain_ids = for _i <- 1..10, do: Ecto.UUID.generate()
-      {:ok, chain} = DelegationChain.new(chain_ids)
-
-      # Try to append one more
-      new_user_id = Ecto.UUID.generate()
-      assert {:error, :delegation_chain_too_deep} = DelegationChain.append(chain, new_user_id)
-    end
-
-    test "allows re-delegation to same user" do
-      user_id = Ecto.UUID.generate()
-
-      {:ok, chain} = DelegationChain.from_delegator(user_id)
-      {:ok, new_chain} = DelegationChain.append(chain, user_id)
-
-      assert new_chain.chain == [user_id, user_id]
-    end
-
-    test "accepts custom string user IDs" do
-      {:ok, chain} = DelegationChain.from_delegator(Ecto.UUID.generate())
-
-      assert {:ok, new_chain} =
-               DelegationChain.append(chain, "custom-user-id-123")
-
-      assert DelegationChain.depth(new_chain) == 2
+      refute DelegationChain.exceeds_max_depth?(chain)
     end
   end
 
-  describe "depth/1" do
-    test "returns 1 for single-user chain" do
-      {:ok, chain} = DelegationChain.from_delegator(Ecto.UUID.generate())
-      assert DelegationChain.depth(chain) == 1
+  describe "root?/1" do
+    test "returns true for root chain" do
+      {:ok, chain} = DelegationChain.new(%{parent_token_id: nil, depth: 0, path: []})
+      assert DelegationChain.root?(chain)
     end
 
-    test "returns correct depth for multi-user chain" do
-      chain_ids = for _i <- 1..5, do: Ecto.UUID.generate()
-      {:ok, chain} = DelegationChain.new(chain_ids)
+    test "returns false for non-root chain" do
+      {:ok, chain} =
+        DelegationChain.new(%{
+          parent_token_id: "550e8400-e29b-41d4-a716-446655440000",
+          depth: 1,
+          path: ["550e8400-e29b-41d4-a716-446655440000"]
+        })
 
-      assert DelegationChain.depth(chain) == 5
-    end
-
-    test "returns maximum depth for 10-level chain" do
-      chain_ids = for _i <- 1..10, do: Ecto.UUID.generate()
-      {:ok, chain} = DelegationChain.new(chain_ids)
-
-      assert DelegationChain.depth(chain) == 10
+      refute DelegationChain.root?(chain)
     end
   end
 
-  describe "to_list/1" do
-    test "converts delegation chain to list of user IDs" do
-      user_id1 = Ecto.UUID.generate()
-      user_id2 = Ecto.UUID.generate()
+  describe "add_delegation/2" do
+    test "adds delegation to root chain" do
+      {:ok, root} = DelegationChain.new(%{parent_token_id: nil, depth: 0, path: []})
+      token_id = "550e8400-e29b-41d4-a716-446655440000"
 
-      {:ok, chain} = DelegationChain.new([user_id1, user_id2])
-
-      assert DelegationChain.to_list(chain) == [user_id1, user_id2]
+      assert {:ok, new_chain} = DelegationChain.add_delegation(root, token_id)
+      assert new_chain.parent_token_id == token_id
+      assert new_chain.depth == 1
+      assert new_chain.path == [token_id]
     end
 
-    test "preserves order in conversion" do
-      chain_ids = for _i <- 1..5, do: Ecto.UUID.generate()
-      {:ok, chain} = DelegationChain.new(chain_ids)
+    test "adds delegation to existing chain" do
+      parent_id = "550e8400-e29b-41d4-a716-446655440000"
+      new_id = "a1b2c3d4-e5f6-4789-abcd-ef0123456789"
 
-      assert DelegationChain.to_list(chain) == chain_ids
+      {:ok, chain} =
+        DelegationChain.new(%{parent_token_id: parent_id, depth: 1, path: [parent_id]})
+
+      assert {:ok, new_chain} = DelegationChain.add_delegation(chain, new_id)
+      assert new_chain.parent_token_id == new_id
+      assert new_chain.depth == 2
+      assert new_chain.path == [parent_id, new_id]
+    end
+
+    test "fails when adding would exceed maximum depth" do
+      path = List.duplicate("550e8400-e29b-41d4-a716-446655440000", 4)
+
+      {:ok, chain} =
+        DelegationChain.new(%{
+          parent_token_id: "550e8400-e29b-41d4-a716-446655440000",
+          depth: 4,
+          path: path
+        })
+
+      assert {:error, :max_delegation_depth_exceeded} =
+               DelegationChain.add_delegation(chain, "new-token-id")
     end
   end
 
   describe "String.Chars protocol" do
-    test "implements String.Chars protocol" do
-      user_id1 = Ecto.UUID.generate()
-      user_id2 = Ecto.UUID.generate()
-
-      {:ok, chain} = DelegationChain.new([user_id1, user_id2])
-      string_repr = to_string(chain)
-
-      assert string_repr =~ user_id1
-      assert string_repr =~ user_id2
-      assert string_repr =~ " -> "
+    test "converts root chain to string" do
+      {:ok, chain} = DelegationChain.new(%{parent_token_id: nil, depth: 0, path: []})
+      assert to_string(chain) == "root (depth: 0)"
     end
 
-    test "formats single-user chain" do
-      user_id = Ecto.UUID.generate()
-      {:ok, chain} = DelegationChain.from_delegator(user_id)
+    test "converts non-root chain to string" do
+      parent_id = "550e8400-e29b-41d4-a716-446655440000"
 
-      assert to_string(chain) == user_id
-    end
+      {:ok, chain} =
+        DelegationChain.new(%{parent_token_id: parent_id, depth: 1, path: [parent_id]})
 
-    test "formats multi-user chain with arrows" do
-      user_id1 = "00000000-0000-0000-0000-000000000001"
-      user_id2 = "00000000-0000-0000-0000-000000000002"
-      user_id3 = "00000000-0000-0000-0000-000000000003"
-
-      {:ok, chain} = DelegationChain.new([user_id1, user_id2, user_id3])
-
-      assert to_string(chain) == "#{user_id1} -> #{user_id2} -> #{user_id3}"
+      assert to_string(chain) =~ "depth: 1"
+      assert to_string(chain) =~ parent_id
     end
   end
 
   describe "Jason.Encoder protocol" do
-    test "encodes to JSON array" do
-      user_id1 = Ecto.UUID.generate()
-      user_id2 = Ecto.UUID.generate()
-
-      {:ok, chain} = DelegationChain.new([user_id1, user_id2])
+    test "encodes root chain to JSON" do
+      {:ok, chain} = DelegationChain.new(%{parent_token_id: nil, depth: 0, path: []})
       json = Jason.encode!(chain)
+      decoded = Jason.decode!(json)
 
-      assert json == Jason.encode!([user_id1, user_id2])
+      assert decoded["parent_token_id"] == nil
+      assert decoded["depth"] == 0
+      assert decoded["path"] == []
     end
 
-    test "encodes and decodes roundtrip" do
-      chain_ids = for _i <- 1..3, do: Ecto.UUID.generate()
-      {:ok, chain} = DelegationChain.new(chain_ids)
+    test "encodes non-root chain to JSON" do
+      parent_id = "550e8400-e29b-41d4-a716-446655440000"
+
+      {:ok, chain} =
+        DelegationChain.new(%{parent_token_id: parent_id, depth: 1, path: [parent_id]})
 
       json = Jason.encode!(chain)
-      decoded_list = Jason.decode!(json)
+      decoded = Jason.decode!(json)
 
-      assert {:ok, roundtrip_chain} = DelegationChain.new(decoded_list)
-      assert roundtrip_chain == chain
+      assert decoded["parent_token_id"] == parent_id
+      assert decoded["depth"] == 1
+      assert decoded["path"] == [parent_id]
     end
   end
 
-  describe "equality and comparison" do
-    test "delegation chains with same IDs are equal" do
-      user_id1 = Ecto.UUID.generate()
-      user_id2 = Ecto.UUID.generate()
+  describe "equality" do
+    test "chains with same values are equal" do
+      parent_id = "550e8400-e29b-41d4-a716-446655440000"
 
-      {:ok, chain1} = DelegationChain.new([user_id1, user_id2])
-      {:ok, chain2} = DelegationChain.new([user_id1, user_id2])
+      {:ok, chain1} =
+        DelegationChain.new(%{parent_token_id: parent_id, depth: 1, path: [parent_id]})
+
+      {:ok, chain2} =
+        DelegationChain.new(%{parent_token_id: parent_id, depth: 1, path: [parent_id]})
 
       assert chain1 == chain2
     end
 
-    test "delegation chains with different IDs are not equal" do
-      user_id1 = Ecto.UUID.generate()
-      user_id2 = Ecto.UUID.generate()
-      user_id3 = Ecto.UUID.generate()
+    test "chains with different depths are not equal" do
+      parent_id = "550e8400-e29b-41d4-a716-446655440000"
 
-      {:ok, chain1} = DelegationChain.new([user_id1, user_id2])
-      {:ok, chain2} = DelegationChain.new([user_id1, user_id3])
+      {:ok, chain1} =
+        DelegationChain.new(%{parent_token_id: parent_id, depth: 1, path: [parent_id]})
 
-      assert chain1 != chain2
-    end
-
-    test "order matters for equality" do
-      user_id1 = Ecto.UUID.generate()
-      user_id2 = Ecto.UUID.generate()
-
-      {:ok, chain1} = DelegationChain.new([user_id1, user_id2])
-      {:ok, chain2} = DelegationChain.new([user_id2, user_id1])
+      {:ok, chain2} =
+        DelegationChain.new(%{
+          parent_token_id: parent_id,
+          depth: 2,
+          path: [parent_id, parent_id]
+        })
 
       assert chain1 != chain2
-    end
-  end
-
-  describe "delegation scenarios" do
-    test "human delegates to autonomous agent" do
-      human_id = Ecto.UUID.generate()
-      {:ok, chain} = DelegationChain.from_delegator(human_id)
-
-      assert DelegationChain.depth(chain) == 1
-      assert List.first(chain.chain) == human_id
-    end
-
-    test "human delegates to supervised agent which delegates to sub-agent" do
-      human_id = Ecto.UUID.generate()
-      supervisor_agent_id = Ecto.UUID.generate()
-      sub_agent_id = Ecto.UUID.generate()
-
-      {:ok, chain} = DelegationChain.from_delegator(human_id)
-      {:ok, chain} = DelegationChain.append(chain, supervisor_agent_id)
-      {:ok, chain} = DelegationChain.append(chain, sub_agent_id)
-
-      assert DelegationChain.depth(chain) == 3
-      assert chain.chain == [human_id, supervisor_agent_id, sub_agent_id]
-    end
-
-    test "complex orchestration chain" do
-      # Human -> Orchestrator -> Worker1 -> Worker2 -> Worker3
-      human_id = Ecto.UUID.generate()
-      orchestrator_id = Ecto.UUID.generate()
-      worker1_id = Ecto.UUID.generate()
-      worker2_id = Ecto.UUID.generate()
-      worker3_id = Ecto.UUID.generate()
-
-      {:ok, chain} = DelegationChain.from_delegator(human_id)
-      {:ok, chain} = DelegationChain.append(chain, orchestrator_id)
-      {:ok, chain} = DelegationChain.append(chain, worker1_id)
-      {:ok, chain} = DelegationChain.append(chain, worker2_id)
-      {:ok, chain} = DelegationChain.append(chain, worker3_id)
-
-      assert DelegationChain.depth(chain) == 5
-      assert List.first(chain.chain) == human_id
-      assert List.last(chain.chain) == worker3_id
-    end
-
-    test "prevents infinite delegation loops (max 10 levels)" do
-      # Try to create 11-level deep chain
-      user_ids = for _i <- 1..11, do: Ecto.UUID.generate()
-
-      assert {:error, :delegation_chain_too_deep} = DelegationChain.new(user_ids)
-    end
-  end
-
-  describe "edge cases" do
-    test "exactly 10 levels is valid" do
-      chain_ids = for _i <- 1..10, do: Ecto.UUID.generate()
-      assert {:ok, %DelegationChain{}} = DelegationChain.new(chain_ids)
-    end
-
-    test "11 levels exceeds maximum" do
-      chain_ids = for _i <- 1..11, do: Ecto.UUID.generate()
-      assert {:error, :delegation_chain_too_deep} = DelegationChain.new(chain_ids)
-    end
-
-    test "handles UUID v4 format" do
-      uuid_v4 = Ecto.UUID.generate()
-      assert {:ok, %DelegationChain{chain: [^uuid_v4]}} = DelegationChain.new([uuid_v4])
-    end
-
-    test "accepts both UUIDs and custom strings in chain" do
-      valid_uuid = Ecto.UUID.generate()
-      custom_string = "custom-user-id"
-
-      assert {:ok, %DelegationChain{chain: [^valid_uuid, ^custom_string]}} =
-               DelegationChain.new([valid_uuid, custom_string])
     end
   end
 
   describe "pattern matching" do
-    test "can pattern match on chain structure" do
-      user_id1 = Ecto.UUID.generate()
-      user_id2 = Ecto.UUID.generate()
-      {:ok, chain} = DelegationChain.new([user_id1, user_id2])
+    test "can pattern match on struct fields" do
+      {:ok, chain} = DelegationChain.new(%{parent_token_id: nil, depth: 0, path: []})
 
       result =
         case chain do
-          %DelegationChain{chain: [^user_id1, ^user_id2]} -> :matched
-          %DelegationChain{} -> :not_matched
+          %DelegationChain{depth: 0, parent_token_id: nil} -> :root
+          %DelegationChain{depth: depth} when depth > 0 -> :delegated
         end
 
-      assert result == :matched
-    end
-
-    test "can pattern match on chain depth" do
-      {:ok, shallow_chain} = DelegationChain.from_delegator(Ecto.UUID.generate())
-
-      chain_ids = for _i <- 1..5, do: Ecto.UUID.generate()
-      {:ok, deep_chain} = DelegationChain.new(chain_ids)
-
-      result =
-        case DelegationChain.depth(deep_chain) do
-          1 -> :shallow
-          depth when depth > 3 -> :deep
-          _ -> :medium
-        end
-
-      assert result == :deep
+      assert result == :root
     end
   end
 
-  describe "performance" do
-    test "handles maximum depth chains efficiently" do
-      chain_ids = for _i <- 1..10, do: Ecto.UUID.generate()
+  describe "semantic meaning" do
+    test "delegation chain tracks token hierarchy" do
+      # Root token (e.g., user token)
+      {:ok, root} = DelegationChain.new(%{parent_token_id: nil, depth: 0, path: []})
 
-      start_time = System.monotonic_time(:microsecond)
-      result = DelegationChain.new(chain_ids)
-      end_time = System.monotonic_time(:microsecond)
-      duration = end_time - start_time
+      # First delegation (e.g., to autonomous agent)
+      token1 = "token-1"
+      {:ok, chain1} = DelegationChain.add_delegation(root, token1)
 
-      assert {:ok, %DelegationChain{}} = result
-      # Should create in less than 1ms
-      assert duration < 1000
-    end
+      # Second delegation (e.g., agent delegates to tool)
+      token2 = "token-2"
+      {:ok, chain2} = DelegationChain.add_delegation(chain1, token2)
 
-    test "appends efficiently" do
-      {:ok, chain} = DelegationChain.from_delegator(Ecto.UUID.generate())
-
-      start_time = System.monotonic_time(:microsecond)
-
-      # Append 9 more to reach max depth
-      {:ok, final_chain} =
-        Enum.reduce(1..9, {:ok, chain}, fn _i, {:ok, acc_chain} ->
-          DelegationChain.append(acc_chain, Ecto.UUID.generate())
-        end)
-
-      end_time = System.monotonic_time(:microsecond)
-      duration = end_time - start_time
-
-      assert DelegationChain.depth(final_chain) == 10
-      # Should complete in less than 10ms
-      assert duration < 10_000
+      # Path shows complete delegation history
+      assert chain2.path == [token1, token2]
+      assert chain2.depth == 2
     end
   end
 end

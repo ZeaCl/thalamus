@@ -623,7 +623,7 @@ defmodule ThalamusWeb.Tokens.Show do
     """
   end
 
-  defp agent_type_badge("supervised") do
+  defp agent_type_badge("supervisor") do
     assigns = %{}
 
     ~H"""
@@ -631,7 +631,7 @@ defmodule ThalamusWeb.Tokens.Show do
     """
   end
 
-  defp agent_type_badge("ephemeral") do
+  defp agent_type_badge("tool") do
     assigns = %{}
 
     ~H"""

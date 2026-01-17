@@ -150,11 +150,11 @@ defmodule ThalamusWeb.Tokens.Index do
   defp filter_by_agent_type(query, "autonomous"),
     do: where(query, [t], t.agent_type == "autonomous")
 
-  defp filter_by_agent_type(query, "supervised"),
-    do: where(query, [t], t.agent_type == "supervised")
+  defp filter_by_agent_type(query, "supervisor"),
+    do: where(query, [t], t.agent_type == "supervisor")
 
-  defp filter_by_agent_type(query, "ephemeral"),
-    do: where(query, [t], t.agent_type == "ephemeral")
+  defp filter_by_agent_type(query, "tool"),
+    do: where(query, [t], t.agent_type == "tool")
 
   @impl true
   def render(assigns) do
@@ -235,10 +235,10 @@ defmodule ThalamusWeb.Tokens.Index do
             <option value="autonomous" selected={@filter_agent_type == "autonomous"}>
               🤖 Autonomous
             </option>
-            <option value="supervised" selected={@filter_agent_type == "supervised"}>
+            <option value="supervisor" selected={@filter_agent_type == "supervisor"}>
               👁️ Supervised
             </option>
-            <option value="ephemeral" selected={@filter_agent_type == "ephemeral"}>
+            <option value="tool" selected={@filter_agent_type == "tool"}>
               ⚡ Ephemeral
             </option>
           </select>
@@ -448,7 +448,7 @@ defmodule ThalamusWeb.Tokens.Index do
     """
   end
 
-  defp agent_type_badge("supervised") do
+  defp agent_type_badge("supervisor") do
     assigns = %{}
 
     ~H"""
@@ -456,7 +456,7 @@ defmodule ThalamusWeb.Tokens.Index do
     """
   end
 
-  defp agent_type_badge("ephemeral") do
+  defp agent_type_badge("tool") do
     assigns = %{}
 
     ~H"""
