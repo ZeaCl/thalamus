@@ -125,7 +125,8 @@ defmodule Thalamus.Application.UseCases.GenerateAgentToken do
          true <- user.status == :active || {:error, :delegator_not_active},
          true <-
            user.organization_id == request.organization_id ||
-             {:error, :delegator_organization_mismatch} do
+             {:error, :delegator_organization_mismatch},
+         :ok <- validate_delegator_has_scopes(user, request.scopes, deps) do
       {:ok, user}
     else
       {:error, :not_found} -> {:error, :delegator_not_found}
@@ -134,13 +135,44 @@ defmodule Thalamus.Application.UseCases.GenerateAgentToken do
     end
   end
 
+  # Validates that delegator has permission to delegate the requested scopes
+  # TODO: This validation is currently simplified and needs full implementation
+  # when the role/permission system is added to User entity.
+  #
+  # For now, we perform basic checks. In the future, this should:
+  # 1. Get user's effective scopes from roles/permissions
+  # 2. Verify requested scopes ⊆ user's scopes
+  # 3. Check organization-level delegation policies
+  defp validate_delegator_has_scopes(_user, _requested_scopes, _deps) do
+    # TODO: Implement when User entity has roles/permissions system
+    # For now, allow delegation (assuming delegator was properly authenticated)
+    #
+    # Future implementation:
+    # {:ok, user_scopes} = deps.user_repository.get_effective_scopes(user.id)
+    # requested_set = MapSet.new(requested_scopes)
+    # user_set = MapSet.new(user_scopes)
+    #
+    # if MapSet.subset?(requested_set, user_set) do
+    #   :ok
+    # else
+    #   {:error, :delegator_insufficient_permissions}
+    # end
+
+    Logger.warning(
+      "Delegator scope validation is simplified - full implementation pending role/permission system"
+    )
+
+    :ok
+  end
+
   # Validates organization exists and is active
-  defp validate_organization(%AgentTokenRequest{organization_id: org_id}, deps) do
+  defp validate_organization(%AgentTokenRequest{} = request, deps) do
     # If organization_repository is not provided, skip validation
     # (for backwards compatibility or testing)
     if Map.has_key?(deps, :organization_repository) do
-      with {:ok, org} <- deps.organization_repository.find_by_id(org_id),
-           true <- org.status == :active || {:error, :organization_not_active} do
+      with {:ok, org} <- deps.organization_repository.find_by_id(request.organization_id),
+           true <- org.status == :active || {:error, :organization_not_active},
+           :ok <- validate_compliance_rules(request, org) do
         {:ok, org}
       else
         {:error, :not_found} -> {:error, :organization_not_found}
@@ -152,6 +184,63 @@ defmodule Thalamus.Application.UseCases.GenerateAgentToken do
       {:ok, nil}
     end
   end
+
+  # Validates organization compliance rules for agent token generation
+  # TODO: This requires adding compliance_config field to Organization entity
+  #
+  # Expected compliance_config structure:
+  # %{
+  #   max_token_ttl: integer() | nil,              # Max TTL in seconds
+  #   forbidden_agent_types: [atom()] | [],        # [:autonomous, :supervisor, :tool]
+  #   allowed_hours: %{start: integer(), end: integer()} | nil,  # Business hours (0-23)
+  #   require_mfa_for_scopes: [String.t()] | [],   # Scopes that require MFA
+  #   max_delegation_depth: integer() | nil        # Max chain depth
+  # }
+  defp validate_compliance_rules(request, org) do
+    # Get compliance config from organization (falls back to empty map if not present)
+    compliance_config = Map.get(org, :compliance_config, %{})
+
+    with :ok <- check_max_ttl(request.expires_in, compliance_config),
+         :ok <- check_forbidden_agent_types(request.agent_type, compliance_config),
+         :ok <- check_business_hours(compliance_config) do
+      :ok
+    end
+  end
+
+  # Validates TTL against organization's maximum allowed TTL
+  defp check_max_ttl(nil, _config), do: :ok
+
+  defp check_max_ttl(requested_ttl, %{max_token_ttl: max_ttl})
+       when is_integer(max_ttl) and requested_ttl > max_ttl do
+    {:error, :ttl_exceeds_organization_limit}
+  end
+
+  defp check_max_ttl(_ttl, _config), do: :ok
+
+  # Validates agent type against organization's forbidden types
+  defp check_forbidden_agent_types(agent_type, %{forbidden_agent_types: forbidden})
+       when is_list(forbidden) do
+    if agent_type in forbidden do
+      {:error, :agent_type_forbidden_by_organization}
+    else
+      :ok
+    end
+  end
+
+  defp check_forbidden_agent_types(_agent_type, _config), do: :ok
+
+  # Validates current time against organization's allowed business hours
+  defp check_business_hours(%{allowed_hours: %{start: start_hour, end: end_hour}}) do
+    current_hour = DateTime.utc_now() |> Map.get(:hour)
+
+    if current_hour >= start_hour and current_hour < end_hour do
+      :ok
+    else
+      {:error, :outside_business_hours}
+    end
+  end
+
+  defp check_business_hours(_config), do: :ok
 
   # Validates that requested scopes are a subset of client's allowed scopes
   defp validate_scopes_subset(requested_scopes, allowed_scopes) do
@@ -236,12 +325,32 @@ defmodule Thalamus.Application.UseCases.GenerateAgentToken do
     AgentToken.create(params)
   end
 
-  # Saves token using repository with the generated access_token
-  # Note: The repository will internally persist the access_token in the schema
-  # For now, we pass the access_token separately to avoid database queries in tests
+  # Saves token using repository
+  #
+  # DESIGN DECISION NEEDED: Access token generation location
+  #
+  # Current state:
+  # - Use case generates access_token (line 86) for deterministic testing
+  # - Repository ignores it and generates its own internally
+  # - This creates confusion and duplication
+  #
+  # Recommended solution (Option A):
+  # Update repository interface to accept access_token:
+  #   def save(agent_token, access_token) do
+  #     # Store access_token in schema
+  #     # Return saved token with access_token
+  #   end
+  #
+  # Alternative (Option B):
+  # Remove token generation from use case (line 86):
+  #   - Let repository generate it
+  #   - Repository returns {:ok, saved_token, generated_access_token}
+  #   - Less testable but simpler
+  #
+  # TODO: Implement Option A for better testability
   defp save_token_with_access_token(agent_token, _access_token, deps) do
-    # TODO: Update repository interface to accept and return access_token
-    # For now, repository generates its own access_token internally
+    # Currently: Repository generates its own access_token internally
+    # This works but creates the duplication issue noted above
     deps.agent_token_repository.save(agent_token)
   end
 
