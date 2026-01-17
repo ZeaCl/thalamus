@@ -3,8 +3,19 @@
     <%!-- Back button --%>
     <div class="mb-6">
       <a href={~p"/docs"} class="btn btn-ghost btn-sm gap-2">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke-width="1.5"
+          stroke="currentColor"
+          class="w-5 h-5"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"
+          />
         </svg>
         Back to Documentation
       </a>
@@ -23,14 +34,26 @@
     <%!-- Main content card --%>
     <div class="card bg-base-100 shadow-xl">
       <div class="card-body prose prose-lg max-w-none">
-
         <div class="alert alert-success mb-8">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            class="stroke-current shrink-0 w-6 h-6"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+            >
+            </path>
           </svg>
           <div>
             <h3 class="font-bold mt-0">Recommended: Use our SDK</h3>
-            <div class="text-sm">Skip manual OAuth2 implementation. Our JavaScript/TypeScript SDK handles everything automatically.</div>
+            <div class="text-sm">
+              Skip manual OAuth2 implementation. Our JavaScript/TypeScript SDK handles everything automatically.
+            </div>
           </div>
         </div>
 
@@ -52,16 +75,32 @@
         </div>
 
         <div class="alert alert-info mb-6">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            class="stroke-current shrink-0 w-6 h-6"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            >
+            </path>
           </svg>
           <div>
             <p class="font-bold mb-1">📦 Package Information</p>
             <p class="text-sm">
-              TypeScript SDK for Thalamus OAuth2 - Published on npm as <code>@zea.cl/thalamus-js</code>
+              TypeScript SDK for Thalamus OAuth2 - Published on npm as
+              <code>@zea.cl/thalamus-js</code>
             </p>
             <p class="text-sm mt-2">
-              <a href="https://www.npmjs.com/package/@zea.cl/thalamus-js" target="_blank" class="link link-primary">
+              <a
+                href="https://www.npmjs.com/package/@zea.cl/thalamus-js"
+                target="_blank"
+                class="link link-primary"
+              >
                 View on npm →
               </a>
             </p>
@@ -72,7 +111,7 @@
 
         <p>Create a Thalamus client instance with your OAuth2 credentials:</p>
 
-        <%= Phoenix.HTML.raw("""
+        {Phoenix.HTML.raw("""
         <div class="mockup-code mb-6">
           <pre data-prefix=""><code>import { ThalamusClient } from "@zea.cl/thalamus-js";</code></pre>
           <pre data-prefix=""><code></code></pre>
@@ -83,7 +122,7 @@
           <pre data-prefix=""><code>  redirectUri: "https://myapp.com/auth/callback"</code></pre>
           <pre data-prefix=""><code>});</code></pre>
         </div>
-        """) %>
+        """)}
 
         <h3>3. Add Authentication to Your App</h3>
 
@@ -91,7 +130,9 @@
 
         <ul>
           <li><code>thalamus.auth.getAuthorizationUrl()</code> - Generate login URL with PKCE</li>
-          <li><code>thalamus.auth.exchangeCode()</code> - Exchange authorization code for tokens</li>
+          <li>
+            <code>thalamus.auth.exchangeCode()</code> - Exchange authorization code for tokens
+          </li>
           <li><code>thalamus.auth.refreshToken()</code> - Refresh expired access tokens</li>
           <li><code>thalamus.tokens.introspect()</code> - Validate and inspect token metadata</li>
           <li><code>thalamus.tokens.revoke()</code> - Revoke access or refresh tokens</li>
@@ -99,7 +140,7 @@
 
         <p class="mt-4"><strong>Example: Login Flow</strong></p>
 
-        <%= Phoenix.HTML.raw("""
+        {Phoenix.HTML.raw("""
         <div class="mockup-code mb-6">
           <pre data-prefix=""><code>// 1. Generate login URL and redirect user</code></pre>
           <pre data-prefix=""><code>const { url, state, codeVerifier } = </code></pre>
@@ -116,13 +157,27 @@
           <pre data-prefix=""><code>  tokens.access_token</code></pre>
           <pre data-prefix=""><code>);</code></pre>
         </div>
-        """) %>
+        """)}
 
         <div class="alert alert-info mb-8">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            class="stroke-current shrink-0 w-6 h-6"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            >
+            </path>
           </svg>
-          <span>Check out our complete <strong>Next.js 14 App Router example</strong> in the SDK package for a full working implementation with TypeScript.</span>
+          <span>
+            Check out our complete <strong>Next.js 14 App Router example</strong>
+            in the SDK package for a full working implementation with TypeScript.
+          </span>
         </div>
 
         <div class="divider my-12"></div>
@@ -162,7 +217,9 @@
         <ol>
           <li><strong>User clicks "Login"</strong> - Redirect to /oauth/authorize</li>
           <li><strong>User authenticates</strong> - Enters credentials on Thalamus</li>
-          <li><strong>Authorization code returned</strong> - Thalamus redirects to your callback URL</li>
+          <li>
+            <strong>Authorization code returned</strong> - Thalamus redirects to your callback URL
+          </li>
           <li><strong>Exchange code for tokens</strong> - Your backend calls /oauth/token</li>
           <li><strong>Store tokens securely</strong> - Use httpOnly cookies or secure storage</li>
         </ol>
@@ -170,14 +227,17 @@
         <h3 class="mt-8">Client Credentials (M2M)</h3>
 
         <p>
-          For backend services that need to authenticate without a user, use the <code>getClientCredentialsToken()</code> method
+          For backend services that need to authenticate without a user, use the
+          <code>getClientCredentialsToken()</code>
+          method
           with desired scopes.
         </p>
 
         <h3 class="mt-8">Token Introspection</h3>
 
         <p>
-          Use <code>thalamus.tokens.introspect(token)</code> to validate tokens and retrieve metadata like user_id, scope, and expiration.
+          Use <code>thalamus.tokens.introspect(token)</code>
+          to validate tokens and retrieve metadata like user_id, scope, and expiration.
         </p>
 
         <div class="divider my-12"></div>
@@ -191,8 +251,19 @@
         </div>
 
         <div class="alert alert-info">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            class="stroke-current shrink-0 w-6 h-6"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            >
+            </path>
           </svg>
           <div>
             <p class="font-bold">Complete Examples Available</p>
@@ -212,28 +283,36 @@
           <div class="card bg-base-200">
             <div class="card-body">
               <h3 class="card-title text-sm">✅ Use PKCE</h3>
-              <p class="text-xs">Our SDK includes PKCE (code_challenge) by default for enhanced security.</p>
+              <p class="text-xs">
+                Our SDK includes PKCE (code_challenge) by default for enhanced security.
+              </p>
             </div>
           </div>
 
           <div class="card bg-base-200">
             <div class="card-body">
               <h3 class="card-title text-sm">✅ Store Tokens Securely</h3>
-              <p class="text-xs">Use httpOnly cookies for web apps. Never expose tokens in localStorage or client-side code.</p>
+              <p class="text-xs">
+                Use httpOnly cookies for web apps. Never expose tokens in localStorage or client-side code.
+              </p>
             </div>
           </div>
 
           <div class="card bg-base-200">
             <div class="card-body">
               <h3 class="card-title text-sm">✅ Validate State Parameter</h3>
-              <p class="text-xs">Always verify the state parameter matches to prevent CSRF attacks.</p>
+              <p class="text-xs">
+                Always verify the state parameter matches to prevent CSRF attacks.
+              </p>
             </div>
           </div>
 
           <div class="card bg-base-200">
             <div class="card-body">
               <h3 class="card-title text-sm">✅ Use HTTPS Only</h3>
-              <p class="text-xs">Never use OAuth2 over HTTP in production. Always require HTTPS.</p>
+              <p class="text-xs">
+                Never use OAuth2 over HTTP in production. Always require HTTPS.
+              </p>
             </div>
           </div>
         </div>
@@ -244,14 +323,20 @@
         <h2>Next Steps</h2>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 not-prose">
-          <a href={~p"/docs/api-reference"} class="card bg-base-200 hover:bg-base-300 transition-colors cursor-pointer">
+          <a
+            href={~p"/docs/api-reference"}
+            class="card bg-base-200 hover:bg-base-300 transition-colors cursor-pointer"
+          >
             <div class="card-body">
               <h3 class="card-title text-base">API Reference</h3>
               <p class="text-sm text-base-content/70">Complete endpoint documentation</p>
             </div>
           </a>
 
-          <a href={~p"/docs/deployment"} class="card bg-base-200 hover:bg-base-300 transition-colors cursor-pointer">
+          <a
+            href={~p"/docs/deployment"}
+            class="card bg-base-200 hover:bg-base-300 transition-colors cursor-pointer"
+          >
             <div class="card-body">
               <h3 class="card-title text-base">Deployment Guide</h3>
               <p class="text-sm text-base-content/70">Production setup and configuration</p>

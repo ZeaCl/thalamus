@@ -356,6 +356,33 @@ defmodule Thalamus.Application.UseCases.GenerateAgentToken do
 
   # Logs token creation to audit log
   defp log_token_creation(token, request, deps) do
+    # Build metadata with token details
+    metadata = %{
+      agent_type: AgentType.to_string(token.agent_type),
+      task_id: TaskId.to_string(token.task_id),
+      task_description: token.task_description,
+      delegation_depth: token.delegation_chain.depth,
+      delegator_user_id: token.delegator_user_id,
+      scopes: token.scopes,
+      expires_in: token.expires_in,
+      reason: token.reason
+    }
+
+    # Enrich metadata with request context if available (IP, user agent, etc.)
+    enriched_metadata =
+      case Map.get(deps, :context) do
+        nil ->
+          metadata
+
+        context when is_map(context) ->
+          Map.merge(metadata, %{
+            ip_address: context[:ip_address],
+            user_agent: context[:user_agent],
+            request_id: context[:request_id],
+            environment: context[:environment]
+          })
+      end
+
     deps.audit_logger.log(%{
       event_type: "agent_token.created",
       actor_type: "oauth2_client",
@@ -363,16 +390,8 @@ defmodule Thalamus.Application.UseCases.GenerateAgentToken do
       organization_id: request.organization_id,
       resource_type: "agent_token",
       resource_id: token.id,
-      metadata: %{
-        agent_type: AgentType.to_string(token.agent_type),
-        task_id: TaskId.to_string(token.task_id),
-        task_description: token.task_description,
-        delegation_depth: token.delegation_chain.depth,
-        delegator_user_id: token.delegator_user_id,
-        scopes: token.scopes,
-        expires_in: token.expires_in,
-        reason: token.reason
-      }
+      timestamp: DateTime.utc_now(),
+      metadata: enriched_metadata
     })
 
     :ok

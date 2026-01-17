@@ -3,8 +3,19 @@
     <%!-- Back button --%>
     <div class="mb-6">
       <a href={~p"/docs"} class="btn btn-ghost btn-sm gap-2">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke-width="1.5"
+          stroke="currentColor"
+          class="w-5 h-5"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"
+          />
         </svg>
         Back to Documentation
       </a>
@@ -23,7 +34,6 @@
     <%!-- Main content card --%>
     <div class="card bg-base-100 shadow-xl">
       <div class="card-body prose prose-lg max-w-none">
-
         <h2>Prerequisites</h2>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 not-prose mb-6">
@@ -57,10 +67,24 @@
         <h2>Quick Start with Docker</h2>
 
         <div class="alert alert-success mb-6">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            class="stroke-current shrink-0 w-6 h-6"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+            >
+            </path>
           </svg>
-          <span><strong>Recommended:</strong> Docker deployment is the easiest and most reliable method for production.</span>
+          <span>
+            <strong>Recommended:</strong>
+            Docker deployment is the easiest and most reliable method for production.
+          </span>
         </div>
 
         <h3>Step 1: Clone Repository</h3>
@@ -104,10 +128,24 @@ FORCE_SSL=true</code></pre>
         </div>
 
         <div class="alert alert-warning mb-6">
-          <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="stroke-current shrink-0 h-6 w-6"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+            />
           </svg>
-          <span><strong>Security:</strong> Generate strong secrets using <code>mix phx.gen.secret 64</code> or <code>openssl rand -base64 64</code></span>
+          <span>
+            <strong>Security:</strong>
+            Generate strong secrets using <code>mix phx.gen.secret 64</code>
+            or <code>openssl rand -base64 64</code>
+          </span>
         </div>
 
         <h3>Step 3: Start Services</h3>
@@ -215,7 +253,9 @@ WantedBy=multi-user.target</code></pre>
           <li>Proxy pass to localhost:4000</li>
           <li>HTTP to HTTPS redirect</li>
         </ul>
-        <p class="text-sm text-base-content/70">See DEPLOYMENT_GUIDE.md in the repository for complete Nginx configuration.</p>
+        <p class="text-sm text-base-content/70">
+          See DEPLOYMENT_GUIDE.md in the repository for complete Nginx configuration.
+        </p>
 
         <div class="divider my-12"></div>
 
@@ -282,42 +322,58 @@ FROM_NAME="ZEA Thalamus"</code></pre>
               <tr>
                 <td>SSL/TLS enabled (HTTPS)</td>
                 <td><input type="checkbox" class="checkbox checkbox-sm" /></td>
-                <td><div class="badge badge-error">Critical</div></td>
+                <td>
+                  <div class="badge badge-error">Critical</div>
+                </td>
               </tr>
               <tr>
                 <td>SECRET_KEY_BASE is 64+ characters</td>
                 <td><input type="checkbox" class="checkbox checkbox-sm" /></td>
-                <td><div class="badge badge-error">Critical</div></td>
+                <td>
+                  <div class="badge badge-error">Critical</div>
+                </td>
               </tr>
               <tr>
                 <td>Firewall configured (ports 80, 443 only)</td>
                 <td><input type="checkbox" class="checkbox checkbox-sm" /></td>
-                <td><div class="badge badge-error">Critical</div></td>
+                <td>
+                  <div class="badge badge-error">Critical</div>
+                </td>
               </tr>
               <tr>
                 <td>Database password is strong (16+ chars)</td>
                 <td><input type="checkbox" class="checkbox checkbox-sm" /></td>
-                <td><div class="badge badge-warning">High</div></td>
+                <td>
+                  <div class="badge badge-warning">High</div>
+                </td>
               </tr>
               <tr>
                 <td>Redis password configured</td>
                 <td><input type="checkbox" class="checkbox checkbox-sm" /></td>
-                <td><div class="badge badge-warning">High</div></td>
+                <td>
+                  <div class="badge badge-warning">High</div>
+                </td>
               </tr>
               <tr>
                 <td>Automated database backups</td>
                 <td><input type="checkbox" class="checkbox checkbox-sm" /></td>
-                <td><div class="badge badge-warning">High</div></td>
+                <td>
+                  <div class="badge badge-warning">High</div>
+                </td>
               </tr>
               <tr>
                 <td>Email sending tested</td>
                 <td><input type="checkbox" class="checkbox checkbox-sm" /></td>
-                <td><div class="badge badge-info">Medium</div></td>
+                <td>
+                  <div class="badge badge-info">Medium</div>
+                </td>
               </tr>
               <tr>
                 <td>Monitoring and alerts configured</td>
                 <td><input type="checkbox" class="checkbox checkbox-sm" /></td>
-                <td><div class="badge badge-info">Medium</div></td>
+                <td>
+                  <div class="badge badge-info">Medium</div>
+                </td>
               </tr>
             </tbody>
           </table>
@@ -365,14 +421,20 @@ find /backup -name "thalamus_*.sql.gz" -mtime +30 -delete</code></pre>
         <h2>Next Steps</h2>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 not-prose">
-          <a href={~p"/docs/getting-started"} class="card bg-base-200 hover:bg-base-300 transition-colors cursor-pointer">
+          <a
+            href={~p"/docs/getting-started"}
+            class="card bg-base-200 hover:bg-base-300 transition-colors cursor-pointer"
+          >
             <div class="card-body">
               <h3 class="card-title text-base">Getting Started</h3>
               <p class="text-sm text-base-content/70">Quick start guide for integration</p>
             </div>
           </a>
 
-          <a href={~p"/docs/api-reference"} class="card bg-base-200 hover:bg-base-300 transition-colors cursor-pointer">
+          <a
+            href={~p"/docs/api-reference"}
+            class="card bg-base-200 hover:bg-base-300 transition-colors cursor-pointer"
+          >
             <div class="card-body">
               <h3 class="card-title text-base">API Reference</h3>
               <p class="text-sm text-base-content/70">Complete API documentation</p>

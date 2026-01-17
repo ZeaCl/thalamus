@@ -14,14 +14,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenController do
 
   alias Thalamus.Application.UseCases.GenerateAgentToken
   alias Thalamus.Application.DTOs.{AgentTokenRequest, AgentTokenResponse}
-
-  # Dependencies
-  @deps %{
-    client_repository: Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository,
-    user_repository: Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository,
-    agent_token_repository: Thalamus.Infrastructure.Repositories.PostgreSQLAgentTokenRepository,
-    audit_logger: Thalamus.Infrastructure.Adapters.AuditLoggerImpl
-  }
+  alias Thalamus.DependencyBuilder
 
   @doc """
   POST /oauth/agent-token
@@ -69,8 +62,9 @@ defmodule ThalamusWeb.OAuth2.AgentTokenController do
   """
   def create(conn, params) do
     request = build_request(params)
+    deps = DependencyBuilder.build_for_web(conn)
 
-    case GenerateAgentToken.execute(request, @deps) do
+    case GenerateAgentToken.execute(request, deps) do
       {:ok, response} ->
         conn
         |> put_status(:ok)

@@ -8,43 +8,49 @@ alias Thalamus.Infrastructure.Persistence.{OAuth2ClientSchema, UserSchema, Organ
 IO.puts("\n🔧 Creating test OAuth2 client and user...\n")
 
 # Create or find organization
-org = case Repo.get_by(OrganizationSchema, name: "Test Organization") do
-  nil ->
-    IO.puts("📁 Creating test organization...")
-    %OrganizationSchema{
-      id: Ecto.UUID.generate(),
-      name: "Test Organization",
-      plan: "professional",
-      is_active: true,
-      inserted_at: NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second),
-      updated_at: NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
-    }
-    |> Repo.insert!()
-  org ->
-    IO.puts("✅ Using existing organization: #{org.name}")
-    org
-end
+org =
+  case Repo.get_by(OrganizationSchema, name: "Test Organization") do
+    nil ->
+      IO.puts("📁 Creating test organization...")
+
+      %OrganizationSchema{
+        id: Ecto.UUID.generate(),
+        name: "Test Organization",
+        plan: "professional",
+        is_active: true,
+        inserted_at: NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second),
+        updated_at: NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
+      }
+      |> Repo.insert!()
+
+    org ->
+      IO.puts("✅ Using existing organization: #{org.name}")
+      org
+  end
 
 # Create or find test user
-user = case Repo.get_by(UserSchema, email: "test@example.com") do
-  nil ->
-    IO.puts("👤 Creating test user...")
-    %UserSchema{
-      id: Ecto.UUID.generate(),
-      email: "test@example.com",
-      password_hash: Bcrypt.hash_pwd_salt("test123"),
-      name: "Test User",
-      email_verified: true,
-      is_active: true,
-      organization_id: org.id,
-      inserted_at: NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second),
-      updated_at: NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
-    }
-    |> Repo.insert!()
-  user ->
-    IO.puts("✅ Using existing user: #{user.email}")
-    user
-end
+user =
+  case Repo.get_by(UserSchema, email: "test@example.com") do
+    nil ->
+      IO.puts("👤 Creating test user...")
+
+      %UserSchema{
+        id: Ecto.UUID.generate(),
+        email: "test@example.com",
+        password_hash: Bcrypt.hash_pwd_salt("test123"),
+        name: "Test User",
+        email_verified: true,
+        is_active: true,
+        organization_id: org.id,
+        inserted_at: NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second),
+        updated_at: NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
+      }
+      |> Repo.insert!()
+
+    user ->
+      IO.puts("✅ Using existing user: #{user.email}")
+      user
+  end
 
 # Generate credentials
 client_id = "test_nextjs_" <> Base.url_encode64(:crypto.strong_rand_bytes(12), padding: false)
@@ -52,21 +58,23 @@ client_secret = "secret_" <> Base.url_encode64(:crypto.strong_rand_bytes(32), pa
 
 # Create OAuth2 client
 IO.puts("🔑 Creating OAuth2 client...")
-client = %OAuth2ClientSchema{
-  id: Ecto.UUID.generate(),
-  name: "Test Next.js App",
-  client_id: client_id,
-  client_secret: Bcrypt.hash_pwd_salt(client_secret),
-  client_type: "confidential",
-  redirect_uris: ["http://localhost:3000/auth/callback"],
-  allowed_grant_types: ["authorization_code", "refresh_token"],
-  allowed_scopes: ["openid", "profile", "email"],
-  organization_id: org.id,
-  is_active: true,
-  inserted_at: NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second),
-  updated_at: NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
-}
-|> Repo.insert!()
+
+client =
+  %OAuth2ClientSchema{
+    id: Ecto.UUID.generate(),
+    name: "Test Next.js App",
+    client_id: client_id,
+    client_secret: Bcrypt.hash_pwd_salt(client_secret),
+    client_type: "confidential",
+    redirect_uris: ["http://localhost:3000/auth/callback"],
+    allowed_grant_types: ["authorization_code", "refresh_token"],
+    allowed_scopes: ["openid", "profile", "email"],
+    organization_id: org.id,
+    is_active: true,
+    inserted_at: NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second),
+    updated_at: NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
+  }
+  |> Repo.insert!()
 
 IO.puts("\n✅ OAuth2 Client Created Successfully!\n")
 IO.puts("═══════════════════════════════════════════════════════════")
