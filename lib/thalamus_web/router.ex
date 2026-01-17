@@ -241,6 +241,9 @@ defmodule ThalamusWeb.Router do
     post "/mfa/verify", MFAController, :verify_mfa_code
     delete "/mfa/disable", MFAController, :disable_mfa
     post "/mfa/backup-codes/regenerate", MFAController, :regenerate_backup_codes
+
+    # Agent Token Authorization (Cerebelum integration)
+    post "/authorization/validate-step", AuthorizationController, :validate_step
   end
 
   # OAuth2 Client Management API - accepts both JWT and API Keys

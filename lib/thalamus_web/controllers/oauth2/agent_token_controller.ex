@@ -14,14 +14,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenController do
 
   alias Thalamus.Application.UseCases.GenerateAgentToken
   alias Thalamus.Application.DTOs.{AgentTokenRequest, AgentTokenResponse}
-
-  # Dependencies
-  @deps %{
-    client_repository: Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository,
-    user_repository: Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository,
-    token_repository: Thalamus.Infrastructure.Repositories.PostgreSQLTokenRepository,
-    audit_logger: Thalamus.Infrastructure.Adapters.AuditLoggerImpl
-  }
+  alias Thalamus.DependencyBuilder
 
   @doc """
   POST /oauth/agent-token
@@ -32,16 +25,15 @@ defmodule ThalamusWeb.OAuth2.AgentTokenController do
 
   - client_id (required): OAuth2 client identifier
   - client_secret (required): OAuth2 client secret
-  - delegated_by_user_id (required): User ID of human authorizer
+  - organization_id (required): Organization UUID
+  - delegator_user_id (required): User ID of human authorizer
   - agent_type (required): "autonomous" | "supervisor" | "tool"
+  - task_description (required): Human-readable description of the task
   - scope (required): Space-separated scopes (must be subset of client allowed_scopes)
-  - task_id (optional): External task identifier
-  - task_type (optional): Task classification
-  - max_operations (optional): Maximum number of token uses
-  - expires_on_completion (optional): Auto-revoke when max_operations reached (default: false)
-  - intent_description (optional): Human-readable intent for compliance
-  - orchestrator_id (optional): Orchestrator instance identifier
+  - task_id (optional): External task identifier (UUID)
+  - parent_agent_id (optional): Parent agent token ID for delegation chains
   - expires_in (optional): Custom TTL in seconds (max 3600)
+  - reason (optional): Human-readable reason/intent for audit trail
 
   ## Response
 
@@ -51,11 +43,12 @@ defmodule ThalamusWeb.OAuth2.AgentTokenController do
     "access_token": "at_...",
     "token_type": "Bearer",
     "expires_in": 3600,
-    "scope": "corpus:read corpus:write",
+    "scope": "read:data write:results",
     "agent_type": "autonomous",
     "task_id": "task_abc123",
-    "max_operations": 100,
-    "expires_on_completion": true
+    "task_description": "Process user documents",
+    "delegation_depth": 0,
+    "reason": "Automated document processing"
   }
   ```
 
@@ -63,14 +56,15 @@ defmodule ThalamusWeb.OAuth2.AgentTokenController do
   ```json
   {
     "error": "invalid_request",
-    "error_description": "delegated_by_user_id not found"
+    "error_description": "delegator_user_id not found"
   }
   ```
   """
   def create(conn, params) do
     request = build_request(params)
+    deps = DependencyBuilder.build_for_web(conn)
 
-    case GenerateAgentToken.execute(request, @deps) do
+    case GenerateAgentToken.execute(request, deps) do
       {:ok, response} ->
         conn
         |> put_status(:ok)
@@ -87,16 +81,15 @@ defmodule ThalamusWeb.OAuth2.AgentTokenController do
     %AgentTokenRequest{
       client_id: get_param(params, "client_id"),
       client_secret: get_param(params, "client_secret"),
-      delegated_by_user_id: get_param(params, "delegated_by_user_id"),
+      organization_id: get_param(params, "organization_id"),
+      delegator_user_id: get_param(params, "delegator_user_id"),
       agent_type: get_param(params, "agent_type"),
       task_id: get_param(params, "task_id"),
-      task_type: get_param(params, "task_type"),
-      task_scopes: parse_scopes(get_param(params, "scope", "")),
-      max_operations: parse_int(get_param(params, "max_operations")),
-      expires_on_completion: parse_bool(get_param(params, "expires_on_completion", false)),
-      intent_description: get_param(params, "intent_description"),
-      orchestrator_id: get_param(params, "orchestrator_id"),
-      ttl: parse_int(get_param(params, "expires_in"))
+      task_description: get_param(params, "task_description"),
+      scopes: parse_scopes(get_param(params, "scope", "")),
+      parent_agent_id: get_param(params, "parent_agent_id"),
+      expires_in: parse_int(get_param(params, "expires_in")),
+      reason: get_param(params, "reason")
     }
   end
 
@@ -126,13 +119,6 @@ defmodule ThalamusWeb.OAuth2.AgentTokenController do
   defp parse_int(value) when is_integer(value), do: value
   defp parse_int(_), do: nil
 
-  defp parse_bool(nil), do: false
-  defp parse_bool("true"), do: true
-  defp parse_bool("false"), do: false
-  defp parse_bool(true), do: true
-  defp parse_bool(false), do: false
-  defp parse_bool(_), do: false
-
   defp handle_error(conn, :missing_client_id) do
     error_response(conn, :bad_request, "invalid_request", "client_id is required")
   end
@@ -141,8 +127,21 @@ defmodule ThalamusWeb.OAuth2.AgentTokenController do
     error_response(conn, :bad_request, "invalid_request", "client_secret is required")
   end
 
-  defp handle_error(conn, :missing_delegated_by_user_id) do
-    error_response(conn, :bad_request, "invalid_request", "delegated_by_user_id is required")
+  defp handle_error(conn, :missing_organization_id) do
+    error_response(conn, :bad_request, "invalid_request", "organization_id is required")
+  end
+
+  defp handle_error(conn, :missing_delegator_user_id) do
+    error_response(conn, :bad_request, "invalid_request", "delegator_user_id is required")
+  end
+
+  defp handle_error(conn, :invalid_delegator_user_id) do
+    error_response(
+      conn,
+      :bad_request,
+      "invalid_request",
+      "delegator_user_id must be a valid UUID"
+    )
   end
 
   defp handle_error(conn, :missing_agent_type) do
@@ -154,11 +153,54 @@ defmodule ThalamusWeb.OAuth2.AgentTokenController do
       conn,
       :bad_request,
       "invalid_request",
-      "agent_type must be autonomous, supervised, or ephemeral"
+      "agent_type must be autonomous, supervisor, or tool"
     )
   end
 
-  defp handle_error(conn, :invalid_client) do
+  defp handle_error(conn, :missing_task_description) do
+    error_response(conn, :bad_request, "invalid_request", "task_description is required")
+  end
+
+  defp handle_error(conn, :empty_task_description) do
+    error_response(conn, :bad_request, "invalid_request", "task_description cannot be empty")
+  end
+
+  defp handle_error(conn, :empty_scopes) do
+    error_response(conn, :bad_request, "invalid_scope", "scope parameter is required")
+  end
+
+  defp handle_error(conn, :invalid_scopes) do
+    error_response(conn, :bad_request, "invalid_scope", "requested scopes not allowed for client")
+  end
+
+  defp handle_error(conn, :ttl_exceeds_maximum) do
+    error_response(
+      conn,
+      :bad_request,
+      "invalid_request",
+      "expires_in cannot exceed 3600 seconds"
+    )
+  end
+
+  defp handle_error(conn, :invalid_expires_in) do
+    error_response(
+      conn,
+      :bad_request,
+      "invalid_request",
+      "expires_in must be a positive integer"
+    )
+  end
+
+  defp handle_error(conn, :invalid_parent_agent_id) do
+    error_response(
+      conn,
+      :bad_request,
+      "invalid_request",
+      "parent_agent_id must be a valid UUID"
+    )
+  end
+
+  defp handle_error(conn, :invalid_client_credentials) do
     error_response(conn, :unauthorized, "invalid_client", "client authentication failed")
   end
 
@@ -166,52 +208,55 @@ defmodule ThalamusWeb.OAuth2.AgentTokenController do
     error_response(conn, :unauthorized, "invalid_client", "client is inactive")
   end
 
+  defp handle_error(conn, :organization_mismatch) do
+    error_response(
+      conn,
+      :bad_request,
+      "invalid_request",
+      "client does not belong to specified organization"
+    )
+  end
+
   defp handle_error(conn, :delegator_not_found) do
-    error_response(conn, :bad_request, "invalid_request", "delegated_by_user_id not found")
+    error_response(conn, :bad_request, "invalid_request", "delegator_user_id not found")
   end
 
-  defp handle_error(conn, :delegator_inactive) do
-    error_response(conn, :bad_request, "invalid_request", "delegating user is inactive")
+  defp handle_error(conn, :delegator_not_active) do
+    error_response(conn, :bad_request, "invalid_request", "delegating user is not active")
   end
 
-  defp handle_error(conn, :empty_task_scopes) do
-    error_response(conn, :bad_request, "invalid_scope", "scope parameter is required")
-  end
-
-  defp handle_error(conn, {:invalid_task_scopes, invalid_scopes}) do
-    description = "invalid scopes: #{Enum.join(invalid_scopes, ", ")}"
-    error_response(conn, :bad_request, "invalid_scope", description)
-  end
-
-  defp handle_error(conn, :invalid_ttl) do
+  defp handle_error(conn, :delegator_organization_mismatch) do
     error_response(
       conn,
       :bad_request,
       "invalid_request",
-      "expires_in must be between 1 and 3600 seconds"
+      "delegator does not belong to specified organization"
     )
   end
 
-  defp handle_error(conn, :invalid_user_id_in_chain) do
+  defp handle_error(conn, :organization_not_found) do
+    error_response(conn, :bad_request, "invalid_request", "organization not found")
+  end
+
+  defp handle_error(conn, :organization_not_active) do
+    error_response(conn, :bad_request, "invalid_request", "organization is not active")
+  end
+
+  defp handle_error(conn, :parent_token_not_found) do
+    error_response(conn, :bad_request, "invalid_request", "parent_agent_id not found")
+  end
+
+  defp handle_error(conn, :parent_token_not_active) do
+    error_response(conn, :bad_request, "invalid_request", "parent agent token is not active")
+  end
+
+  defp handle_error(conn, :max_delegation_depth_exceeded) do
     error_response(
       conn,
       :bad_request,
       "invalid_request",
-      "delegated_by_user_id must be a valid UUID"
+      "delegation chain exceeds maximum depth of 4"
     )
-  end
-
-  defp handle_error(conn, :delegation_chain_too_deep) do
-    error_response(
-      conn,
-      :bad_request,
-      "invalid_request",
-      "delegation chain exceeds maximum depth"
-    )
-  end
-
-  defp handle_error(conn, :empty_delegation_chain) do
-    error_response(conn, :bad_request, "invalid_request", "delegation chain cannot be empty")
   end
 
   defp handle_error(conn, :not_found) do

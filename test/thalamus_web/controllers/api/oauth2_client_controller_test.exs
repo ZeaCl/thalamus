@@ -1,8 +1,9 @@
 defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
   use ThalamusWeb.ConnCase, async: true
 
-  alias Thalamus.Domain.Entities.{User, Organization, OAuth2Client}
+  alias Thalamus.Domain.Entities.{User, Organization}
   alias Thalamus.Domain.ValueObjects.{AccessToken, Scope}
+  alias Thalamus.TestHelpers
 
   alias Thalamus.Infrastructure.Repositories.{
     PostgreSQLUserRepository,
@@ -21,6 +22,16 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
     {:ok, admin} = User.verify_email(admin)
     {:ok, admin} = PostgreSQLUserRepository.save(admin)
 
+    # Create a test OAuth2 client for token storage
+    {:ok, test_client} =
+      TestHelpers.create_test_client(
+        "Test Client",
+        org.id,
+        ["zea:read", "zea:write", "zea:admin"]
+      )
+
+    {:ok, test_client} = PostgreSQLOAuth2ClientRepository.save(test_client)
+
     # Generate access token
     {:ok, read_scope} = Scope.new("zea:read")
     {:ok, write_scope} = Scope.new("zea:write")
@@ -34,14 +45,11 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
         3600
       )
 
-    # Generate a test client UUID (without "client_" prefix for DB storage)
-    test_client_uuid = Ecto.UUID.generate()
-
     token_data = %{
       token: access_token.token,
       type: :access_token,
       user_id: admin.id,
-      client_id: test_client_uuid,
+      client_id: to_string(test_client.id),
       scopes: ["zea:read", "zea:write", "zea:admin"],
       expires_at: access_token.expires_at
     }
@@ -55,23 +63,23 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
     test "lists all OAuth2 clients", %{conn: conn, org: org, access_token: token} do
       # Create test clients
       {:ok, client1} =
-        OAuth2Client.new(
+        TestHelpers.create_test_client(
           "Web App",
           org.id,
-          ["http://localhost:3000/callback"],
-          [:authorization_code, :refresh_token],
-          [:read, :write]
+          ["openid", "profile"],
+          redirect_uris: ["http://localhost:3000/callback"],
+          grant_types: [:authorization_code, :refresh_token]
         )
 
       {:ok, _} = PostgreSQLOAuth2ClientRepository.save(client1)
 
       {:ok, client2} =
-        OAuth2Client.new(
+        TestHelpers.create_test_client(
           "Mobile App",
           org.id,
-          ["myapp://callback"],
-          [:authorization_code],
-          [:read]
+          ["openid"],
+          redirect_uris: ["http://localhost:4000/callback"],
+          grant_types: [:authorization_code]
         )
 
       {:ok, _} = PostgreSQLOAuth2ClientRepository.save(client2)
@@ -91,12 +99,12 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
 
     test "filters clients by organization", %{conn: conn, org: org, access_token: token} do
       {:ok, client} =
-        OAuth2Client.new(
+        TestHelpers.create_test_client(
           "Org Client",
           org.id,
-          ["http://localhost:3000/callback"],
-          [:client_credentials],
-          [:read]
+          ["openid"],
+          redirect_uris: ["http://localhost:3000/callback"],
+          grant_types: [:client_credentials]
         )
 
       {:ok, _} = PostgreSQLOAuth2ClientRepository.save(client)
@@ -104,7 +112,7 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
       conn =
         conn
         |> put_req_header("authorization", "Bearer #{token}")
-        |> get(~p"/api/clients?organization_id=#{org.id}")
+        |> get(~p"/api/clients?organization_id=#{to_string(org.id)}")
 
       assert %{
                "data" => clients
@@ -243,12 +251,12 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
   describe "GET /api/clients/:id" do
     test "returns client by id", %{conn: conn, org: org, access_token: token} do
       {:ok, client} =
-        OAuth2Client.new(
+        TestHelpers.create_test_client(
           "Get Client",
           org.id,
-          ["http://localhost:3000/callback"],
-          [:authorization_code, :refresh_token],
-          [:read, :write]
+          ["openid", "profile"],
+          redirect_uris: ["http://localhost:3000/callback"],
+          grant_types: [:authorization_code, :refresh_token]
         )
 
       {:ok, client} = PostgreSQLOAuth2ClientRepository.save(client)
@@ -256,7 +264,7 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
       conn =
         conn
         |> put_req_header("authorization", "Bearer #{token}")
-        |> get(~p"/api/clients/#{client.id}")
+        |> get(~p"/api/clients/#{to_string(client.id)}")
 
       assert %{
                "data" => %{
@@ -274,12 +282,12 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
 
     test "does not include secret in response", %{conn: conn, org: org, access_token: token} do
       {:ok, client} =
-        OAuth2Client.new(
+        TestHelpers.create_test_client(
           "Secret Client",
           org.id,
-          ["http://localhost:3000/callback"],
-          [:client_credentials],
-          [:read]
+          ["openid"],
+          redirect_uris: ["http://localhost:3000/callback"],
+          grant_types: [:client_credentials]
         )
 
       {:ok, client} = PostgreSQLOAuth2ClientRepository.save(client)
@@ -287,7 +295,7 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
       conn =
         conn
         |> put_req_header("authorization", "Bearer #{token}")
-        |> get(~p"/api/clients/#{client.id}")
+        |> get(~p"/api/clients/#{to_string(client.id)}")
 
       response = json_response(conn, 200)
 
@@ -296,12 +304,12 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
     end
 
     test "returns 404 for non-existent client", %{conn: conn, access_token: token} do
-      fake_id = Thalamus.Domain.ValueObjects.ClientId.generate()
+      {:ok, fake_id} = Thalamus.Domain.ValueObjects.ClientId.generate()
 
       conn =
         conn
         |> put_req_header("authorization", "Bearer #{token}")
-        |> get(~p"/api/clients/#{fake_id}")
+        |> get(~p"/api/clients/#{to_string(fake_id)}")
 
       assert %{
                "error" => _
@@ -310,17 +318,17 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
 
     test "requires authentication", %{conn: conn, org: org} do
       {:ok, client} =
-        OAuth2Client.new(
+        TestHelpers.create_test_client(
           "Auth Client",
           org.id,
-          ["http://localhost:3000/callback"],
-          [:authorization_code],
-          [:read]
+          ["openid"],
+          redirect_uris: ["http://localhost:3000/callback"],
+          grant_types: [:authorization_code]
         )
 
       {:ok, client} = PostgreSQLOAuth2ClientRepository.save(client)
 
-      conn = get(conn, ~p"/api/clients/#{client.id}")
+      conn = get(conn, ~p"/api/clients/#{to_string(client.id)}")
 
       assert json_response(conn, 401)
     end
@@ -329,12 +337,12 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
   describe "PATCH /api/clients/:id" do
     test "updates client name", %{conn: conn, org: org, access_token: token} do
       {:ok, client} =
-        OAuth2Client.new(
+        TestHelpers.create_test_client(
           "Old Name",
           org.id,
-          ["http://localhost:3000/callback"],
-          [:authorization_code],
-          [:read]
+          ["openid"],
+          redirect_uris: ["http://localhost:3000/callback"],
+          grant_types: [:authorization_code]
         )
 
       {:ok, client} = PostgreSQLOAuth2ClientRepository.save(client)
@@ -342,7 +350,7 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
       conn =
         conn
         |> put_req_header("authorization", "Bearer #{token}")
-        |> patch(~p"/api/clients/#{client.id}", %{
+        |> patch(~p"/api/clients/#{to_string(client.id)}", %{
           name: "New Name"
         })
 
@@ -356,12 +364,12 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
 
     test "updates redirect URIs", %{conn: conn, org: org, access_token: token} do
       {:ok, client} =
-        OAuth2Client.new(
+        TestHelpers.create_test_client(
           "Update URIs",
           org.id,
-          ["http://localhost:3000/callback"],
-          [:authorization_code],
-          [:read]
+          ["openid"],
+          redirect_uris: ["http://localhost:3000/callback"],
+          grant_types: [:authorization_code]
         )
 
       {:ok, client} = PostgreSQLOAuth2ClientRepository.save(client)
@@ -371,7 +379,7 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
       conn =
         conn
         |> put_req_header("authorization", "Bearer #{token}")
-        |> patch(~p"/api/clients/#{client.id}", %{
+        |> patch(~p"/api/clients/#{to_string(client.id)}", %{
           redirect_uris: new_uris
         })
 
@@ -386,12 +394,12 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
 
     test "updates allowed scopes", %{conn: conn, org: org, access_token: token} do
       {:ok, client} =
-        OAuth2Client.new(
+        TestHelpers.create_test_client(
           "Update Scopes",
           org.id,
-          ["http://localhost:3000/callback"],
-          [:authorization_code],
-          [:read]
+          ["openid"],
+          redirect_uris: ["http://localhost:3000/callback"],
+          grant_types: [:authorization_code]
         )
 
       {:ok, client} = PostgreSQLOAuth2ClientRepository.save(client)
@@ -399,7 +407,7 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
       conn =
         conn
         |> put_req_header("authorization", "Bearer #{token}")
-        |> patch(~p"/api/clients/#{client.id}", %{
+        |> patch(~p"/api/clients/#{to_string(client.id)}", %{
           allowed_scopes: ["read", "write", "admin"]
         })
 
@@ -413,12 +421,12 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
     end
 
     test "returns 404 for non-existent client", %{conn: conn, access_token: token} do
-      fake_id = Thalamus.Domain.ValueObjects.ClientId.generate()
+      {:ok, fake_id} = Thalamus.Domain.ValueObjects.ClientId.generate()
 
       conn =
         conn
         |> put_req_header("authorization", "Bearer #{token}")
-        |> patch(~p"/api/clients/#{fake_id}", %{
+        |> patch(~p"/api/clients/#{to_string(fake_id)}", %{
           name: "Not Found"
         })
 
@@ -427,18 +435,18 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
 
     test "requires authentication", %{conn: conn, org: org} do
       {:ok, client} =
-        OAuth2Client.new(
+        TestHelpers.create_test_client(
           "No Auth",
           org.id,
-          ["http://localhost:3000/callback"],
-          [:authorization_code],
-          [:read]
+          ["openid"],
+          redirect_uris: ["http://localhost:3000/callback"],
+          grant_types: [:authorization_code]
         )
 
       {:ok, client} = PostgreSQLOAuth2ClientRepository.save(client)
 
       conn =
-        patch(conn, ~p"/api/clients/#{client.id}", %{
+        patch(conn, ~p"/api/clients/#{to_string(client.id)}", %{
           name: "New Name"
         })
 
@@ -449,12 +457,12 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
   describe "DELETE /api/clients/:id" do
     test "deletes client", %{conn: conn, org: org, access_token: token} do
       {:ok, client} =
-        OAuth2Client.new(
+        TestHelpers.create_test_client(
           "Delete Client",
           org.id,
-          ["http://localhost:3000/callback"],
-          [:client_credentials],
-          [:read]
+          ["openid"],
+          redirect_uris: ["http://localhost:3000/callback"],
+          grant_types: [:client_credentials]
         )
 
       {:ok, client} = PostgreSQLOAuth2ClientRepository.save(client)
@@ -462,7 +470,7 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
       conn =
         conn
         |> put_req_header("authorization", "Bearer #{token}")
-        |> delete(~p"/api/clients/#{client.id}")
+        |> delete(~p"/api/clients/#{to_string(client.id)}")
 
       assert response(conn, 204)
 
@@ -471,29 +479,29 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
     end
 
     test "returns 404 for non-existent client", %{conn: conn, access_token: token} do
-      fake_id = Thalamus.Domain.ValueObjects.ClientId.generate()
+      {:ok, fake_id} = Thalamus.Domain.ValueObjects.ClientId.generate()
 
       conn =
         conn
         |> put_req_header("authorization", "Bearer #{token}")
-        |> delete(~p"/api/clients/#{fake_id}")
+        |> delete(~p"/api/clients/#{to_string(fake_id)}")
 
       assert json_response(conn, 404)
     end
 
     test "requires authentication", %{conn: conn, org: org} do
       {:ok, client} =
-        OAuth2Client.new(
+        TestHelpers.create_test_client(
           "Auth Delete",
           org.id,
-          ["http://localhost:3000/callback"],
-          [:authorization_code],
-          [:read]
+          ["openid"],
+          redirect_uris: ["http://localhost:3000/callback"],
+          grant_types: [:authorization_code]
         )
 
       {:ok, client} = PostgreSQLOAuth2ClientRepository.save(client)
 
-      conn = delete(conn, ~p"/api/clients/#{client.id}")
+      conn = delete(conn, ~p"/api/clients/#{to_string(client.id)}")
 
       assert json_response(conn, 401)
     end
@@ -501,13 +509,20 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
 
   describe "POST /api/clients/:id/rotate-secret" do
     test "rotates client secret", %{conn: conn, org: org, access_token: token} do
-      {:ok, client} = OAuth2Client.create_confidential("Rotate Secret", org.id)
+      {:ok, client} =
+        TestHelpers.create_test_client(
+          "Rotate Secret",
+          org.id,
+          ["openid"],
+          client_type: :confidential
+        )
+
       {:ok, saved_client} = PostgreSQLOAuth2ClientRepository.save(client)
 
       conn =
         conn
         |> put_req_header("authorization", "Bearer #{token}")
-        |> post(~p"/api/clients/#{saved_client.id}/rotate-secret")
+        |> post(~p"/api/clients/#{to_string(saved_client.id)}/rotate-secret")
 
       assert %{
                "data" => %{
@@ -531,13 +546,20 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
 
     test "returns error for public clients", %{conn: conn, org: org, access_token: token} do
       # Create a public client
-      {:ok, public_client} = OAuth2Client.create_public("Public Client", org.id)
+      {:ok, public_client} =
+        TestHelpers.create_test_client(
+          "Public Client",
+          org.id,
+          ["openid"],
+          client_type: :public
+        )
+
       {:ok, saved_client} = PostgreSQLOAuth2ClientRepository.save(public_client)
 
       conn =
         conn
         |> put_req_header("authorization", "Bearer #{token}")
-        |> post(~p"/api/clients/#{saved_client.id}/rotate-secret")
+        |> post(~p"/api/clients/#{to_string(saved_client.id)}/rotate-secret")
 
       assert %{
                "error" => error
@@ -558,10 +580,17 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
     end
 
     test "requires authentication", %{conn: conn, org: org} do
-      {:ok, client} = OAuth2Client.create_confidential("No Auth Rotate", org.id)
+      {:ok, client} =
+        TestHelpers.create_test_client(
+          "No Auth Rotate",
+          org.id,
+          ["openid"],
+          client_type: :confidential
+        )
+
       {:ok, saved_client} = PostgreSQLOAuth2ClientRepository.save(client)
 
-      conn = post(conn, ~p"/api/clients/#{saved_client.id}/rotate-secret")
+      conn = post(conn, ~p"/api/clients/#{to_string(saved_client.id)}/rotate-secret")
 
       assert json_response(conn, 401)
     end

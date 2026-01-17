@@ -1,725 +1,417 @@
 defmodule Thalamus.Application.UseCases.GenerateAgentTokenTest do
   use ExUnit.Case, async: true
-
   import Mox
 
   alias Thalamus.Application.UseCases.GenerateAgentToken
   alias Thalamus.Application.DTOs.{AgentTokenRequest, AgentTokenResponse}
+  alias Thalamus.Domain.Entities.AgentToken
+  alias Thalamus.Domain.ValueObjects.{AgentType, TaskId, DelegationChain}
 
+  # Setup Mox to verify expectations
   setup :verify_on_exit!
 
-  describe "execute/2 - successful agent token generation" do
-    test "generates autonomous agent token with minimal parameters" do
-      client_id = Ecto.UUID.generate()
-      user_id = Ecto.UUID.generate()
-      org_id = Ecto.UUID.generate()
-
-      client = %{
-        id: client_id,
-        client_secret: Bcrypt.hash_pwd_salt("test_secret"),
-        is_active: true,
-        allowed_scopes: ["corpus:read"],
-        organization_id: org_id
-      }
-
-      delegator = %{
-        id: user_id,
-        is_active: true
-      }
-
-      request = %AgentTokenRequest{
-        client_id: client_id,
-        client_secret: "test_secret",
-        delegated_by_user_id: user_id,
-        agent_type: "autonomous",
-        task_scopes: ["corpus:read"]
-      }
-
-      deps = %{
-        client_repository: MockOAuth2ClientRepository,
-        user_repository: MockUserRepository,
-        token_repository: MockTokenRepository,
-        audit_logger: MockAuditLogger
-      }
-
-      expect(MockOAuth2ClientRepository, :find_by_client_id, fn ^client_id ->
-        {:ok, client}
-      end)
-
-      expect(MockUserRepository, :find_by_id, fn ^user_id ->
-        {:ok, delegator}
-      end)
-
-      expect(MockTokenRepository, :store, fn token_data ->
-        assert String.starts_with?(token_data.token, "at_")
-        assert token_data.agent_type == "autonomous"
-        assert token_data.delegated_by_user_id == user_id
-        assert token_data.delegation_chain == [user_id]
-        assert token_data.task_scopes == ["corpus:read"]
-        assert token_data.client_id == client_id
-        assert token_data.organization_id == org_id
-        assert is_nil(token_data.user_id)
-        {:ok, token_data}
-      end)
-
-      expect(MockAuditLogger, :log, fn event ->
-        assert event.event_type == "agent_token_generated"
-        assert event.user_id == user_id
-        assert event.organization_id == org_id
-        :ok
-      end)
+  describe "execute/2 - happy path" do
+    test "generates agent token successfully" do
+      request = valid_request()
+      deps = setup_successful_mocks(request.organization_id)
 
       assert {:ok, %AgentTokenResponse{} = response} = GenerateAgentToken.execute(request, deps)
 
-      assert String.starts_with?(response.access_token, "at_")
       assert response.token_type == "Bearer"
-      # Default TTL
-      assert response.expires_in == 900
-      assert response.scope == "corpus:read"
+      assert response.expires_in == 3600
+      assert response.scope == "read:data write:results"
       assert response.agent_type == "autonomous"
-      assert response.expires_on_completion == false
+      assert is_binary(response.task_id)
+      assert response.task_description == "Test task"
+      assert response.delegation_depth == 0
     end
 
-    test "generates supervised agent token with all optional parameters" do
-      client_id = Ecto.UUID.generate()
-      user_id = Ecto.UUID.generate()
-      org_id = Ecto.UUID.generate()
+    test "generates token with custom TTL" do
+      request = %{valid_request() | expires_in: 1800}
+      deps = setup_successful_mocks(request.organization_id)
 
-      client = %{
-        id: client_id,
-        client_secret: Bcrypt.hash_pwd_salt("test_secret"),
-        is_active: true,
-        allowed_scopes: ["corpus:read", "corpus:write", "zea:read"],
-        organization_id: org_id
-      }
-
-      delegator = %{
-        id: user_id,
-        is_active: true
-      }
-
-      request = %AgentTokenRequest{
-        client_id: client_id,
-        client_secret: "test_secret",
-        delegated_by_user_id: user_id,
-        agent_type: "supervised",
-        task_scopes: ["corpus:read", "corpus:write"],
-        task_id: "task_abc123",
-        task_type: "document_processing",
-        max_operations: 100,
-        expires_on_completion: true,
-        intent_description: "Process uploaded documents for compliance",
-        orchestrator_id: "orch_xyz789",
-        ttl: 1800
-      }
-
-      deps = %{
-        client_repository: MockOAuth2ClientRepository,
-        user_repository: MockUserRepository,
-        token_repository: MockTokenRepository,
-        audit_logger: MockAuditLogger
-      }
-
-      expect(MockOAuth2ClientRepository, :find_by_client_id, fn ^client_id ->
-        {:ok, client}
-      end)
-
-      expect(MockUserRepository, :find_by_id, fn ^user_id ->
-        {:ok, delegator}
-      end)
-
-      expect(MockTokenRepository, :store, fn token_data ->
-        assert token_data.agent_type == "supervised"
-        assert token_data.task_id == "task_abc123"
-        assert token_data.task_type == "document_processing"
-        assert token_data.task_scopes == ["corpus:read", "corpus:write"]
-        assert token_data.max_operations == 100
-        assert token_data.operations_count == 0
-        assert token_data.expires_on_completion == true
-        assert token_data.intent_description == "Process uploaded documents for compliance"
-        assert token_data.orchestrator_id == "orch_xyz789"
-        assert token_data.expires_in == 1800
-        {:ok, token_data}
-      end)
-
-      expect(MockAuditLogger, :log, fn event ->
-        assert event.metadata.task_id == "task_abc123"
-        assert event.metadata.max_operations == 100
-        :ok
-      end)
-
-      assert {:ok, response} = GenerateAgentToken.execute(request, deps)
-
-      assert response.agent_type == "supervised"
-      assert response.task_id == "task_abc123"
-      assert response.max_operations == 100
-      assert response.expires_on_completion == true
+      assert {:ok, %AgentTokenResponse{} = response} = GenerateAgentToken.execute(request, deps)
       assert response.expires_in == 1800
     end
 
-    test "generates ephemeral agent token with short TTL" do
-      client_id = Ecto.UUID.generate()
-      user_id = Ecto.UUID.generate()
-      org_id = Ecto.UUID.generate()
+    test "generates token with provided task_id" do
+      task_id = Ecto.UUID.generate()
+      request = %{valid_request() | task_id: task_id}
+      deps = setup_successful_mocks(request.organization_id)
 
-      client = %{
-        id: client_id,
-        client_secret: Bcrypt.hash_pwd_salt("test_secret"),
-        is_active: true,
-        allowed_scopes: ["zea:read"],
-        organization_id: org_id
-      }
-
-      delegator = %{
-        id: user_id,
-        is_active: true
-      }
-
-      request = %AgentTokenRequest{
-        client_id: client_id,
-        client_secret: "test_secret",
-        delegated_by_user_id: user_id,
-        agent_type: "ephemeral",
-        task_scopes: ["zea:read"],
-        task_id: "ephemeral_task_001",
-        max_operations: 10,
-        expires_on_completion: true,
-        ttl: 300
-      }
-
-      deps = %{
-        client_repository: MockOAuth2ClientRepository,
-        user_repository: MockUserRepository,
-        token_repository: MockTokenRepository,
-        audit_logger: MockAuditLogger
-      }
-
-      expect(MockOAuth2ClientRepository, :find_by_client_id, fn ^client_id ->
-        {:ok, client}
-      end)
-
-      expect(MockUserRepository, :find_by_id, fn ^user_id ->
-        {:ok, delegator}
-      end)
-
-      expect(MockTokenRepository, :store, fn token_data ->
-        assert token_data.agent_type == "ephemeral"
-        assert token_data.max_operations == 10
-        assert token_data.expires_on_completion == true
-        assert token_data.expires_in == 300
-        {:ok, token_data}
-      end)
-
-      expect(MockAuditLogger, :log, fn _event -> :ok end)
-
-      assert {:ok, response} = GenerateAgentToken.execute(request, deps)
-
-      assert response.agent_type == "ephemeral"
-      assert response.expires_in == 300
+      assert {:ok, %AgentTokenResponse{} = response} = GenerateAgentToken.execute(request, deps)
+      assert response.task_id == task_id
     end
 
-    test "enforces maximum TTL of 3600 seconds" do
-      client_id = Ecto.UUID.generate()
-      user_id = Ecto.UUID.generate()
-      org_id = Ecto.UUID.generate()
+    test "generates token with reason" do
+      request = %{valid_request() | reason: "Automated processing"}
+      deps = setup_successful_mocks(request.organization_id)
 
-      client = %{
-        id: client_id,
-        client_secret: Bcrypt.hash_pwd_salt("test_secret"),
-        is_active: true,
-        allowed_scopes: ["corpus:read"],
-        organization_id: org_id
-      }
-
-      delegator = %{
-        id: user_id,
-        is_active: true
-      }
-
-      request = %AgentTokenRequest{
-        client_id: client_id,
-        client_secret: "test_secret",
-        delegated_by_user_id: user_id,
-        agent_type: "autonomous",
-        task_scopes: ["corpus:read"],
-        # Request 2 hours
-        ttl: 7200
-      }
-
-      deps = %{
-        client_repository: MockOAuth2ClientRepository,
-        user_repository: MockUserRepository,
-        token_repository: MockTokenRepository,
-        audit_logger: MockAuditLogger
-      }
-
-      expect(MockOAuth2ClientRepository, :find_by_client_id, fn ^client_id ->
-        {:ok, client}
-      end)
-
-      expect(MockUserRepository, :find_by_id, fn ^user_id ->
-        {:ok, delegator}
-      end)
-
-      expect(MockTokenRepository, :store, fn token_data ->
-        # TTL should be capped at 3600
-        assert token_data.expires_in == 3600
-        {:ok, token_data}
-      end)
-
-      expect(MockAuditLogger, :log, fn _event -> :ok end)
-
-      assert {:ok, response} = GenerateAgentToken.execute(request, deps)
-      # Capped at maximum
-      assert response.expires_in == 3600
+      assert {:ok, %AgentTokenResponse{}} = GenerateAgentToken.execute(request, deps)
     end
   end
 
-  describe "execute/2 - validation errors" do
-    test "fails with missing client_id" do
-      request = %AgentTokenRequest{
-        client_id: nil,
-        client_secret: "test_secret",
-        delegated_by_user_id: Ecto.UUID.generate(),
-        agent_type: "autonomous",
-        task_scopes: ["corpus:read"]
-      }
-
-      deps = %{
-        client_repository: MockOAuth2ClientRepository,
-        user_repository: MockUserRepository,
-        token_repository: MockTokenRepository,
-        audit_logger: MockAuditLogger
-      }
+  describe "execute/2 - request validation errors" do
+    test "returns error when client_id is missing" do
+      request = %{valid_request() | client_id: nil}
+      deps = build_deps()
 
       assert {:error, :missing_client_id} = GenerateAgentToken.execute(request, deps)
     end
 
-    test "fails with missing client_secret" do
-      request = %AgentTokenRequest{
-        client_id: Ecto.UUID.generate(),
-        client_secret: nil,
-        delegated_by_user_id: Ecto.UUID.generate(),
-        agent_type: "autonomous",
-        task_scopes: ["corpus:read"]
-      }
-
-      deps = %{
-        client_repository: MockOAuth2ClientRepository,
-        user_repository: MockUserRepository,
-        token_repository: MockTokenRepository,
-        audit_logger: MockAuditLogger
-      }
+    test "returns error when client_secret is missing" do
+      request = %{valid_request() | client_secret: nil}
+      deps = build_deps()
 
       assert {:error, :missing_client_secret} = GenerateAgentToken.execute(request, deps)
     end
 
-    test "fails with missing delegated_by_user_id" do
-      request = %AgentTokenRequest{
-        client_id: Ecto.UUID.generate(),
-        client_secret: "test_secret",
-        delegated_by_user_id: nil,
-        agent_type: "autonomous",
-        task_scopes: ["corpus:read"]
-      }
+    test "returns error when organization_id is missing" do
+      request = %{valid_request() | organization_id: nil}
+      deps = build_deps()
 
-      deps = %{
-        client_repository: MockOAuth2ClientRepository,
-        user_repository: MockUserRepository,
-        token_repository: MockTokenRepository,
-        audit_logger: MockAuditLogger
-      }
-
-      assert {:error, :missing_delegated_by_user_id} = GenerateAgentToken.execute(request, deps)
+      assert {:error, :missing_organization_id} = GenerateAgentToken.execute(request, deps)
     end
 
-    test "fails with missing agent_type" do
-      request = %AgentTokenRequest{
-        client_id: Ecto.UUID.generate(),
-        client_secret: "test_secret",
-        delegated_by_user_id: Ecto.UUID.generate(),
-        agent_type: nil,
-        task_scopes: ["corpus:read"]
-      }
+    test "returns error when delegator_user_id is missing" do
+      request = %{valid_request() | delegator_user_id: nil}
+      deps = build_deps()
 
-      deps = %{
-        client_repository: MockOAuth2ClientRepository,
-        user_repository: MockUserRepository,
-        token_repository: MockTokenRepository,
-        audit_logger: MockAuditLogger
-      }
-
-      assert {:error, :missing_agent_type} = GenerateAgentToken.execute(request, deps)
+      assert {:error, :missing_delegator_user_id} = GenerateAgentToken.execute(request, deps)
     end
 
-    test "fails with invalid agent_type" do
-      request = %AgentTokenRequest{
-        client_id: Ecto.UUID.generate(),
-        client_secret: "test_secret",
-        delegated_by_user_id: Ecto.UUID.generate(),
-        agent_type: "invalid_type",
-        task_scopes: ["corpus:read"]
-      }
-
-      deps = %{
-        client_repository: MockOAuth2ClientRepository,
-        user_repository: MockUserRepository,
-        token_repository: MockTokenRepository,
-        audit_logger: MockAuditLogger
-      }
+    test "returns error when agent_type is invalid" do
+      request = %{valid_request() | agent_type: "invalid_type"}
+      deps = build_deps()
 
       assert {:error, :invalid_agent_type} = GenerateAgentToken.execute(request, deps)
     end
 
-    test "fails with empty task_scopes" do
-      request = %AgentTokenRequest{
-        client_id: Ecto.UUID.generate(),
-        client_secret: "test_secret",
-        delegated_by_user_id: Ecto.UUID.generate(),
-        agent_type: "autonomous",
-        task_scopes: []
-      }
+    test "returns error when task_description is missing" do
+      request = %{valid_request() | task_description: nil}
+      deps = build_deps()
 
-      deps = %{
-        client_repository: MockOAuth2ClientRepository,
-        user_repository: MockUserRepository,
-        token_repository: MockTokenRepository,
-        audit_logger: MockAuditLogger
-      }
+      assert {:error, :missing_task_description} = GenerateAgentToken.execute(request, deps)
+    end
 
-      assert {:error, :empty_task_scopes} = GenerateAgentToken.execute(request, deps)
+    test "returns error when scopes is empty" do
+      request = %{valid_request() | scopes: []}
+      deps = build_deps()
+
+      assert {:error, :empty_scopes} = GenerateAgentToken.execute(request, deps)
     end
   end
 
-  describe "execute/2 - authentication errors" do
-    test "fails with non-existent client" do
-      client_id = Ecto.UUID.generate()
+  describe "execute/2 - client authentication errors" do
+    test "returns error when client not found" do
+      request = valid_request()
 
-      request = %AgentTokenRequest{
-        client_id: client_id,
-        client_secret: "test_secret",
-        delegated_by_user_id: Ecto.UUID.generate(),
-        agent_type: "autonomous",
-        task_scopes: ["corpus:read"]
-      }
-
-      deps = %{
-        client_repository: MockOAuth2ClientRepository,
-        user_repository: MockUserRepository,
-        token_repository: MockTokenRepository,
-        audit_logger: MockAuditLogger
-      }
-
-      expect(MockOAuth2ClientRepository, :find_by_client_id, fn ^client_id ->
+      MockOAuth2ClientRepository
+      |> expect(:find_by_client_id, fn _client_id ->
         {:error, :not_found}
       end)
 
-      assert {:error, :invalid_client} = GenerateAgentToken.execute(request, deps)
+      deps = build_deps()
+
+      assert {:error, :invalid_client_credentials} = GenerateAgentToken.execute(request, deps)
     end
 
-    test "fails with invalid client_secret" do
-      client_id = Ecto.UUID.generate()
+    test "returns error when client is inactive" do
+      request = valid_request()
+      client = %{build_client(request.organization_id) | is_active: false}
 
-      client = %{
-        id: client_id,
-        client_secret: Bcrypt.hash_pwd_salt("correct_secret"),
-        is_active: true,
-        allowed_scopes: ["corpus:read"],
-        organization_id: Ecto.UUID.generate()
-      }
-
-      request = %AgentTokenRequest{
-        client_id: client_id,
-        client_secret: "wrong_secret",
-        delegated_by_user_id: Ecto.UUID.generate(),
-        agent_type: "autonomous",
-        task_scopes: ["corpus:read"]
-      }
-
-      deps = %{
-        client_repository: MockOAuth2ClientRepository,
-        user_repository: MockUserRepository,
-        token_repository: MockTokenRepository,
-        audit_logger: MockAuditLogger
-      }
-
-      expect(MockOAuth2ClientRepository, :find_by_client_id, fn ^client_id ->
+      MockOAuth2ClientRepository
+      |> expect(:find_by_client_id, fn _client_id ->
         {:ok, client}
       end)
 
-      assert {:error, :invalid_client} = GenerateAgentToken.execute(request, deps)
-    end
-
-    test "fails with inactive client" do
-      client_id = Ecto.UUID.generate()
-
-      client = %{
-        id: client_id,
-        client_secret: Bcrypt.hash_pwd_salt("test_secret"),
-        # Inactive
-        is_active: false,
-        allowed_scopes: ["corpus:read"],
-        organization_id: Ecto.UUID.generate()
-      }
-
-      request = %AgentTokenRequest{
-        client_id: client_id,
-        client_secret: "test_secret",
-        delegated_by_user_id: Ecto.UUID.generate(),
-        agent_type: "autonomous",
-        task_scopes: ["corpus:read"]
-      }
-
-      deps = %{
-        client_repository: MockOAuth2ClientRepository,
-        user_repository: MockUserRepository,
-        token_repository: MockTokenRepository,
-        audit_logger: MockAuditLogger
-      }
-
-      expect(MockOAuth2ClientRepository, :find_by_client_id, fn ^client_id ->
-        {:ok, client}
-      end)
+      deps = build_deps()
 
       assert {:error, :client_inactive} = GenerateAgentToken.execute(request, deps)
     end
 
-    test "fails with non-existent delegator" do
-      client_id = Ecto.UUID.generate()
-      user_id = Ecto.UUID.generate()
+    test "returns error when client secret is invalid" do
+      request = %{valid_request() | client_secret: "wrong_secret"}
+      client = build_client(request.organization_id)
 
-      client = %{
-        id: client_id,
-        client_secret: Bcrypt.hash_pwd_salt("test_secret"),
-        is_active: true,
-        allowed_scopes: ["corpus:read"],
-        organization_id: Ecto.UUID.generate()
-      }
-
-      request = %AgentTokenRequest{
-        client_id: client_id,
-        client_secret: "test_secret",
-        delegated_by_user_id: user_id,
-        agent_type: "autonomous",
-        task_scopes: ["corpus:read"]
-      }
-
-      deps = %{
-        client_repository: MockOAuth2ClientRepository,
-        user_repository: MockUserRepository,
-        token_repository: MockTokenRepository,
-        audit_logger: MockAuditLogger
-      }
-
-      expect(MockOAuth2ClientRepository, :find_by_client_id, fn ^client_id ->
+      MockOAuth2ClientRepository
+      |> expect(:find_by_client_id, fn _client_id ->
         {:ok, client}
       end)
 
-      expect(MockUserRepository, :find_by_id, fn ^user_id ->
-        {:error, :not_found}
+      deps = build_deps()
+
+      assert {:error, :invalid_client_credentials} = GenerateAgentToken.execute(request, deps)
+    end
+
+    test "returns error when organization mismatch" do
+      request = valid_request()
+      client = %{build_client(request.organization_id) | organization_id: Ecto.UUID.generate()}
+
+      MockOAuth2ClientRepository
+      |> expect(:find_by_client_id, fn _client_id ->
+        {:ok, client}
       end)
+
+      deps = build_deps()
+
+      assert {:error, :organization_mismatch} = GenerateAgentToken.execute(request, deps)
+    end
+  end
+
+  describe "execute/2 - user validation errors" do
+    test "returns error when user not found" do
+      request = valid_request()
+      deps = build_deps()
+
+      MockOAuth2ClientRepository
+      |> expect(:find_by_client_id, fn _ -> {:ok, build_client(request.organization_id)} end)
+
+      MockUserRepository
+      |> expect(:find_by_id, fn _user_id -> {:error, :not_found} end)
 
       assert {:error, :delegator_not_found} = GenerateAgentToken.execute(request, deps)
     end
 
-    test "fails with inactive delegator" do
-      client_id = Ecto.UUID.generate()
-      user_id = Ecto.UUID.generate()
+    test "returns error when user is not active" do
+      request = valid_request()
+      user = %{build_user(request.organization_id) | status: :suspended}
 
-      client = %{
-        id: client_id,
-        client_secret: Bcrypt.hash_pwd_salt("test_secret"),
-        is_active: true,
-        allowed_scopes: ["corpus:read"],
-        organization_id: Ecto.UUID.generate()
-      }
+      MockOAuth2ClientRepository
+      |> expect(:find_by_client_id, fn _ -> {:ok, build_client(request.organization_id)} end)
 
-      delegator = %{
-        id: user_id,
-        # Inactive
-        is_active: false
-      }
+      MockUserRepository
+      |> expect(:find_by_id, fn _ -> {:ok, user} end)
 
-      request = %AgentTokenRequest{
-        client_id: client_id,
-        client_secret: "test_secret",
-        delegated_by_user_id: user_id,
-        agent_type: "autonomous",
-        task_scopes: ["corpus:read"]
-      }
+      deps = build_deps()
 
-      deps = %{
-        client_repository: MockOAuth2ClientRepository,
-        user_repository: MockUserRepository,
-        token_repository: MockTokenRepository,
-        audit_logger: MockAuditLogger
-      }
+      assert {:error, :delegator_not_active} = GenerateAgentToken.execute(request, deps)
+    end
 
-      expect(MockOAuth2ClientRepository, :find_by_client_id, fn ^client_id ->
-        {:ok, client}
-      end)
+    test "returns error when user organization mismatch" do
+      request = valid_request()
+      user = %{build_user(request.organization_id) | organization_id: Ecto.UUID.generate()}
 
-      expect(MockUserRepository, :find_by_id, fn ^user_id ->
-        {:ok, delegator}
-      end)
+      MockOAuth2ClientRepository
+      |> expect(:find_by_client_id, fn _ -> {:ok, build_client(request.organization_id)} end)
 
-      assert {:error, :delegator_inactive} = GenerateAgentToken.execute(request, deps)
+      MockUserRepository
+      |> expect(:find_by_id, fn _ -> {:ok, user} end)
+
+      deps = build_deps()
+
+      assert {:error, :delegator_organization_mismatch} =
+               GenerateAgentToken.execute(request, deps)
     end
   end
 
   describe "execute/2 - scope validation" do
-    test "fails when task_scopes not subset of client allowed_scopes" do
-      client_id = Ecto.UUID.generate()
-      user_id = Ecto.UUID.generate()
+    test "returns error when requested scopes not subset of allowed scopes" do
+      request = %{valid_request() | scopes: ["admin:write", "delete:all"]}
+      client = build_client(request.organization_id)
 
-      client = %{
-        id: client_id,
-        client_secret: Bcrypt.hash_pwd_salt("test_secret"),
-        is_active: true,
-        # Only corpus:read allowed
-        allowed_scopes: ["corpus:read"],
-        organization_id: Ecto.UUID.generate()
-      }
+      MockOAuth2ClientRepository
+      |> expect(:find_by_client_id, fn _ -> {:ok, client} end)
 
-      delegator = %{
-        id: user_id,
-        is_active: true
-      }
+      MockUserRepository
+      |> expect(:find_by_id, fn _ -> {:ok, build_user(request.organization_id)} end)
 
-      request = %AgentTokenRequest{
-        client_id: client_id,
-        client_secret: "test_secret",
-        delegated_by_user_id: user_id,
-        agent_type: "autonomous",
-        # Not allowed
-        task_scopes: ["corpus:write", "admin:delete"]
-      }
+      deps = build_deps()
 
-      deps = %{
-        client_repository: MockOAuth2ClientRepository,
-        user_repository: MockUserRepository,
-        token_repository: MockTokenRepository,
-        audit_logger: MockAuditLogger
-      }
-
-      expect(MockOAuth2ClientRepository, :find_by_client_id, fn ^client_id ->
-        {:ok, client}
-      end)
-
-      expect(MockUserRepository, :find_by_id, fn ^user_id ->
-        {:ok, delegator}
-      end)
-
-      assert {:error, {:invalid_task_scopes, invalid}} = GenerateAgentToken.execute(request, deps)
-      assert "corpus:write" in invalid
-      assert "admin:delete" in invalid
-    end
-
-    test "allows task_scopes as valid subset of client allowed_scopes" do
-      client_id = Ecto.UUID.generate()
-      user_id = Ecto.UUID.generate()
-      org_id = Ecto.UUID.generate()
-
-      client = %{
-        id: client_id,
-        client_secret: Bcrypt.hash_pwd_salt("test_secret"),
-        is_active: true,
-        allowed_scopes: ["corpus:read", "corpus:write", "zea:read", "zea:write"],
-        organization_id: org_id
-      }
-
-      delegator = %{
-        id: user_id,
-        is_active: true
-      }
-
-      request = %AgentTokenRequest{
-        client_id: client_id,
-        client_secret: "test_secret",
-        delegated_by_user_id: user_id,
-        agent_type: "autonomous",
-        # Valid subset
-        task_scopes: ["corpus:read", "zea:read"]
-      }
-
-      deps = %{
-        client_repository: MockOAuth2ClientRepository,
-        user_repository: MockUserRepository,
-        token_repository: MockTokenRepository,
-        audit_logger: MockAuditLogger
-      }
-
-      expect(MockOAuth2ClientRepository, :find_by_client_id, fn ^client_id ->
-        {:ok, client}
-      end)
-
-      expect(MockUserRepository, :find_by_id, fn ^user_id ->
-        {:ok, delegator}
-      end)
-
-      expect(MockTokenRepository, :store, fn token_data ->
-        assert token_data.task_scopes == ["corpus:read", "zea:read"]
-        {:ok, token_data}
-      end)
-
-      expect(MockAuditLogger, :log, fn _event -> :ok end)
-
-      assert {:ok, _response} = GenerateAgentToken.execute(request, deps)
+      assert {:error, :invalid_scopes} = GenerateAgentToken.execute(request, deps)
     end
   end
 
   describe "execute/2 - delegation chain" do
-    test "creates delegation chain with single delegator" do
-      client_id = Ecto.UUID.generate()
-      user_id = Ecto.UUID.generate()
-      org_id = Ecto.UUID.generate()
+    test "creates root token when no parent_agent_id" do
+      request = valid_request()
+      deps = setup_successful_mocks(request.organization_id)
 
-      client = %{
-        id: client_id,
-        client_secret: Bcrypt.hash_pwd_salt("test_secret"),
-        is_active: true,
-        allowed_scopes: ["corpus:read"],
-        organization_id: org_id
-      }
-
-      delegator = %{
-        id: user_id,
-        is_active: true
-      }
-
-      request = %AgentTokenRequest{
-        client_id: client_id,
-        client_secret: "test_secret",
-        delegated_by_user_id: user_id,
-        agent_type: "autonomous",
-        task_scopes: ["corpus:read"]
-      }
-
-      deps = %{
-        client_repository: MockOAuth2ClientRepository,
-        user_repository: MockUserRepository,
-        token_repository: MockTokenRepository,
-        audit_logger: MockAuditLogger
-      }
-
-      expect(MockOAuth2ClientRepository, :find_by_client_id, fn ^client_id ->
-        {:ok, client}
-      end)
-
-      expect(MockUserRepository, :find_by_id, fn ^user_id ->
-        {:ok, delegator}
-      end)
-
-      expect(MockTokenRepository, :store, fn token_data ->
-        # Delegation chain should contain just the delegator
-        assert token_data.delegation_chain == [user_id]
-        assert token_data.delegated_by_user_id == user_id
-        {:ok, token_data}
-      end)
-
-      expect(MockAuditLogger, :log, fn _event -> :ok end)
-
-      assert {:ok, _response} = GenerateAgentToken.execute(request, deps)
+      assert {:ok, response} = GenerateAgentToken.execute(request, deps)
+      assert response.delegation_depth == 0
     end
+
+    test "creates child token with valid parent" do
+      parent_id = Ecto.UUID.generate()
+      # Child TTL must be less than parent's remaining TTL
+      request = %{valid_request() | parent_agent_id: parent_id, expires_in: 1800}
+
+      # Parent must have all scopes that child will request (scope narrowing)
+      parent_token = build_saved_agent_token(%{
+        id: parent_id,
+        delegation_depth: 0,
+        scopes: ["read:data", "write:results"]  # Include all child scopes
+      })
+
+      MockOAuth2ClientRepository
+      |> expect(:find_by_client_id, fn _ -> {:ok, build_client(request.organization_id)} end)
+
+      MockUserRepository
+      |> expect(:find_by_id, fn _ -> {:ok, build_user(request.organization_id)} end)
+
+      MockAgentTokenRepository
+      |> expect(:find_by_id, 2, fn ^parent_id -> {:ok, parent_token} end)  # Called twice: scope validation + delegation chain
+      |> expect(:save, fn token -> {:ok, token} end)
+
+      MockAuditLogger
+      |> expect(:log, fn _ -> :ok end)
+
+      deps = build_deps()
+
+      assert {:ok, response} = GenerateAgentToken.execute(request, deps)
+      assert response.delegation_depth == 1
+    end
+
+    test "returns error when parent token not found" do
+      parent_id = Ecto.UUID.generate()
+      request = %{valid_request() | parent_agent_id: parent_id}
+
+      MockOAuth2ClientRepository
+      |> expect(:find_by_client_id, fn _ -> {:ok, build_client(request.organization_id)} end)
+
+      MockUserRepository
+      |> expect(:find_by_id, fn _ -> {:ok, build_user(request.organization_id)} end)
+
+      MockAgentTokenRepository
+      |> expect(:find_by_id, fn ^parent_id -> {:error, :not_found} end)
+
+      deps = build_deps()
+
+      assert {:error, :parent_token_not_found} = GenerateAgentToken.execute(request, deps)
+    end
+
+    test "returns error when parent token is not active" do
+      parent_id = Ecto.UUID.generate()
+      request = %{valid_request() | parent_agent_id: parent_id}
+
+      # Parent must have required scopes even if revoked (scope check happens before status check)
+      parent_token = build_saved_agent_token(%{
+        id: parent_id,
+        status: :revoked,
+        scopes: ["read:data", "write:results"]
+      })
+
+      MockOAuth2ClientRepository
+      |> expect(:find_by_client_id, fn _ -> {:ok, build_client(request.organization_id)} end)
+
+      MockUserRepository
+      |> expect(:find_by_id, fn _ -> {:ok, build_user(request.organization_id)} end)
+
+      MockAgentTokenRepository
+      |> expect(:find_by_id, 2, fn ^parent_id -> {:ok, parent_token} end)  # Called twice: scope validation + delegation chain
+
+      deps = build_deps()
+
+      assert {:error, :parent_token_not_active} = GenerateAgentToken.execute(request, deps)
+    end
+  end
+
+  # Helper functions
+
+  defp valid_request do
+    org_id = Ecto.UUID.generate()
+
+    %AgentTokenRequest{
+      client_id: "client_123",
+      client_secret: "secret_password",
+      organization_id: org_id,
+      delegator_user_id: Ecto.UUID.generate(),
+      agent_type: "autonomous",
+      task_id: nil,
+      task_description: "Test task",
+      scopes: ["read:data", "write:results"],
+      parent_agent_id: nil,
+      expires_in: 3600,
+      reason: nil
+    }
+  end
+
+  defp build_client(org_id \\ nil) do
+    org = org_id || Ecto.UUID.generate()
+
+    %{
+      id: Ecto.UUID.generate(),
+      client_id_string: "client_123",
+      organization_id: org,
+      client_secret: Bcrypt.hash_pwd_salt("secret_password"),
+      is_active: true,
+      allowed_scopes: ["read:data", "write:results", "admin:read"]
+    }
+  end
+
+  defp build_user(org_id \\ nil) do
+    org = org_id || Ecto.UUID.generate()
+
+    %{
+      id: Ecto.UUID.generate(),
+      organization_id: org,
+      status: :active
+    }
+  end
+
+  defp build_saved_agent_token(overrides \\ %{}) do
+    {:ok, agent_type} = AgentType.new(:autonomous)
+    {:ok, task_id} = TaskId.new(Ecto.UUID.generate())
+
+    {:ok, delegation_chain} =
+      DelegationChain.new(%{
+        parent_token_id: Map.get(overrides, :parent_token_id),
+        depth: Map.get(overrides, :delegation_depth, 0),
+        path: Map.get(overrides, :path, [])
+      })
+
+    %AgentToken{
+      id: Map.get(overrides, :id, Ecto.UUID.generate()),
+      client_id: Ecto.UUID.generate(),
+      organization_id: Ecto.UUID.generate(),
+      agent_type: agent_type,
+      task_id: task_id,
+      task_description: "Test task",
+      scopes: Map.get(overrides, :scopes, ["read:data"]),
+      delegation_chain: delegation_chain,
+      delegator_user_id: Ecto.UUID.generate(),
+      expires_in: 3600,
+      status: Map.get(overrides, :status, :active),
+      revoked_at: nil,
+      revoke_reason: nil,
+      reason: nil,
+      created_at: DateTime.utc_now()
+    }
+  end
+
+  defp build_deps do
+    %{
+      client_repository: MockOAuth2ClientRepository,
+      user_repository: MockUserRepository,
+      agent_token_repository: MockAgentTokenRepository,
+      audit_logger: MockAuditLogger
+    }
+  end
+
+  defp setup_successful_mocks(org_id \\ nil) do
+    client = build_client(org_id)
+    user = %{build_user(org_id) | organization_id: client.organization_id}
+
+    MockOAuth2ClientRepository
+    |> expect(:find_by_client_id, fn _client_id ->
+      {:ok, client}
+    end)
+
+    MockUserRepository
+    |> expect(:find_by_id, fn _user_id ->
+      {:ok, user}
+    end)
+
+    MockAgentTokenRepository
+    |> expect(:save, fn token ->
+      {:ok, token}
+    end)
+
+    MockAuditLogger
+    |> expect(:log, fn _event ->
+      :ok
+    end)
+
+    build_deps()
   end
 end

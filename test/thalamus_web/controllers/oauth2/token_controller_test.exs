@@ -2,8 +2,9 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
   use ThalamusWeb.ConnCase, async: true
 
   alias Thalamus.Repo
-  alias Thalamus.Domain.Entities.{User, Organization, OAuth2Client}
-  alias Thalamus.Domain.ValueObjects.{AuthorizationCode, RefreshToken}
+  alias Thalamus.Domain.Entities.{User, Organization}
+  alias Thalamus.Domain.ValueObjects.{AuthorizationCode, Scope}
+  alias Thalamus.TestHelpers
 
   alias Thalamus.Infrastructure.Repositories.{
     PostgreSQLUserRepository,
@@ -11,6 +12,23 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
     PostgreSQLOAuth2ClientRepository,
     PostgreSQLTokenRepository
   }
+
+  # Helper to convert scope atoms/strings to Scope value objects
+  defp to_scopes(scope_list) when is_list(scope_list) do
+    scope_list
+    |> Enum.map(fn
+      scope when is_atom(scope) -> Scope.new(Atom.to_string(scope))
+      scope when is_binary(scope) -> Scope.new(scope)
+    end)
+    |> Enum.reduce_while({:ok, []}, fn
+      {:ok, scope}, {:ok, acc} -> {:cont, {:ok, [scope | acc]}}
+      {:error, reason}, _ -> {:halt, {:error, reason}}
+    end)
+    |> case do
+      {:ok, scopes} -> Enum.reverse(scopes)
+      {:error, reason} -> raise "Failed to create scopes: #{inspect(reason)}"
+    end
+  end
 
   setup do
     # Create organization
@@ -24,12 +42,12 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
 
     # Create OAuth2 client
     {:ok, client} =
-      OAuth2Client.new(
+      TestHelpers.create_test_client(
         "Test Client",
         org.id,
-        ["http://localhost:3000/callback"],
-        [:authorization_code, :refresh_token, :client_credentials],
-        [:read, :write]
+        ["openid", "profile", "email"],
+        redirect_uris: ["http://localhost:3000/callback"],
+        grant_types: [:authorization_code, :refresh_token, :client_credentials]
       )
 
     {:ok, client} = PostgreSQLOAuth2ClientRepository.save(client)
@@ -50,7 +68,7 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
           user.id,
           {:ok, redirect_uri} =
             Thalamus.Domain.ValueObjects.RedirectURI.new("http://localhost:3000/callback"),
-          [:read],
+          [:openid],
           nil,
           600
         )
@@ -61,7 +79,7 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
         type: :authorization_code,
         user_id: user.id,
         client_id: client.id,
-        scope: [:read],
+        scope: [:openid],
         expires_at: DateTime.add(DateTime.utc_now(), 600, :second)
       }
 
@@ -82,7 +100,7 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
                "token_type" => "Bearer",
                "expires_in" => expires_in,
                "refresh_token" => refresh_token,
-               "scope" => "read"
+               "scope" => "openid"
              } = json_response(conn, 200)
 
       assert is_binary(access_token)
@@ -117,7 +135,7 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
           user.id,
           {:ok, redirect_uri} =
             Thalamus.Domain.ValueObjects.RedirectURI.new("http://localhost:3000/callback"),
-          [:read],
+          [:openid],
           nil,
           600
         )
@@ -144,7 +162,7 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
           user.id,
           {:ok, redirect_uri} =
             Thalamus.Domain.ValueObjects.RedirectURI.new("http://localhost:3000/callback"),
-          [:read],
+          [:openid],
           nil,
           600
         )
@@ -154,7 +172,7 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
         type: :authorization_code,
         user_id: user.id,
         client_id: client.id,
-        scope: [:read],
+        scope: [:openid],
         redirect_uri: "http://localhost:3000/callback",
         expires_at: DateTime.add(DateTime.utc_now(), 600, :second)
       }
@@ -184,7 +202,7 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
           grant_type: "client_credentials",
           client_id: to_string(client.id),
           client_secret: client.secret,
-          scope: "read write"
+          scope: "openid profile email"
         })
 
       assert %{
@@ -195,7 +213,7 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
              } = json_response(conn, 200)
 
       assert is_binary(access_token)
-      assert scope in ["read write", "read,write"]
+      assert scope in ["openid profile email", "openid,profile,email"]
     end
 
     test "returns error with invalid client credentials", %{conn: conn, client: client} do
@@ -204,7 +222,7 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
           grant_type: "client_credentials",
           client_id: to_string(client.id),
           client_secret: "wrong_secret",
-          scope: "read"
+          scope: "openid"
         })
 
       assert %{
@@ -242,7 +260,7 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
           user.id,
           {:ok, redirect_uri} =
             Thalamus.Domain.ValueObjects.RedirectURI.new("http://localhost:3000/callback"),
-          [:read],
+          [:openid],
           nil,
           600
         )
@@ -252,7 +270,7 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
         type: :authorization_code,
         user_id: user.id,
         client_id: client.id,
-        scope: [:read],
+        scope: [:openid],
         expires_at: DateTime.add(DateTime.utc_now(), 600, :second)
       }
 
@@ -283,7 +301,7 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
                "token_type" => "Bearer",
                "expires_in" => 3600,
                "refresh_token" => new_refresh_token,
-               "scope" => "read"
+               "scope" => "openid"
              } = json_response(conn2, 200)
 
       assert is_binary(new_access_token)
@@ -365,7 +383,7 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
           user.id,
           {:ok, redirect_uri} =
             Thalamus.Domain.ValueObjects.RedirectURI.new("http://localhost:3000/callback"),
-          [:read],
+          [:openid],
           pkce_challenge,
           600
         )
@@ -375,7 +393,7 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
         type: :authorization_code,
         user_id: user.id,
         client_id: client.id,
-        scope: [:read],
+        scope: [:openid],
         code_challenge: code_challenge,
         code_challenge_method: "S256",
         expires_at: DateTime.add(DateTime.utc_now(), 600, :second)
@@ -412,7 +430,7 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
           user.id,
           {:ok, redirect_uri} =
             Thalamus.Domain.ValueObjects.RedirectURI.new("http://localhost:3000/callback"),
-          [:read],
+          [:openid],
           pkce_challenge,
           600
         )
@@ -422,7 +440,7 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
         type: :authorization_code,
         user_id: user.id,
         client_id: client.id,
-        scope: [:read],
+        scope: [:openid],
         code_challenge: code_challenge,
         code_challenge_method: "S256",
         expires_at: DateTime.add(DateTime.utc_now(), 600, :second)
