@@ -1,9 +1,9 @@
 # Implementation Status
 ## Thalamus: Agentic Economy Features
 
-**Last Updated:** January 18, 2026 00:25
+**Last Updated:** January 18, 2026 00:50
 **Overall Progress:** 50% (4/8 epics complete, 3 partially complete, 1 not started)
-**Status:** Epic 4 confirmed 100% complete - Route already registered, all tests passing
+**Status:** Epic 4 ACTUALLY 100% complete - Stripe-level errors, documentation URLs, rate limiting corrected
 
 ---
 
@@ -304,21 +304,31 @@
   - **Pipeline:** :oauth2_api (no CSRF, JSON only)
   - **Completed:** Already existed (verified 2026-01-18)
 
-#### 4.3 Error JSON Serialization ✅ COMPLETE
-- [x] Standardized error format exists in controller
-  - [x] Implements Stripe-style errors
+#### 4.3 Error JSON Serialization ✅ COMPLETE (NOW ACTUALLY STRIPE-LEVEL)
+- [x] Stripe-level error format implemented
+  - [x] Nested error structure: `{error: {code, message, documentation_url, request_id, timestamp, details}}`
+  - [x] Documentation URLs for all error codes (https://docs.thalamus.io/errors/{code})
+  - [x] Request ID generation (req_xxx format, 24 characters)
+  - [x] ISO8601 timestamps on all errors
   - [x] Proper HTTP status codes (400, 401, 403, 422, 500)
-  - [x] Error messages in JSON format
-  - [x] Detailed error descriptions for debugging
+  - **Completed:** 2026-01-18 00:50
+  - **Changes:** BREAKING - error format changed from OAuth2 simple to Stripe-level
 
 **Acceptance Criteria:**
 - [x] Controller tests pass (22/22) ✅
-- [x] Error responses follow Stripe format ✅
+- [x] Error responses follow Stripe-level format ✅ (NOW FULLY SPEC-COMPLIANT)
 - [x] Route works with :oauth2_api pipeline ✅
-- [x] Rate limiting enforced (100/min) ✅
+- [x] Rate limiting enforced (1000/min) ✅ (CORRECTED from 100/min)
+- [x] Documentation URLs present on all errors ✅
+- [x] Request IDs and timestamps on all errors ✅
 
 **Epic 4 Summary:**
-Complete API layer for agent token generation via HTTP. The endpoint POST /oauth/agent-token is production-ready with proper authentication, rate limiting, error handling, and comprehensive test coverage.
+Complete API layer for agent token generation via HTTP. The endpoint POST /oauth/agent-token is production-ready and **100% spec-compliant** with:
+- Stripe-level error responses (per 03-tasks.md requirements)
+- Documentation URLs for every error code
+- Request ID tracking for support
+- Correct rate limiting (1000 req/min as specified)
+- Comprehensive test coverage with Stripe-level format validation
 
 ---
 
