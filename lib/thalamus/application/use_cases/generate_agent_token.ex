@@ -29,6 +29,7 @@ defmodule Thalamus.Application.UseCases.GenerateAgentToken do
   alias Thalamus.Application.DTOs.{AgentTokenRequest, AgentTokenResponse}
   alias Thalamus.Domain.Entities.AgentToken
   alias Thalamus.Domain.ValueObjects.{AgentType, TaskId, DelegationChain}
+  alias Thalamus.Utils.InputSanitizer
 
   @type deps :: %{
           required(:client_repository) => module(),
@@ -76,6 +77,7 @@ defmodule Thalamus.Application.UseCases.GenerateAgentToken do
          {:ok, delegator} <- validate_delegator(request, deps),
          {:ok, _organization} <- validate_organization(request, deps),
          :ok <- validate_scopes_subset(request.scopes, client.allowed_scopes),
+         :ok <- validate_scope_narrowing(request, deps),
          {:ok, agent_type} <- AgentType.new(request.agent_type),
          {:ok, task_id} <- parse_or_generate_task_id(request.task_id),
          {:ok, delegation_chain} <- build_delegation_chain(request, deps),
@@ -163,6 +165,26 @@ defmodule Thalamus.Application.UseCases.GenerateAgentToken do
     end
   end
 
+  # Validates scope narrowing for delegation chains
+  # Child tokens must have scopes that are a subset of parent token scopes
+  defp validate_scope_narrowing(%AgentTokenRequest{parent_agent_id: nil}, _deps) do
+    # Root token - no parent to validate against
+    :ok
+  end
+
+  defp validate_scope_narrowing(%AgentTokenRequest{parent_agent_id: parent_id} = request, deps) do
+    with {:ok, parent_token} <- deps.agent_token_repository.find_by_id(parent_id) do
+      requested_set = MapSet.new(request.scopes)
+      parent_set = MapSet.new(parent_token.scopes)
+
+      if MapSet.subset?(requested_set, parent_set) do
+        :ok
+      else
+        {:error, :scopes_exceed_parent}
+      end
+    end
+  end
+
   # Parses task_id from request or generates new one if not provided
   defp parse_or_generate_task_id(nil) do
     TaskId.new(Ecto.UUID.generate())
@@ -182,9 +204,10 @@ defmodule Thalamus.Application.UseCases.GenerateAgentToken do
     })
   end
 
-  defp build_delegation_chain(%AgentTokenRequest{parent_agent_id: parent_id}, deps) do
+  defp build_delegation_chain(%AgentTokenRequest{parent_agent_id: parent_id} = request, deps) do
     with {:ok, parent_token} <- deps.agent_token_repository.find_by_id(parent_id),
          true <- parent_token.status == :active || {:error, :parent_token_not_active},
+         :ok <- validate_child_ttl_not_exceeds_parent(request.expires_in, parent_token),
          {:ok, child_chain} <-
            DelegationChain.add_delegation(parent_token.delegation_chain, parent_id) do
       {:ok, child_chain}
@@ -202,12 +225,12 @@ defmodule Thalamus.Application.UseCases.GenerateAgentToken do
       organization_id: request.organization_id,
       agent_type: agent_type,
       task_id: task_id,
-      task_description: request.task_description,
+      task_description: InputSanitizer.sanitize_text(request.task_description),
       scopes: request.scopes,
       delegation_chain: delegation_chain,
       delegator_user_id: delegator.id,
       expires_in: AgentTokenRequest.get_expires_in(request),
-      reason: request.reason
+      reason: InputSanitizer.sanitize_text(request.reason)
     }
 
     AgentToken.create(params)
@@ -244,5 +267,21 @@ defmodule Thalamus.Application.UseCases.GenerateAgentToken do
     })
 
     :ok
+  end
+
+  # Validates that child token TTL does not exceed parent's remaining TTL
+  defp validate_child_ttl_not_exceeds_parent(nil, _parent_token) do
+    # No TTL specified for child, will use default
+    :ok
+  end
+
+  defp validate_child_ttl_not_exceeds_parent(child_ttl, parent_token) do
+    parent_remaining = DateTime.diff(parent_token.expires_at, DateTime.utc_now(), :second)
+
+    if child_ttl <= parent_remaining do
+      :ok
+    else
+      {:error, :child_ttl_exceeds_parent}
+    end
   end
 end
