@@ -25,7 +25,6 @@ defmodule Thalamus.Application.UseCases.RevokeAgentToken do
 
   require Logger
 
-  alias Thalamus.Application.Ports.AgentTokenRepository
   alias Thalamus.Domain.ValueObjects.AgentType
 
   @type revoke_request :: %{

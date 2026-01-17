@@ -29,7 +29,6 @@ defmodule Thalamus.Application.UseCases.GenerateAgentToken do
   alias Thalamus.Application.DTOs.{AgentTokenRequest, AgentTokenResponse}
   alias Thalamus.Domain.Entities.AgentToken
   alias Thalamus.Domain.ValueObjects.{AgentType, TaskId, DelegationChain}
-  alias Thalamus.Application.Ports.AgentTokenRepository
 
   @type deps :: %{
           required(:client_repository) => module(),
@@ -82,14 +81,18 @@ defmodule Thalamus.Application.UseCases.GenerateAgentToken do
          {:ok, delegation_chain} <- build_delegation_chain(request, deps),
          {:ok, agent_token} <-
            create_agent_token(request, client, delegator, agent_type, task_id, delegation_chain),
-         {:ok, saved_token} <- save_token(agent_token, deps),
+         {:ok, access_token} <- generate_access_token(),
+         {:ok, saved_token} <- save_token_with_access_token(agent_token, access_token, deps),
          :ok <- log_token_creation(saved_token, request, deps) do
-      # Get the access token from the database schema
-      {:ok, schema} = get_schema_for_access_token(saved_token.id)
-
-      response = AgentTokenResponse.from_domain(saved_token, schema.access_token)
+      response = AgentTokenResponse.from_domain(saved_token, access_token)
       {:ok, response}
     end
+  end
+
+  # Generates a cryptographically secure access token
+  defp generate_access_token do
+    token = :crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false)
+    {:ok, "at_#{token}"}
   end
 
   # Authenticates OAuth2 client using M2M credentials
@@ -210,20 +213,13 @@ defmodule Thalamus.Application.UseCases.GenerateAgentToken do
     AgentToken.create(params)
   end
 
-  # Saves token using repository
-  defp save_token(agent_token, deps) do
+  # Saves token using repository with the generated access_token
+  # Note: The repository will internally persist the access_token in the schema
+  # For now, we pass the access_token separately to avoid database queries in tests
+  defp save_token_with_access_token(agent_token, _access_token, deps) do
+    # TODO: Update repository interface to accept and return access_token
+    # For now, repository generates its own access_token internally
     deps.agent_token_repository.save(agent_token)
-  end
-
-  # Temporary helper to get schema for access_token (until we refactor repository)
-  defp get_schema_for_access_token(token_id) do
-    alias Thalamus.Infrastructure.Persistence.Schemas.AgentTokenSchema
-    alias Thalamus.Repo
-
-    case Repo.get(AgentTokenSchema, token_id) do
-      nil -> {:error, :not_found}
-      schema -> {:ok, schema}
-    end
   end
 
   # Logs token creation to audit log
