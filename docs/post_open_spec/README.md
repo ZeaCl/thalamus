@@ -30,6 +30,13 @@ Este directorio contiene toda la documentación generada usando el proceso OpenS
 - **[IMPLEMENTATION_CONTEXT.md](IMPLEMENTATION_CONTEXT.md)** - 📖 Contexto completo para el agente implementador
 - **[IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md)** - 📊 Tracker de progreso (actualizar constantemente)
 
+### Epic 9: RBAC Implementation (NEW - Jan 2026)
+- **[epic-9-rbac/](epic-9-rbac/)** - Role-Based Access Control para delegación de permisos
+  - **[README.md](epic-9-rbac/README.md)** - Overview de Epic 9
+  - **[01-requirements.md](epic-9-rbac/01-requirements.md)** - Requirements v1.1 ✅ APROBADO
+  - **Fase 2: Design** - ⏳ Próximo (arquitectura, componentes, migraciones)
+  - **Fase 3: Tasks** - ⏳ Pendiente (plan de implementación)
+
 ---
 
 ## 🚀 Cómo Usar Esta Documentación
@@ -82,12 +89,20 @@ Este directorio contiene toda la documentación generada usando el proceso OpenS
 
 ## 🎯 Objetivos del Proyecto
 
-### Funcionales
+### Epics 1-8: Agent Token Infrastructure (Completado)
 - ✅ Generar tokens para agentes AI con metadata (agent_type, task_id, delegation_chain)
 - ✅ Soportar delegation chains con máximo 5 niveles de profundidad
 - ✅ Revocación en cascada de delegation chains
 - ✅ Multi-tenancy estricto por organization_id
 - ✅ Introspección de tokens con caché ETS (<3ms p99)
+
+### Epic 9: RBAC Implementation (En Progreso)
+- 🔄 Validación de permisos de delegador (users can only delegate scopes they possess)
+- 🔄 Roles reutilizables con scopes (centralized permission management)
+- 🔄 Múltiples roles por usuario (cumulative permissions)
+- 🔄 Cálculo de effective scopes (union de todos los roles)
+- 🔄 Soporte para MCP scopes dinámicos (mcp:gmail:read, mcp:slack:write)
+- 🔄 Backward compatibility (users sin roles → allow delegation)
 
 ### No Funcionales
 - ✅ **Performance**: <5ms p99 latency para generación de tokens M2M
@@ -186,5 +201,8 @@ git commit -m "refactor: extract token validation to separate function"
 
 ---
 
-**Última actualización:** 2026-01-16
-**Estado del proyecto:** Listo para implementación
+**Última actualización:** 2026-01-17
+**Estado del proyecto:**
+- Epics 1-2: ✅ Completados
+- Epic 3: 🔄 En progreso (Application Layer)
+- Epic 9 (RBAC): 📝 Phase 1 (Requirements) completado, Phase 2 (Design) próximo
