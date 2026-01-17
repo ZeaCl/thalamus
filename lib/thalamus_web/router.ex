@@ -35,7 +35,7 @@ defmodule ThalamusWeb.Router do
     plug :accepts, ["json"]
     plug ThalamusWeb.Plugs.CORS
     plug ThalamusWeb.Plugs.SecurityHeaders
-    plug ThalamusWeb.Plugs.RateLimiter, limit: 100, window: 60_000, key: :ip_address
+    plug ThalamusWeb.Plugs.RateLimiter, limit: 1000, window: 60_000, key: :ip_address
   end
 
   # Authenticated API pipeline (JWT only)

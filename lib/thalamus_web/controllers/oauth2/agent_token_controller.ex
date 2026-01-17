@@ -222,12 +222,30 @@ defmodule ThalamusWeb.OAuth2.AgentTokenController do
     error_response(conn, :internal_server_error, "server_error", "an internal error occurred")
   end
 
-  defp error_response(conn, status, error, description) do
+  # Stripe-level error response format
+  defp error_response(conn, status, error_code, message) do
+    request_id = conn.assigns[:request_id] || generate_request_id()
+
     conn
     |> put_status(status)
     |> json(%{
-      error: error,
-      error_description: description
+      error: %{
+        code: error_code,
+        message: message,
+        documentation_url: documentation_url(error_code),
+        request_id: request_id,
+        timestamp: DateTime.utc_now() |> DateTime.to_iso8601(),
+        details: %{}
+      }
     })
+  end
+
+  defp documentation_url(error_code) do
+    base_url = Application.get_env(:thalamus, :docs_base_url, "https://docs.thalamus.io")
+    "#{base_url}/errors/#{error_code}"
+  end
+
+  defp generate_request_id do
+    "req_" <> (:crypto.strong_rand_bytes(16) |> Base.url_encode64(padding: false) |> binary_part(0, 20))
   end
 end

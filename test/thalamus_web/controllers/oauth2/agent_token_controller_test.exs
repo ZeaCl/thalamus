@@ -15,6 +15,38 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
   # Plain text secret for testing (matches the one in test_helpers.ex)
   @test_client_secret "test_secret_123"
 
+  # Helper to assert Stripe-level error format
+  defp assert_stripe_error(conn, status, expected_code, expected_message) do
+    response = json_response(conn, status)
+
+    assert %{
+             "error" => %{
+               "code" => ^expected_code,
+               "message" => ^expected_message,
+               "documentation_url" => documentation_url,
+               "request_id" => request_id,
+               "timestamp" => timestamp,
+               "details" => details
+             }
+           } = response
+
+    # Verify documentation URL format
+    assert String.starts_with?(documentation_url, "https://docs.thalamus.io/errors/")
+    assert String.ends_with?(documentation_url, expected_code)
+
+    # Verify request_id format
+    assert String.starts_with?(request_id, "req_")
+    assert String.length(request_id) == 24
+
+    # Verify timestamp is ISO8601
+    assert {:ok, _, _} = DateTime.from_iso8601(timestamp)
+
+    # Verify details is a map
+    assert is_map(details)
+
+    response
+  end
+
   setup do
     # Create organization
     {:ok, org} = Organization.new("Test Corp", "owner@test.com", :professional)
@@ -171,10 +203,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
           scope: "zea:read"
         })
 
-      assert %{
-               "error" => "invalid_request",
-               "error_description" => "client_id is required"
-             } = json_response(conn, 400)
+      assert_stripe_error(conn, 400, "invalid_request", "client_id is required")
     end
 
     test "returns error with missing client_secret", %{
@@ -190,10 +219,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
           scope: "zea:read"
         })
 
-      assert %{
-               "error" => "invalid_request",
-               "error_description" => "client_secret is required"
-             } = json_response(conn, 400)
+      assert_stripe_error(conn, 400, "invalid_request", "client_secret is required")
     end
 
     test "returns error with missing delegated_by_user_id", %{conn: conn, client: client} do
@@ -205,10 +231,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
           scope: "zea:read"
         })
 
-      assert %{
-               "error" => "invalid_request",
-               "error_description" => "delegated_by_user_id is required"
-             } = json_response(conn, 400)
+      assert_stripe_error(conn, 400, "invalid_request", "delegated_by_user_id is required")
     end
 
     test "returns error with missing agent_type", %{
@@ -224,10 +247,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
           scope: "zea:read"
         })
 
-      assert %{
-               "error" => "invalid_request",
-               "error_description" => "agent_type is required"
-             } = json_response(conn, 400)
+      assert_stripe_error(conn, 400, "invalid_request", "agent_type is required")
     end
 
     test "returns error with invalid agent_type", %{
@@ -244,10 +264,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
           scope: "zea:read"
         })
 
-      assert %{
-               "error" => "invalid_request",
-               "error_description" => "agent_type must be autonomous, supervised, or ephemeral"
-             } = json_response(conn, 400)
+      assert_stripe_error(conn, 400, "invalid_request", "agent_type must be autonomous, supervised, or ephemeral")
     end
 
     test "returns error with empty scope", %{conn: conn, delegator: delegator, client: client} do
@@ -260,10 +277,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
           scope: ""
         })
 
-      assert %{
-               "error" => "invalid_scope",
-               "error_description" => "scope parameter is required"
-             } = json_response(conn, 400)
+      assert_stripe_error(conn, 400, "invalid_scope", "scope parameter is required")
     end
 
     test "returns error with missing scope parameter", %{
@@ -279,10 +293,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
           agent_type: "autonomous"
         })
 
-      assert %{
-               "error" => "invalid_scope",
-               "error_description" => "scope parameter is required"
-             } = json_response(conn, 400)
+      assert_stripe_error(conn, 400, "invalid_scope", "scope parameter is required")
     end
   end
 
@@ -301,10 +312,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
           scope: "zea:read"
         })
 
-      assert %{
-               "error" => "invalid_client",
-               "error_description" => "client authentication failed"
-             } = json_response(conn, 401)
+      assert_stripe_error(conn, 401, "invalid_client", "client authentication failed")
     end
 
     test "returns error with invalid client_secret", %{
@@ -321,10 +329,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
           scope: "zea:read"
         })
 
-      assert %{
-               "error" => "invalid_client",
-               "error_description" => "client authentication failed"
-             } = json_response(conn, 401)
+      assert_stripe_error(conn, 401, "invalid_client", "client authentication failed")
     end
 
     test "returns error with non-existent delegator", %{conn: conn, client: client} do
@@ -337,10 +342,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
           scope: "zea:read"
         })
 
-      assert %{
-               "error" => "invalid_request",
-               "error_description" => "delegated_by_user_id not found"
-             } = json_response(conn, 400)
+      assert_stripe_error(conn, 400, "invalid_request", "delegated_by_user_id not found")
     end
 
     test "returns error with inactive delegator", %{conn: conn, client: client, org: org} do
@@ -359,10 +361,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
           scope: "zea:read"
         })
 
-      assert %{
-               "error" => "invalid_request",
-               "error_description" => "delegating user is inactive"
-             } = json_response(conn, 400)
+      assert_stripe_error(conn, 400, "invalid_request", "delegating user is inactive")
     end
   end
 
@@ -382,13 +381,17 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
           scope: "admin:delete"
         })
 
-      assert %{
-               "error" => "invalid_scope",
-               "error_description" => description
-             } = json_response(conn, 400)
+      response = json_response(conn, 400)
 
-      assert description =~ "invalid scopes"
-      assert description =~ "admin:delete"
+      assert %{
+               "error" => %{
+                 "code" => "invalid_scope",
+                 "message" => message
+               }
+             } = response
+
+      assert message =~ "invalid scopes"
+      assert message =~ "admin:delete"
     end
 
     test "returns error with partially invalid scopes", %{
@@ -406,14 +409,18 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
           scope: "zea:read admin:write billing:admin"
         })
 
-      assert %{
-               "error" => "invalid_scope",
-               "error_description" => description
-             } = json_response(conn, 400)
+      response = json_response(conn, 400)
 
-      assert description =~ "invalid scopes"
-      assert description =~ "admin:write"
-      assert description =~ "billing:admin"
+      assert %{
+               "error" => %{
+                 "code" => "invalid_scope",
+                 "message" => message
+               }
+             } = response
+
+      assert message =~ "invalid scopes"
+      assert message =~ "admin:write"
+      assert message =~ "billing:admin"
     end
 
     test "accepts valid subset of client allowed_scopes", %{
