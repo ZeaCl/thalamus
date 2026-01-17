@@ -30,12 +30,18 @@ Este directorio contiene toda la documentación generada usando el proceso OpenS
 - **[IMPLEMENTATION_CONTEXT.md](IMPLEMENTATION_CONTEXT.md)** - 📖 Contexto completo para el agente implementador
 - **[IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md)** - 📊 Tracker de progreso (actualizar constantemente)
 
-### Epic 9: RBAC Implementation (NEW - Jan 2026)
+### Epic 9: RBAC Implementation (NEW - Jan 2026) ✅
 - **[epic-9-rbac/](epic-9-rbac/)** - Role-Based Access Control para delegación de permisos
   - **[README.md](epic-9-rbac/README.md)** - Overview de Epic 9
   - **[01-requirements.md](epic-9-rbac/01-requirements.md)** - Requirements v1.1 ✅ APROBADO
-  - **Fase 2: Design** - ⏳ Próximo (arquitectura, componentes, migraciones)
-  - **Fase 3: Tasks** - ⏳ Pendiente (plan de implementación)
+  - **Fase 2: Design** - ✅ COMPLETO (5 documentos, 3,566 líneas)
+    - [02-design-index.md](epic-9-rbac/02-design-index.md) - Navegación y decisiones clave
+    - [02-design-architecture.md](epic-9-rbac/02-design-architecture.md) - Diagramas y flujos (579 líneas)
+    - [02-design-components.md](epic-9-rbac/02-design-components.md) - Código production-ready (1,234 líneas)
+    - [02-design-database.md](epic-9-rbac/02-design-database.md) - Migraciones y esquema (668 líneas)
+    - [02-design-api.md](epic-9-rbac/02-design-api.md) - Especificaciones REST API (770 líneas)
+  - **Fase 3: Tasks** - ✅ COMPLETO
+    - [03-tasks.md](epic-9-rbac/03-tasks.md) - 37 tareas organizadas en 4 sprints (80-100 horas)
 
 ---
 
@@ -205,4 +211,4 @@ git commit -m "refactor: extract token validation to separate function"
 **Estado del proyecto:**
 - Epics 1-2: ✅ Completados
 - Epic 3: 🔄 En progreso (Application Layer)
-- Epic 9 (RBAC): 📝 Phase 1 (Requirements) completado, Phase 2 (Design) próximo
+- Epic 9 (RBAC): ✅ Todas las fases completadas - Listo para implementación (37 tareas, 4 sprints)
