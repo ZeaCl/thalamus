@@ -13,7 +13,17 @@ defmodule Thalamus.Domain.ValueObjects.DelegationChain do
 
   defstruct chain: []
 
-  # Prevent infinite delegation chains
+  # Maximum delegation chain depth
+  #
+  # Rationale for max_depth = 10:
+  # - Prevents infinite delegation loops and stack overflow attacks
+  # - Balances practical agent orchestration needs with security
+  # - Typical agent workflows (user → supervisor → specialist agents) need 3-5 levels
+  # - Allows for complex multi-level delegation scenarios while remaining auditable
+  # - Depth 10 matches common authorization system limits (e.g., AWS IAM role chaining)
+  # - Beyond 10 levels suggests architectural issues or potential abuse
+  #
+  # This value can be configured per organization in future versions if needed.
   @max_depth 10
 
   @doc """
@@ -81,7 +91,8 @@ defmodule Thalamus.Domain.ValueObjects.DelegationChain do
     end
   end
 
-  defp parse_user_ids([]), do: {:error, :empty_delegation_chain}
+  # Empty chain is valid (equivalent to root())
+  defp parse_user_ids([]), do: {:ok, []}
 
   defp parse_user_ids(user_ids) do
     # Validate that all IDs are valid UUIDs

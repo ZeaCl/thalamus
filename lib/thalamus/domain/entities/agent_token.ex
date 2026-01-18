@@ -13,7 +13,7 @@ defmodule Thalamus.Domain.Entities.AgentToken do
   alias Thalamus.Domain.ValueObjects.{AgentType, TaskId, DelegationChain}
 
   @type t :: %__MODULE__{
-          id: Ecto.UUID.t() | nil,
+          id: String.t() | nil,
           access_token: String.t(),
           agent_type: AgentType.t(),
           task_id: TaskId.t() | nil,
@@ -22,8 +22,8 @@ defmodule Thalamus.Domain.Entities.AgentToken do
           reason: String.t() | nil,
           expires_at: DateTime.t(),
           revoked_at: DateTime.t() | nil,
-          organization_id: Ecto.UUID.t(),
-          client_id: Ecto.UUID.t(),
+          organization_id: String.t(),
+          client_id: String.t(),
           created_at: DateTime.t()
         }
 
@@ -81,6 +81,7 @@ defmodule Thalamus.Domain.Entities.AgentToken do
   @spec create(map()) :: {:ok, t()} | {:error, atom()}
   def create(attrs) do
     with :ok <- validate_required_fields(attrs),
+         :ok <- validate_access_token(attrs[:access_token]),
          :ok <- validate_agent_type(attrs[:agent_type]),
          :ok <- validate_scopes(attrs[:scopes]),
          :ok <- validate_uuids(attrs),
@@ -93,7 +94,7 @@ defmodule Thalamus.Domain.Entities.AgentToken do
         end
 
       token = %__MODULE__{
-        id: Map.get(attrs, :id, Ecto.UUID.generate()),
+        id: Map.get(attrs, :id, generate_uuid()),
         access_token: attrs[:access_token],
         agent_type: attrs[:agent_type],
         task_id: Map.get(attrs, :task_id),
@@ -114,14 +115,19 @@ defmodule Thalamus.Domain.Entities.AgentToken do
   @doc """
   Revokes an agent token with a timestamp.
 
+  ## Parameters
+
+  - `token` - AgentToken to revoke
+  - `revoked_at` - Optional timestamp (defaults to current time)
+
   ## Examples
 
       iex> AgentToken.revoke(token)
       {:ok, %AgentToken{revoked_at: ~U[2026-01-18 00:00:00Z]}}
   """
-  @spec revoke(t()) :: {:ok, t()}
-  def revoke(%__MODULE__{} = token) do
-    revoked_token = %{token | revoked_at: DateTime.utc_now()}
+  @spec revoke(t(), DateTime.t()) :: {:ok, t()}
+  def revoke(%__MODULE__{} = token, revoked_at \\ DateTime.utc_now()) do
+    revoked_token = %{token | revoked_at: revoked_at}
     {:ok, revoked_token}
   end
 
@@ -141,14 +147,19 @@ defmodule Thalamus.Domain.Entities.AgentToken do
   @doc """
   Checks if the token has expired.
 
+  ## Parameters
+
+  - `token` - AgentToken to check
+  - `now` - Optional current time (defaults to DateTime.utc_now())
+
   ## Examples
 
       iex> AgentToken.expired?(token)
       false
   """
-  @spec expired?(t()) :: boolean()
-  def expired?(%__MODULE__{expires_at: expires_at}) do
-    DateTime.compare(DateTime.utc_now(), expires_at) == :gt
+  @spec expired?(t(), DateTime.t()) :: boolean()
+  def expired?(%__MODULE__{expires_at: expires_at}, now \\ DateTime.utc_now()) do
+    DateTime.compare(now, expires_at) == :gt
   end
 
   @doc """
@@ -163,6 +174,58 @@ defmodule Thalamus.Domain.Entities.AgentToken do
   def revoked?(%__MODULE__{revoked_at: nil}), do: false
   def revoked?(%__MODULE__{revoked_at: _}), do: true
 
+  @doc """
+  Creates an AgentToken from trusted attributes without validation.
+
+  This function should ONLY be used when reconstructing tokens from trusted sources
+  like the database, where data has already been validated on insertion.
+
+  Using this for untrusted input bypasses critical security validations.
+
+  ## Parameters
+
+  - `attrs` - Map with all required fields (no validation performed)
+
+  ## Returns
+
+  - `{:ok, %AgentToken{}}` - Token entity
+
+  ## Examples
+
+      iex> AgentToken.from_trusted_attrs(%{
+      ...>   id: "123e4567-e89b-12d3-a456-426614174000",
+      ...>   access_token: "at_trusted_token_from_db",
+      ...>   # ... other required fields from database
+      ...> })
+      {:ok, %AgentToken{}}
+  """
+  @spec from_trusted_attrs(map()) :: {:ok, t()}
+  def from_trusted_attrs(attrs) do
+    # Get or create default delegation chain if not provided
+    default_chain =
+      case DelegationChain.root() do
+        {:ok, chain} -> chain
+        _ -> %DelegationChain{chain: []}
+      end
+
+    token = %__MODULE__{
+      id: Map.get(attrs, :id),
+      access_token: Map.fetch!(attrs, :access_token),
+      agent_type: Map.fetch!(attrs, :agent_type),
+      task_id: Map.get(attrs, :task_id),
+      delegation_chain: Map.get(attrs, :delegation_chain, default_chain),
+      scopes: Map.fetch!(attrs, :scopes),
+      reason: Map.get(attrs, :reason),
+      expires_at: Map.fetch!(attrs, :expires_at),
+      revoked_at: Map.get(attrs, :revoked_at),
+      organization_id: Map.fetch!(attrs, :organization_id),
+      client_id: Map.fetch!(attrs, :client_id),
+      created_at: Map.get(attrs, :created_at, DateTime.utc_now())
+    }
+
+    {:ok, token}
+  end
+
   # Private validation functions
 
   defp validate_required_fields(attrs) do
@@ -176,6 +239,16 @@ defmodule Thalamus.Domain.Entities.AgentToken do
       {:error, {:missing_required_fields, missing}}
     end
   end
+
+  defp validate_access_token(token) when is_binary(token) and byte_size(token) >= 32 do
+    :ok
+  end
+
+  defp validate_access_token(token) when is_binary(token) do
+    {:error, :access_token_too_short}
+  end
+
+  defp validate_access_token(_), do: {:error, :invalid_access_token}
 
   defp validate_agent_type(%AgentType{}), do: :ok
   defp validate_agent_type(_), do: {:error, :invalid_agent_type}
@@ -192,9 +265,10 @@ defmodule Thalamus.Domain.Entities.AgentToken do
   end
 
   defp validate_uuid(value, error) when is_binary(value) do
-    case Ecto.UUID.cast(value) do
-      {:ok, _} -> :ok
-      :error -> {:error, error}
+    if valid_uuid?(value) do
+      :ok
+    else
+      {:error, error}
     end
   end
 
@@ -209,4 +283,37 @@ defmodule Thalamus.Domain.Entities.AgentToken do
   end
 
   defp validate_expiration(_), do: {:error, :invalid_expiration}
+
+  # Pure UUID validation without Ecto dependency
+  defp valid_uuid?(string) when is_binary(string) do
+    # UUID format: 8-4-4-4-12 hex characters
+    case String.split(string, "-") do
+      [a, b, c, d, e] ->
+        byte_size(a) == 8 and byte_size(b) == 4 and byte_size(c) == 4 and
+          byte_size(d) == 4 and byte_size(e) == 12 and
+          String.match?(string, ~r/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)
+
+      _ ->
+        false
+    end
+  end
+
+  defp valid_uuid?(_), do: false
+
+  # Pure UUID v4 generation without Ecto dependency
+  defp generate_uuid do
+    <<u0::48, _::4, u1::12, _::2, u2::62>> = :crypto.strong_rand_bytes(16)
+    # Set version (4) and variant (RFC 4122)
+    <<u0::48, 4::4, u1::12, 2::2, u2::62>>
+    |> uuid_to_string()
+  end
+
+  defp uuid_to_string(<<u0::32, u1::16, u2::16, u3::16, u4::48>>) do
+    :io_lib.format(
+      "~8.16.0b-~4.16.0b-~4.16.0b-~4.16.0b-~12.16.0b",
+      [u0, u1, u2, u3, u4]
+    )
+    |> IO.iodata_to_binary()
+    |> String.downcase()
+  end
 end

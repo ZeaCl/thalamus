@@ -4,13 +4,18 @@ defmodule Thalamus.Domain.Entities.AgentTokenTest do
   alias Thalamus.Domain.Entities.AgentToken
   alias Thalamus.Domain.ValueObjects.{AgentType, TaskId, DelegationChain}
 
+  # Valid access token (minimum 32 bytes as per validation)
+  @valid_access_token "at_" <> String.duplicate("a", 29) # "at_" + 29 chars = 32 bytes
+  @valid_access_token_supervisor "at_supervisor_" <> String.duplicate("b", 18) # 32 bytes
+  @valid_access_token_tool "at_tool_" <> String.duplicate("c", 24) # 32 bytes
+
   describe "create/1 - happy path" do
     test "creates autonomous agent token with minimal attributes" do
       {:ok, agent_type} = AgentType.new("autonomous")
       {:ok, chain} = DelegationChain.root()
 
       attrs = %{
-        access_token: "at_test123",
+        access_token: @valid_access_token,
         agent_type: agent_type,
         organization_id: Ecto.UUID.generate(),
         client_id: Ecto.UUID.generate(),
@@ -20,7 +25,7 @@ defmodule Thalamus.Domain.Entities.AgentTokenTest do
       }
 
       assert {:ok, token} = AgentToken.create(attrs)
-      assert token.access_token == "at_test123"
+      assert token.access_token == @valid_access_token
       assert token.agent_type == agent_type
       assert token.scopes == ["read:data"]
       assert token.revoked_at == nil
@@ -33,7 +38,7 @@ defmodule Thalamus.Domain.Entities.AgentTokenTest do
       {:ok, chain} = DelegationChain.root()
 
       attrs = %{
-        access_token: "at_supervisor_token",
+        access_token: @valid_access_token_supervisor,
         agent_type: agent_type,
         task_id: task_id,
         organization_id: Ecto.UUID.generate(),
@@ -55,7 +60,7 @@ defmodule Thalamus.Domain.Entities.AgentTokenTest do
       {:ok, chain} = DelegationChain.root()
 
       attrs = %{
-        access_token: "at_tool_xyz",
+        access_token: @valid_access_token_tool,
         agent_type: agent_type,
         organization_id: Ecto.UUID.generate(),
         client_id: Ecto.UUID.generate(),
@@ -72,7 +77,7 @@ defmodule Thalamus.Domain.Entities.AgentTokenTest do
       {:ok, agent_type} = AgentType.new("autonomous")
 
       attrs = %{
-        access_token: "at_default_chain",
+        access_token: @valid_access_token,
         agent_type: agent_type,
         organization_id: Ecto.UUID.generate(),
         client_id: Ecto.UUID.generate(),
@@ -88,7 +93,7 @@ defmodule Thalamus.Domain.Entities.AgentTokenTest do
       {:ok, agent_type} = AgentType.new("autonomous")
 
       attrs = %{
-        access_token: "at_timestamp",
+        access_token: @valid_access_token,
         agent_type: agent_type,
         organization_id: Ecto.UUID.generate(),
         client_id: Ecto.UUID.generate(),
@@ -123,7 +128,7 @@ defmodule Thalamus.Domain.Entities.AgentTokenTest do
 
     test "returns error when agent_type is missing" do
       attrs = %{
-        access_token: "at_test",
+        access_token: @valid_access_token,
         organization_id: Ecto.UUID.generate(),
         client_id: Ecto.UUID.generate(),
         scopes: ["read:data"],
@@ -138,7 +143,7 @@ defmodule Thalamus.Domain.Entities.AgentTokenTest do
       {:ok, agent_type} = AgentType.new("autonomous")
 
       attrs = %{
-        access_token: "at_test",
+        access_token: @valid_access_token,
         agent_type: agent_type,
         client_id: Ecto.UUID.generate(),
         scopes: ["read:data"],
@@ -153,7 +158,7 @@ defmodule Thalamus.Domain.Entities.AgentTokenTest do
       {:ok, agent_type} = AgentType.new("autonomous")
 
       attrs = %{
-        access_token: "at_test",
+        access_token: @valid_access_token,
         agent_type: agent_type,
         organization_id: Ecto.UUID.generate(),
         client_id: Ecto.UUID.generate(),
@@ -168,7 +173,7 @@ defmodule Thalamus.Domain.Entities.AgentTokenTest do
       {:ok, agent_type} = AgentType.new("autonomous")
 
       attrs = %{
-        access_token: "at_test",
+        access_token: @valid_access_token,
         agent_type: agent_type,
         organization_id: "not-a-uuid",
         client_id: Ecto.UUID.generate(),
@@ -183,7 +188,7 @@ defmodule Thalamus.Domain.Entities.AgentTokenTest do
       {:ok, agent_type} = AgentType.new("autonomous")
 
       attrs = %{
-        access_token: "at_test",
+        access_token: @valid_access_token,
         agent_type: agent_type,
         organization_id: Ecto.UUID.generate(),
         client_id: "invalid",
@@ -198,7 +203,7 @@ defmodule Thalamus.Domain.Entities.AgentTokenTest do
       {:ok, agent_type} = AgentType.new("autonomous")
 
       attrs = %{
-        access_token: "at_test",
+        access_token: @valid_access_token,
         agent_type: agent_type,
         organization_id: Ecto.UUID.generate(),
         client_id: Ecto.UUID.generate(),
@@ -211,7 +216,7 @@ defmodule Thalamus.Domain.Entities.AgentTokenTest do
 
     test "returns error when agent_type is not AgentType value object" do
       attrs = %{
-        access_token: "at_test",
+        access_token: @valid_access_token,
         agent_type: "autonomous",  # String instead of AgentType
         organization_id: Ecto.UUID.generate(),
         client_id: Ecto.UUID.generate(),
@@ -262,7 +267,7 @@ defmodule Thalamus.Domain.Entities.AgentTokenTest do
       {:ok, agent_type} = AgentType.new("autonomous")
 
       attrs = %{
-        access_token: "at_expired",
+        access_token: @valid_access_token,
         agent_type: agent_type,
         organization_id: Ecto.UUID.generate(),
         client_id: Ecto.UUID.generate(),
@@ -291,7 +296,7 @@ defmodule Thalamus.Domain.Entities.AgentTokenTest do
       {:ok, agent_type} = AgentType.new("autonomous")
 
       attrs = %{
-        access_token: "at_expired",
+        access_token: @valid_access_token,
         agent_type: agent_type,
         organization_id: Ecto.UUID.generate(),
         client_id: Ecto.UUID.generate(),
@@ -327,7 +332,7 @@ defmodule Thalamus.Domain.Entities.AgentTokenTest do
     {:ok, agent_type} = AgentType.new("autonomous")
 
     attrs = %{
-      access_token: "at_valid_token",
+      access_token: @valid_access_token,
       agent_type: agent_type,
       organization_id: Ecto.UUID.generate(),
       client_id: Ecto.UUID.generate(),

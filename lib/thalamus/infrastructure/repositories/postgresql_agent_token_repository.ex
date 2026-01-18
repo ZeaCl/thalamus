@@ -15,6 +15,7 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLAgentTokenRepository do
 
   @behaviour Thalamus.Application.Ports.AgentTokenRepository
 
+  require Logger
   import Ecto.Query
 
   alias Thalamus.Repo
@@ -30,8 +31,30 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLAgentTokenRepository do
       if token.id do
         # Update existing token
         case Repo.get(TokenSchema, token.id) do
-          nil -> TokenSchema.create_changeset(attrs)
-          schema -> TokenSchema.create_changeset(Map.merge(schema, attrs))
+          nil ->
+            # Token has ID but doesn't exist in DB - insert with explicit ID
+            TokenSchema.create_changeset(attrs)
+
+          existing_schema ->
+            # Cast attributes onto existing schema for update
+            import Ecto.Changeset
+
+            existing_schema
+            |> cast(attrs, [
+              :token,
+              :type,
+              :scopes,
+              :expires_at,
+              :revoked,
+              :revoked_at,
+              :agent_type,
+              :delegation_chain,
+              :task_id,
+              :intent_description,
+              :organization_id,
+              :client_id
+            ])
+            |> validate_required([:token, :type, :client_id, :expires_at])
         end
       else
         # Insert new token
@@ -46,9 +69,8 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLAgentTokenRepository do
 
   @impl true
   def find_by_id(id) when is_binary(id) do
-    TokenSchema
+    base_agent_tokens_query()
     |> where([t], t.id == ^id)
-    |> where([t], not is_nil(t.agent_type))
     |> Repo.one()
     |> case do
       nil -> {:error, :not_found}
@@ -58,9 +80,8 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLAgentTokenRepository do
 
   @impl true
   def find_by_access_token(access_token) when is_binary(access_token) do
-    TokenSchema
+    base_agent_tokens_query()
     |> where([t], t.token == ^access_token)
-    |> where([t], not is_nil(t.agent_type))
     |> where([t], t.revoked == false)
     |> Repo.one()
     |> case do
@@ -71,9 +92,8 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLAgentTokenRepository do
 
   @impl true
   def revoke(access_token) when is_binary(access_token) do
-    TokenSchema
+    base_agent_tokens_query()
     |> where([t], t.token == ^access_token)
-    |> where([t], not is_nil(t.agent_type))
     |> Repo.one()
     |> case do
       nil ->
@@ -92,25 +112,31 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLAgentTokenRepository do
 
   @impl true
   def revoke_delegation_chain(user_id) when is_binary(user_id) do
-    now = DateTime.utc_now()
+    # Wrap in transaction for atomicity
+    Repo.transaction(fn ->
+      now = DateTime.utc_now()
 
-    # Revoke all tokens where this user_id appears in the delegation chain
-    {count, _} =
-      TokenSchema
-      |> where([t], not is_nil(t.agent_type))
-      |> where([t], t.revoked == false)
-      |> where([t], ^user_id in t.delegation_chain)
-      |> Repo.update_all(set: [revoked: true, revoked_at: now])
+      # Revoke all tokens where this user_id appears in the delegation chain
+      # Using fragment with ANY for better PostgreSQL performance
+      {count, _} =
+        base_agent_tokens_query()
+        |> where([t], t.revoked == false)
+        |> where([t], fragment("? = ANY(?)", ^user_id, t.delegation_chain))
+        |> Repo.update_all(set: [revoked: true, revoked_at: now])
 
-    {:ok, count}
+      count
+    end)
+    |> case do
+      {:ok, count} -> {:ok, count}
+      {:error, reason} -> {:error, reason}
+    end
   end
 
   @impl true
   def find_by_organization(organization_id, opts \\ []) when is_binary(organization_id) do
     query =
-      TokenSchema
+      base_agent_tokens_query()
       |> where([t], t.organization_id == ^organization_id)
-      |> where([t], not is_nil(t.agent_type))
 
     # Apply filters
     query =
@@ -146,16 +172,41 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLAgentTokenRepository do
     # Order by created_at descending
     query = order_by(query, [t], desc: t.inserted_at)
 
-    tokens =
-      query
-      |> Repo.all()
-      |> Enum.map(fn schema ->
-        case to_domain(schema) do
-          {:ok, token} -> token
-          {:error, _} -> nil
+    schemas = Repo.all(query)
+
+    # Convert schemas to domain entities with proper error handling
+    {tokens, errors} =
+      Enum.reduce(schemas, {[], []}, fn schema, {tokens_acc, errors_acc} ->
+        try do
+          {:ok, token} = to_domain(schema)
+          {[token | tokens_acc], errors_acc}
+        rescue
+          error ->
+            # Log data integrity issue (shouldn't happen with valid DB data)
+            Logger.warning(
+              "Failed to convert TokenSchema to AgentToken domain entity",
+              token_id: schema.id,
+              organization_id: organization_id,
+              error: inspect(error)
+            )
+
+            {tokens_acc, [{schema.id, error} | errors_acc]}
         end
       end)
-      |> Enum.reject(&is_nil/1)
+
+    # Reverse to maintain original order (since we prepended in reduce)
+    tokens = Enum.reverse(tokens)
+
+    # Log if any conversions failed
+    if length(errors) > 0 do
+      Logger.error(
+        "Data integrity issue: #{length(errors)} agent tokens failed domain conversion",
+        organization_id: organization_id,
+        failed_count: length(errors),
+        total_count: length(schemas),
+        failed_token_ids: Enum.map(errors, fn {id, _} -> id end)
+      )
+    end
 
     {:ok, tokens}
   end
@@ -165,8 +216,7 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLAgentTokenRepository do
     now = DateTime.utc_now()
 
     {count, _} =
-      TokenSchema
-      |> where([t], not is_nil(t.agent_type))
+      base_agent_tokens_query()
       |> where([t], t.expires_at < ^now)
       |> Repo.delete_all()
 
@@ -174,6 +224,11 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLAgentTokenRepository do
   end
 
   # --- Private Helper Functions ---
+
+  # Base query for agent tokens (filters out non-agent tokens)
+  defp base_agent_tokens_query do
+    from(t in TokenSchema, where: not is_nil(t.agent_type))
+  end
 
   # Convert AgentToken entity to TokenSchema attributes
   defp to_schema_attrs(%AgentToken{} = token) do
@@ -205,6 +260,7 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLAgentTokenRepository do
   end
 
   # Convert TokenSchema to AgentToken entity
+  # Uses from_trusted_attrs since data from DB is already validated
   defp to_domain(%TokenSchema{} = schema) do
     # Reconstruct AgentType value object
     {:ok, agent_type} = AgentType.new(schema.agent_type)
@@ -240,7 +296,7 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLAgentTokenRepository do
           end
       end
 
-    # Build AgentToken entity
+    # Build AgentToken entity using from_trusted_attrs (no validation needed for DB data)
     attrs = %{
       id: schema.id,
       access_token: schema.token,
@@ -256,7 +312,7 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLAgentTokenRepository do
       created_at: schema.inserted_at
     }
 
-    AgentToken.create(attrs)
+    AgentToken.from_trusted_attrs(attrs)
   end
 
   defp task_id_to_string(nil), do: nil

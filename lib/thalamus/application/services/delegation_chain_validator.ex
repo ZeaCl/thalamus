@@ -159,20 +159,28 @@ defmodule Thalamus.Application.Services.DelegationChainValidator do
   def validate_users_exist(%DelegationChain{chain: []}, _deps), do: :ok
 
   def validate_users_exist(%DelegationChain{chain: chain}, deps) do
-    Enum.reduce_while(chain, :ok, fn user_id, :ok ->
-      normalized_id = normalize_user_id(user_id)
+    # Batch query to avoid N+1 problem
+    normalized_ids = Enum.map(chain, &normalize_user_id/1)
 
-      case deps.user_repository.find_by_id(normalized_id) do
-        {:ok, _user} ->
-          {:cont, :ok}
+    case deps.user_repository.find_by_ids(normalized_ids) do
+      {:ok, users_map} ->
+        # Check if all user IDs were found
+        missing_ids =
+          Enum.filter(normalized_ids, fn id ->
+            not Map.has_key?(users_map, id)
+          end)
 
-        {:error, :not_found} ->
-          {:halt, {:error, {:user_not_found, normalized_id}}}
+        if Enum.empty?(missing_ids) do
+          :ok
+        else
+          # Return first missing user
+          {:error, {:user_not_found, hd(missing_ids)}}
+        end
 
-        {:error, _reason} ->
-          {:halt, {:error, {:user_not_found, normalized_id}}}
-      end
-    end)
+      {:error, _reason} ->
+        # If batch query fails, return error for first user
+        {:error, {:user_not_found, hd(normalized_ids)}}
+    end
   end
 
   @doc """
@@ -192,22 +200,34 @@ defmodule Thalamus.Application.Services.DelegationChainValidator do
   def validate_users_active(%DelegationChain{chain: []}, _deps), do: :ok
 
   def validate_users_active(%DelegationChain{chain: chain}, deps) do
-    Enum.reduce_while(chain, :ok, fn user_id, :ok ->
-      normalized_id = normalize_user_id(user_id)
+    # Batch query to avoid N+1 problem
+    normalized_ids = Enum.map(chain, &normalize_user_id/1)
 
-      case deps.user_repository.find_by_id(normalized_id) do
-        {:ok, user} ->
-          if user_active?(user) do
-            {:cont, :ok}
-          else
-            {:halt, {:error, {:user_inactive, normalized_id}}}
-          end
+    case deps.user_repository.find_by_ids(normalized_ids) do
+      {:ok, users_map} ->
+        # Check if all users are active
+        inactive_user =
+          Enum.find(normalized_ids, fn id ->
+            case Map.get(users_map, id) do
+              nil ->
+                # User doesn't exist - will be caught by validate_users_exist
+                false
 
-        {:error, _} ->
-          # User doesn't exist - will be caught by validate_users_exist
-          {:cont, :ok}
-      end
-    end)
+              user ->
+                not user_active?(user)
+            end
+          end)
+
+        if inactive_user do
+          {:error, {:user_inactive, inactive_user}}
+        else
+          :ok
+        end
+
+      {:error, _reason} ->
+        # If batch query fails, assume all are active (will be caught by validate_users_exist)
+        :ok
+    end
   end
 
   @doc """
