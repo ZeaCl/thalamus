@@ -145,8 +145,9 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository do
   @impl true
   def update_last_login(%UserId{} = user_id, timestamp) do
     user_id_string = UserId.to_string(user_id)
+    uuid = String.replace_prefix(user_id_string, "user_", "")
 
-    case Repo.get(UserSchema, user_id_string) do
+    case Repo.get(UserSchema, uuid) do
       nil ->
         {:error, :not_found}
 
