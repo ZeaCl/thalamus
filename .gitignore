@@ -88,3 +88,4 @@ coverage/
 
 # Mix lock conflicts
 mix.lock.conflict
+cover/
