@@ -55,9 +55,8 @@ defmodule Thalamus.Application.Services.DelegationChainValidator do
     with :ok <- validate_depth(chain),
          :ok <- validate_no_circular_delegation(chain),
          :ok <- validate_user_ids_format(chain),
-         :ok <- validate_users_exist(chain, deps),
-         :ok <- validate_users_active(chain, deps) do
-      :ok
+         :ok <- validate_users_exist(chain, deps) do
+      validate_users_active(chain, deps)
     end
   end
 
@@ -200,35 +199,29 @@ defmodule Thalamus.Application.Services.DelegationChainValidator do
   def validate_users_active(%DelegationChain{chain: []}, _deps), do: :ok
 
   def validate_users_active(%DelegationChain{chain: chain}, deps) do
-    # Batch query to avoid N+1 problem
     normalized_ids = Enum.map(chain, &normalize_user_id/1)
 
-    case deps.user_repository.find_by_ids(normalized_ids) do
-      {:ok, users_map} ->
-        # Check if all users are active
-        inactive_user =
-          Enum.find(normalized_ids, fn id ->
-            case Map.get(users_map, id) do
-              nil ->
-                # User doesn't exist - will be caught by validate_users_exist
-                false
-
-              user ->
-                not user_active?(user)
-            end
-          end)
-
-        if inactive_user do
-          {:error, {:user_inactive, inactive_user}}
-        else
-          :ok
-        end
-
-      {:error, _reason} ->
-        # If batch query fails, assume all are active (will be caught by validate_users_exist)
-        :ok
+    with {:ok, users_map} <- deps.user_repository.find_by_ids(normalized_ids),
+         inactive_user <- find_inactive_user(normalized_ids, users_map) do
+      check_inactive_user_result(inactive_user)
+    else
+      {:error, _} -> :ok
     end
   end
+
+  defp find_inactive_user(user_ids, users_map) do
+    Enum.find(user_ids, &is_user_inactive?(&1, users_map))
+  end
+
+  defp is_user_inactive?(user_id, users_map) do
+    case Map.get(users_map, user_id) do
+      nil -> false
+      user -> not user_active?(user)
+    end
+  end
+
+  defp check_inactive_user_result(nil), do: :ok
+  defp check_inactive_user_result(inactive_user), do: {:error, {:user_inactive, inactive_user}}
 
   @doc """
   Builds a delegation chain from a delegator user ID.

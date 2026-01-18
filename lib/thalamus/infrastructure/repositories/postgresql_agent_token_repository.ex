@@ -137,76 +137,13 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLAgentTokenRepository do
     query =
       base_agent_tokens_query()
       |> where([t], t.organization_id == ^organization_id)
-
-    # Apply filters
-    query =
-      case Keyword.get(opts, :agent_type) do
-        nil -> query
-        agent_type -> where(query, [t], t.agent_type == ^to_string(agent_type))
-      end
-
-    query =
-      if Keyword.get(opts, :active_only, false) do
-        now = DateTime.utc_now()
-
-        query
-        |> where([t], t.revoked == false)
-        |> where([t], t.expires_at > ^now)
-      else
-        query
-      end
-
-    # Apply pagination
-    query =
-      case Keyword.get(opts, :limit) do
-        nil -> query
-        limit -> limit(query, ^limit)
-      end
-
-    query =
-      case Keyword.get(opts, :offset) do
-        nil -> query
-        offset -> offset(query, ^offset)
-      end
-
-    # Order by created_at descending
-    query = order_by(query, [t], desc: t.inserted_at)
+      |> apply_agent_type_filter(opts)
+      |> apply_active_filter(opts)
+      |> apply_pagination(opts)
+      |> order_by([t], desc: t.inserted_at)
 
     schemas = Repo.all(query)
-
-    # Convert schemas to domain entities with proper error handling
-    {tokens, errors} =
-      Enum.reduce(schemas, {[], []}, fn schema, {tokens_acc, errors_acc} ->
-        try do
-          {:ok, token} = to_domain(schema)
-          {[token | tokens_acc], errors_acc}
-        rescue
-          error ->
-            # Log data integrity issue (shouldn't happen with valid DB data)
-            Logger.warning(
-              "Failed to convert TokenSchema to AgentToken domain entity",
-              token_id: schema.id,
-              organization_id: organization_id,
-              error: inspect(error)
-            )
-
-            {tokens_acc, [{schema.id, error} | errors_acc]}
-        end
-      end)
-
-    # Reverse to maintain original order (since we prepended in reduce)
-    tokens = Enum.reverse(tokens)
-
-    # Log if any conversions failed
-    if length(errors) > 0 do
-      Logger.error(
-        "Data integrity issue: #{length(errors)} agent tokens failed domain conversion",
-        organization_id: organization_id,
-        failed_count: length(errors),
-        total_count: length(schemas),
-        failed_token_ids: Enum.map(errors, fn {id, _} -> id end)
-      )
-    end
+    tokens = convert_schemas_to_tokens(schemas, organization_id)
 
     {:ok, tokens}
   end
@@ -228,6 +165,87 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLAgentTokenRepository do
   # Base query for agent tokens (filters out non-agent tokens)
   defp base_agent_tokens_query do
     from(t in TokenSchema, where: not is_nil(t.agent_type))
+  end
+
+  # Apply agent_type filter to query
+  defp apply_agent_type_filter(query, opts) do
+    case Keyword.get(opts, :agent_type) do
+      nil -> query
+      agent_type -> where(query, [t], t.agent_type == ^to_string(agent_type))
+    end
+  end
+
+  # Apply active_only filter to query
+  defp apply_active_filter(query, opts) do
+    if Keyword.get(opts, :active_only, false) do
+      now = DateTime.utc_now()
+
+      query
+      |> where([t], t.revoked == false)
+      |> where([t], t.expires_at > ^now)
+    else
+      query
+    end
+  end
+
+  # Apply pagination (limit and offset) to query
+  defp apply_pagination(query, opts) do
+    query
+    |> apply_limit(opts)
+    |> apply_offset(opts)
+  end
+
+  defp apply_limit(query, opts) do
+    case Keyword.get(opts, :limit) do
+      nil -> query
+      limit -> limit(query, ^limit)
+    end
+  end
+
+  defp apply_offset(query, opts) do
+    case Keyword.get(opts, :offset) do
+      nil -> query
+      offset -> offset(query, ^offset)
+    end
+  end
+
+  # Convert list of schemas to domain tokens with error handling
+  defp convert_schemas_to_tokens(schemas, organization_id) do
+    {tokens, errors} =
+      Enum.reduce(schemas, {[], []}, fn schema, {tokens_acc, errors_acc} ->
+        try do
+          {:ok, token} = to_domain(schema)
+          {[token | tokens_acc], errors_acc}
+        rescue
+          error ->
+            log_conversion_error(schema, organization_id, error)
+            {tokens_acc, [{schema.id, error} | errors_acc]}
+        end
+      end)
+
+    log_conversion_errors_summary(errors, schemas, organization_id)
+    Enum.reverse(tokens)
+  end
+
+  defp log_conversion_error(schema, organization_id, error) do
+    Logger.warning(
+      "Failed to convert TokenSchema to AgentToken domain entity",
+      token_id: schema.id,
+      organization_id: organization_id,
+      error: inspect(error)
+    )
+  end
+
+  defp log_conversion_errors_summary(errors, schemas, organization_id) do
+    unless Enum.empty?(errors) do
+      Logger.error(
+        "Data integrity issue: #{length(errors)} agent tokens failed domain conversion",
+        organization_id: organization_id,
+        failed_count: length(errors),
+        total_count: length(schemas),
+        failed_token_ids: Enum.map(errors, fn {id, _} -> id end)
+      )
+    end
   end
 
   # Convert AgentToken entity to TokenSchema attributes
@@ -262,47 +280,14 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLAgentTokenRepository do
   # Convert TokenSchema to AgentToken entity
   # Uses from_trusted_attrs since data from DB is already validated
   defp to_domain(%TokenSchema{} = schema) do
-    # Reconstruct AgentType value object
     {:ok, agent_type} = AgentType.new(schema.agent_type)
 
-    # Reconstruct TaskId value object if present
-    task_id =
-      if schema.task_id do
-        case TaskId.new(schema.task_id) do
-          {:ok, tid} -> tid
-          _ -> nil
-        end
-      else
-        nil
-      end
-
-    # Reconstruct DelegationChain value object
-    delegation_chain =
-      case schema.delegation_chain do
-        nil ->
-          {:ok, chain} = DelegationChain.root()
-          chain
-
-        [] ->
-          {:ok, chain} = DelegationChain.root()
-          chain
-
-        chain_uuids when is_list(chain_uuids) ->
-          case DelegationChain.new(chain_uuids) do
-            {:ok, chain} -> chain
-            _ ->
-              {:ok, chain} = DelegationChain.root()
-              chain
-          end
-      end
-
-    # Build AgentToken entity using from_trusted_attrs (no validation needed for DB data)
     attrs = %{
       id: schema.id,
       access_token: schema.token,
       agent_type: agent_type,
-      task_id: task_id,
-      delegation_chain: delegation_chain,
+      task_id: reconstruct_task_id(schema.task_id),
+      delegation_chain: reconstruct_delegation_chain(schema.delegation_chain),
       scopes: schema.scopes || [],
       reason: schema.intent_description,
       expires_at: schema.expires_at,
@@ -313,6 +298,32 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLAgentTokenRepository do
     }
 
     AgentToken.from_trusted_attrs(attrs)
+  end
+
+  # Reconstruct TaskId value object from schema field
+  defp reconstruct_task_id(nil), do: nil
+
+  defp reconstruct_task_id(task_id_string) do
+    case TaskId.new(task_id_string) do
+      {:ok, task_id} -> task_id
+      _ -> nil
+    end
+  end
+
+  # Reconstruct DelegationChain value object from schema field
+  defp reconstruct_delegation_chain(nil), do: get_root_chain()
+  defp reconstruct_delegation_chain([]), do: get_root_chain()
+
+  defp reconstruct_delegation_chain(chain_uuids) when is_list(chain_uuids) do
+    case DelegationChain.new(chain_uuids) do
+      {:ok, chain} -> chain
+      _ -> get_root_chain()
+    end
+  end
+
+  defp get_root_chain do
+    {:ok, chain} = DelegationChain.root()
+    chain
   end
 
   defp task_id_to_string(nil), do: nil

@@ -93,9 +93,15 @@ defmodule Thalamus.Application.Services.DelegationChainValidatorTest do
 
       {:ok, chain} = DelegationChain.new([user_id_1, user_id_2])
 
+      # Mock batch query returning both users
       MockUserRepository
-      |> expect(:find_by_id, fn ^user_id_1 -> {:ok, %{id: user_id_1}} end)
-      |> expect(:find_by_id, fn ^user_id_2 -> {:ok, %{id: user_id_2}} end)
+      |> expect(:find_by_ids, fn [^user_id_1, ^user_id_2] ->
+        {:ok,
+         %{
+           user_id_1 => %{id: user_id_1},
+           user_id_2 => %{id: user_id_2}
+         }}
+      end)
 
       deps = %{user_repository: MockUserRepository}
 
@@ -108,9 +114,11 @@ defmodule Thalamus.Application.Services.DelegationChainValidatorTest do
 
       {:ok, chain} = DelegationChain.new([user_id_1, user_id_2])
 
+      # Mock batch query returning only user_id_1 (user_id_2 not found)
       MockUserRepository
-      |> expect(:find_by_id, fn ^user_id_1 -> {:ok, %{id: user_id_1}} end)
-      |> expect(:find_by_id, fn ^user_id_2 -> {:error, :not_found} end)
+      |> expect(:find_by_ids, fn [^user_id_1, ^user_id_2] ->
+        {:ok, %{user_id_1 => %{id: user_id_1}}}
+      end)
 
       deps = %{user_repository: MockUserRepository}
 
@@ -134,9 +142,15 @@ defmodule Thalamus.Application.Services.DelegationChainValidatorTest do
 
       {:ok, chain} = DelegationChain.new([user_id_1, user_id_2])
 
+      # Mock batch query returning both active users
       MockUserRepository
-      |> expect(:find_by_id, fn ^user_id_1 -> {:ok, %{id: user_id_1, status: :active}} end)
-      |> expect(:find_by_id, fn ^user_id_2 -> {:ok, %{id: user_id_2, status: :active}} end)
+      |> expect(:find_by_ids, fn [^user_id_1, ^user_id_2] ->
+        {:ok,
+         %{
+           user_id_1 => %{id: user_id_1, status: :active},
+           user_id_2 => %{id: user_id_2, status: :active}
+         }}
+      end)
 
       deps = %{user_repository: MockUserRepository}
 
@@ -149,9 +163,15 @@ defmodule Thalamus.Application.Services.DelegationChainValidatorTest do
 
       {:ok, chain} = DelegationChain.new([user_id_1, user_id_2])
 
+      # Mock batch query returning both active users
       MockUserRepository
-      |> expect(:find_by_id, fn ^user_id_1 -> {:ok, %{id: user_id_1, is_active: true}} end)
-      |> expect(:find_by_id, fn ^user_id_2 -> {:ok, %{id: user_id_2, is_active: true}} end)
+      |> expect(:find_by_ids, fn [^user_id_1, ^user_id_2] ->
+        {:ok,
+         %{
+           user_id_1 => %{id: user_id_1, is_active: true},
+           user_id_2 => %{id: user_id_2, is_active: true}
+         }}
+      end)
 
       deps = %{user_repository: MockUserRepository}
 
@@ -164,9 +184,15 @@ defmodule Thalamus.Application.Services.DelegationChainValidatorTest do
 
       {:ok, chain} = DelegationChain.new([user_id_1, user_id_2])
 
+      # Mock batch query with one inactive user
       MockUserRepository
-      |> expect(:find_by_id, fn ^user_id_1 -> {:ok, %{id: user_id_1, status: :active}} end)
-      |> expect(:find_by_id, fn ^user_id_2 -> {:ok, %{id: user_id_2, status: :inactive}} end)
+      |> expect(:find_by_ids, fn [^user_id_1, ^user_id_2] ->
+        {:ok,
+         %{
+           user_id_1 => %{id: user_id_1, status: :active},
+           user_id_2 => %{id: user_id_2, status: :inactive}
+         }}
+      end)
 
       deps = %{user_repository: MockUserRepository}
 
@@ -190,11 +216,15 @@ defmodule Thalamus.Application.Services.DelegationChainValidatorTest do
 
       {:ok, chain} = DelegationChain.new([user_id_1, user_id_2])
 
+      # Mock batch queries for validate_users_exist and validate_users_active
       MockUserRepository
-      |> expect(:find_by_id, fn ^user_id_1 -> {:ok, %{id: user_id_1, status: :active}} end)
-      |> expect(:find_by_id, fn ^user_id_2 -> {:ok, %{id: user_id_2, status: :active}} end)
-      |> expect(:find_by_id, fn ^user_id_1 -> {:ok, %{id: user_id_1, status: :active}} end)
-      |> expect(:find_by_id, fn ^user_id_2 -> {:ok, %{id: user_id_2, status: :active}} end)
+      |> expect(:find_by_ids, 2, fn [^user_id_1, ^user_id_2] ->
+        {:ok,
+         %{
+           user_id_1 => %{id: user_id_1, status: :active},
+           user_id_2 => %{id: user_id_2, status: :active}
+         }}
+      end)
 
       deps = %{user_repository: MockUserRepository}
 
@@ -223,9 +253,11 @@ defmodule Thalamus.Application.Services.DelegationChainValidatorTest do
 
       {:ok, chain} = DelegationChain.new([user_id_1, user_id_2])
 
+      # Mock batch query with user_id_2 missing
       MockUserRepository
-      |> expect(:find_by_id, fn ^user_id_1 -> {:ok, %{id: user_id_1, status: :active}} end)
-      |> expect(:find_by_id, fn ^user_id_2 -> {:error, :not_found} end)
+      |> expect(:find_by_ids, fn [^user_id_1, ^user_id_2] ->
+        {:ok, %{user_id_1 => %{id: user_id_1, status: :active}}}
+      end)
 
       deps = %{user_repository: MockUserRepository}
 
@@ -239,11 +271,23 @@ defmodule Thalamus.Application.Services.DelegationChainValidatorTest do
 
       {:ok, chain} = DelegationChain.new([user_id_1, user_id_2])
 
+      # First batch query for validate_users_exist (both users found)
+      # Second batch query for validate_users_active (user_id_2 is inactive)
       MockUserRepository
-      |> expect(:find_by_id, fn ^user_id_1 -> {:ok, %{id: user_id_1, status: :active}} end)
-      |> expect(:find_by_id, fn ^user_id_2 -> {:ok, %{id: user_id_2, status: :active}} end)
-      |> expect(:find_by_id, fn ^user_id_1 -> {:ok, %{id: user_id_1, status: :active}} end)
-      |> expect(:find_by_id, fn ^user_id_2 -> {:ok, %{id: user_id_2, status: :inactive}} end)
+      |> expect(:find_by_ids, fn [^user_id_1, ^user_id_2] ->
+        {:ok,
+         %{
+           user_id_1 => %{id: user_id_1, status: :active},
+           user_id_2 => %{id: user_id_2, status: :active}
+         }}
+      end)
+      |> expect(:find_by_ids, fn [^user_id_1, ^user_id_2] ->
+        {:ok,
+         %{
+           user_id_1 => %{id: user_id_1, status: :active},
+           user_id_2 => %{id: user_id_2, status: :inactive}
+         }}
+      end)
 
       deps = %{user_repository: MockUserRepository}
 
@@ -263,9 +307,11 @@ defmodule Thalamus.Application.Services.DelegationChainValidatorTest do
     test "builds and validates chain when deps provided" do
       user_id = Ecto.UUID.generate()
 
+      # Mock batch queries for validate_users_exist and validate_users_active
       MockUserRepository
-      |> expect(:find_by_id, fn ^user_id -> {:ok, %{id: user_id, status: :active}} end)
-      |> expect(:find_by_id, fn ^user_id -> {:ok, %{id: user_id, status: :active}} end)
+      |> expect(:find_by_ids, 2, fn [^user_id] ->
+        {:ok, %{user_id => %{id: user_id, status: :active}}}
+      end)
 
       deps = %{user_repository: MockUserRepository}
 
@@ -276,8 +322,9 @@ defmodule Thalamus.Application.Services.DelegationChainValidatorTest do
     test "returns error when validation fails" do
       user_id = Ecto.UUID.generate()
 
+      # Mock batch query with user not found
       MockUserRepository
-      |> expect(:find_by_id, fn ^user_id -> {:error, :not_found} end)
+      |> expect(:find_by_ids, fn [^user_id] -> {:ok, %{}} end)
 
       deps = %{user_repository: MockUserRepository}
 

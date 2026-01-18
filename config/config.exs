@@ -46,7 +46,19 @@ config :tailwind,
 # Configures Elixir's Logger
 config :logger, :default_formatter,
   format: "$time $metadata[$level] $message\n",
-  metadata: [:request_id]
+  metadata: [
+    :request_id,
+    # Agent token metadata
+    :token_id,
+    :organization_id,
+    :error,
+    :failed_count,
+    :total_count,
+    :failed_token_ids,
+    # Audit logging metadata
+    :event_type,
+    :data
+  ]
 
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason

@@ -45,31 +45,26 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository do
   end
 
   @impl true
+  def find_by_ids([]), do: {:ok, %{}}
+
   def find_by_ids(user_ids) when is_list(user_ids) do
-    # Handle empty list
-    if Enum.empty?(user_ids) do
-      {:ok, %{}}
-    else
-      # Query all users in one batch
-      schemas =
-        UserSchema
-        |> where([u], u.id in ^user_ids)
-        |> Repo.all()
+    users_map =
+      UserSchema
+      |> where([u], u.id in ^user_ids)
+      |> Repo.all()
+      |> build_users_map()
 
-      # Convert schemas to entities and build map
-      users_map =
-        Enum.reduce(schemas, %{}, fn schema, acc ->
-          case schema_to_entity(schema) do
-            {:ok, user} ->
-              Map.put(acc, schema.id, user)
+    {:ok, users_map}
+  end
 
-            {:error, _} ->
-              # Skip invalid entities (data integrity issue)
-              acc
-          end
-        end)
+  defp build_users_map(schemas) do
+    Enum.reduce(schemas, %{}, &add_user_to_map/2)
+  end
 
-      {:ok, users_map}
+  defp add_user_to_map(schema, acc) do
+    case schema_to_entity(schema) do
+      {:ok, user} -> Map.put(acc, schema.id, user)
+      {:error, _} -> acc
     end
   end
 
