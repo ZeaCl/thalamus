@@ -33,7 +33,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenController do
   - client_id (required): OAuth2 client identifier
   - client_secret (required): OAuth2 client secret
   - delegated_by_user_id (required): User ID of human authorizer
-  - agent_type (required): "autonomous" | "supervised" | "ephemeral"
+  - agent_type (required): "autonomous" | "supervisor" | "tool"
   - scope (required): Space-separated scopes (must be subset of client allowed_scopes)
   - task_id (optional): External task identifier
   - task_type (optional): Task classification
@@ -154,7 +154,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenController do
       conn,
       :bad_request,
       "invalid_request",
-      "agent_type must be autonomous, supervised, or ephemeral"
+      "agent_type must be autonomous, supervisor, or tool"
     )
   end
 

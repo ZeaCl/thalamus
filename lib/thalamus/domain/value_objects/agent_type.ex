@@ -9,18 +9,18 @@ defmodule Thalamus.Domain.ValueObjects.AgentType do
 
   @type t :: %__MODULE__{value: atom()}
 
-  @valid_types [:autonomous, :supervised, :ephemeral]
+  @valid_types [:autonomous, :supervisor, :tool]
 
   defstruct [:value]
 
   @doc """
   Creates a new AgentType value object.
 
-  ## Valid Types
+  ## Valid Types (per 03-tasks.md spec)
 
   - `:autonomous` - Agent operates independently without human approval per action
-  - `:supervised` - Agent requires human approval for critical actions
-  - `:ephemeral` - Short-lived agent for single task execution
+  - `:supervisor` - Agent that coordinates and delegates to other agents
+  - `:tool` - Specialized agent for single-purpose tool execution
 
   ## Examples
 

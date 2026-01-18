@@ -34,6 +34,12 @@ defmodule Thalamus.Domain.ValueObjects.DelegationChain do
 
   def new(_), do: {:error, :invalid_delegation_chain}
 
+  @doc "Creates a root (empty) delegation chain"
+  @spec root() :: {:ok, t()}
+  def root do
+    {:ok, %__MODULE__{chain: []}}
+  end
+
   @doc "Creates a delegation chain with a single delegator"
   @spec from_delegator(String.t()) :: {:ok, t()} | {:error, atom()}
   def from_delegator(user_id) do

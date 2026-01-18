@@ -100,7 +100,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
       assert expires_in == 900
     end
 
-    test "generates supervised agent token with all optional params", %{
+    test "generates supervisor agent token with all optional params", %{
       conn: conn,
       delegator: delegator,
       client: client
@@ -110,7 +110,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
           client_id: to_string(client.id),
           client_secret: @test_client_secret,
           delegated_by_user_id: to_string(delegator.id),
-          agent_type: "supervised",
+          agent_type: "supervisor",
           scope: "zea:read zea:write",
           task_id: "task_abc123",
           task_type: "document_processing",
@@ -126,7 +126,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
                "token_type" => "Bearer",
                "expires_in" => 1800,
                "scope" => scope,
-               "agent_type" => "supervised",
+               "agent_type" => "supervisor",
                "task_id" => "task_abc123",
                "max_operations" => 100,
                "expires_on_completion" => true
@@ -137,7 +137,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
       assert scope =~ "zea:write"
     end
 
-    test "generates ephemeral agent token with operations limit", %{
+    test "generates tool agent token with operations limit", %{
       conn: conn,
       delegator: delegator,
       client: client
@@ -147,9 +147,9 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
           client_id: to_string(client.id),
           client_secret: @test_client_secret,
           delegated_by_user_id: to_string(delegator.id),
-          agent_type: "ephemeral",
+          agent_type: "tool",
           scope: "zea:read",
-          task_id: "ephemeral_task_001",
+          task_id: "tool_task_001",
           max_operations: 10,
           expires_on_completion: true,
           expires_in: 300
@@ -160,8 +160,8 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
                "token_type" => "Bearer",
                "expires_in" => 300,
                "scope" => "zea:read",
-               "agent_type" => "ephemeral",
-               "task_id" => "ephemeral_task_001",
+               "agent_type" => "tool",
+               "task_id" => "tool_task_001",
                "max_operations" => 10,
                "expires_on_completion" => true
              } = json_response(conn, 200)
@@ -264,7 +264,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
           scope: "zea:read"
         })
 
-      assert_stripe_error(conn, 400, "invalid_request", "agent_type must be autonomous, supervised, or ephemeral")
+      assert_stripe_error(conn, 400, "invalid_request", "agent_type must be autonomous, supervisor, or tool")
     end
 
     test "returns error with empty scope", %{conn: conn, delegator: delegator, client: client} do
@@ -538,7 +538,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
           client_id: to_string(client.id),
           client_secret: @test_client_secret,
           delegated_by_user_id: to_string(delegator.id),
-          agent_type: "supervised",
+          agent_type: "supervisor",
           scope: "zea:write",
           task_id: "introspection_test",
           max_operations: 25
@@ -558,7 +558,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
                "active" => true,
                "scope" => "zea:write",
                "client_id" => _,
-               "agent_type" => "supervised",
+               "agent_type" => "supervisor",
                "delegated_by" => _,
                "delegation_chain" => [_],
                "delegation_depth" => 1,
