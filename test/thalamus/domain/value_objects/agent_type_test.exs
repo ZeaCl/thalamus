@@ -8,12 +8,12 @@ defmodule Thalamus.Domain.ValueObjects.AgentTypeTest do
       assert {:ok, %AgentType{value: :autonomous}} = AgentType.new(:autonomous)
     end
 
-    test "creates supervised agent type" do
-      assert {:ok, %AgentType{value: :supervised}} = AgentType.new(:supervised)
+    test "creates supervisor agent type" do
+      assert {:ok, %AgentType{value: :supervisor}} = AgentType.new(:supervisor)
     end
 
-    test "creates ephemeral agent type" do
-      assert {:ok, %AgentType{value: :ephemeral}} = AgentType.new(:ephemeral)
+    test "creates tool agent type" do
+      assert {:ok, %AgentType{value: :tool}} = AgentType.new(:tool)
     end
 
     test "fails with invalid atom" do
@@ -28,24 +28,24 @@ defmodule Thalamus.Domain.ValueObjects.AgentTypeTest do
       assert {:ok, %AgentType{value: :autonomous}} = AgentType.new("autonomous")
     end
 
-    test "creates supervised from lowercase string" do
-      assert {:ok, %AgentType{value: :supervised}} = AgentType.new("supervised")
+    test "creates supervisor from lowercase string" do
+      assert {:ok, %AgentType{value: :supervisor}} = AgentType.new("supervisor")
     end
 
-    test "creates ephemeral from lowercase string" do
-      assert {:ok, %AgentType{value: :ephemeral}} = AgentType.new("ephemeral")
+    test "creates tool from lowercase string" do
+      assert {:ok, %AgentType{value: :tool}} = AgentType.new("tool")
     end
 
     test "creates autonomous from uppercase string" do
       assert {:ok, %AgentType{value: :autonomous}} = AgentType.new("AUTONOMOUS")
     end
 
-    test "creates supervised from mixed case string" do
-      assert {:ok, %AgentType{value: :supervised}} = AgentType.new("Supervised")
+    test "creates supervisor from mixed case string" do
+      assert {:ok, %AgentType{value: :supervisor}} = AgentType.new("Supervisor")
     end
 
-    test "creates ephemeral from uppercase string" do
-      assert {:ok, %AgentType{value: :ephemeral}} = AgentType.new("EPHEMERAL")
+    test "creates tool from uppercase string" do
+      assert {:ok, %AgentType{value: :tool}} = AgentType.new("TOOL")
     end
 
     test "fails with invalid string" do
@@ -93,14 +93,14 @@ defmodule Thalamus.Domain.ValueObjects.AgentTypeTest do
       assert AgentType.to_string(agent_type) == "autonomous"
     end
 
-    test "converts supervised to string" do
-      {:ok, agent_type} = AgentType.new(:supervised)
-      assert AgentType.to_string(agent_type) == "supervised"
+    test "converts supervisor to string" do
+      {:ok, agent_type} = AgentType.new(:supervisor)
+      assert AgentType.to_string(agent_type) == "supervisor"
     end
 
-    test "converts ephemeral to string" do
-      {:ok, agent_type} = AgentType.new(:ephemeral)
-      assert AgentType.to_string(agent_type) == "ephemeral"
+    test "converts tool to string" do
+      {:ok, agent_type} = AgentType.new(:tool)
+      assert AgentType.to_string(agent_type) == "tool"
     end
   end
 
@@ -110,14 +110,14 @@ defmodule Thalamus.Domain.ValueObjects.AgentTypeTest do
       assert to_string(agent_type) == "autonomous"
     end
 
-    test "implements String.Chars for supervised" do
-      {:ok, agent_type} = AgentType.new(:supervised)
-      assert to_string(agent_type) == "supervised"
+    test "implements String.Chars for supervisor" do
+      {:ok, agent_type} = AgentType.new(:supervisor)
+      assert to_string(agent_type) == "supervisor"
     end
 
-    test "implements String.Chars for ephemeral" do
-      {:ok, agent_type} = AgentType.new(:ephemeral)
-      assert to_string(agent_type) == "ephemeral"
+    test "implements String.Chars for tool" do
+      {:ok, agent_type} = AgentType.new(:tool)
+      assert to_string(agent_type) == "tool"
     end
 
     test "works with string interpolation" do
@@ -132,14 +132,14 @@ defmodule Thalamus.Domain.ValueObjects.AgentTypeTest do
       assert Jason.encode!(agent_type) == ~s("autonomous")
     end
 
-    test "encodes supervised to JSON string" do
-      {:ok, agent_type} = AgentType.new(:supervised)
-      assert Jason.encode!(agent_type) == ~s("supervised")
+    test "encodes supervisor to JSON string" do
+      {:ok, agent_type} = AgentType.new(:supervisor)
+      assert Jason.encode!(agent_type) == ~s("supervisor")
     end
 
-    test "encodes ephemeral to JSON string" do
-      {:ok, agent_type} = AgentType.new(:ephemeral)
-      assert Jason.encode!(agent_type) == ~s("ephemeral")
+    test "encodes tool to JSON string" do
+      {:ok, agent_type} = AgentType.new(:tool)
+      assert Jason.encode!(agent_type) == ~s("tool")
     end
 
     test "encodes and decodes roundtrip" do
@@ -160,18 +160,18 @@ defmodule Thalamus.Domain.ValueObjects.AgentTypeTest do
 
     test "agent types with different values are not equal" do
       {:ok, type1} = AgentType.new(:autonomous)
-      {:ok, type2} = AgentType.new(:supervised)
+      {:ok, type2} = AgentType.new(:supervisor)
       assert type1 != type2
     end
 
-    test "autonomous vs supervised vs ephemeral" do
+    test "autonomous vs supervisor vs tool" do
       {:ok, autonomous} = AgentType.new(:autonomous)
-      {:ok, supervised} = AgentType.new(:supervised)
-      {:ok, ephemeral} = AgentType.new(:ephemeral)
+      {:ok, supervisor} = AgentType.new(:supervisor)
+      {:ok, tool} = AgentType.new(:tool)
 
-      assert autonomous != supervised
-      assert autonomous != ephemeral
-      assert supervised != ephemeral
+      assert autonomous != supervisor
+      assert autonomous != tool
+      assert supervisor != tool
     end
   end
 
@@ -179,8 +179,8 @@ defmodule Thalamus.Domain.ValueObjects.AgentTypeTest do
     test "returns all valid agent types" do
       valid_types = AgentType.valid_types()
       assert :autonomous in valid_types
-      assert :supervised in valid_types
-      assert :ephemeral in valid_types
+      assert :supervisor in valid_types
+      assert :tool in valid_types
       assert length(valid_types) == 3
     end
   end
@@ -204,8 +204,8 @@ defmodule Thalamus.Domain.ValueObjects.AgentTypeTest do
 
     test "special characters fail" do
       assert {:error, :invalid_agent_type} = AgentType.new("autonomous!")
-      assert {:error, :invalid_agent_type} = AgentType.new("supervised?")
-      assert {:error, :invalid_agent_type} = AgentType.new("ephemeral#")
+      assert {:error, :invalid_agent_type} = AgentType.new("supervisor?")
+      assert {:error, :invalid_agent_type} = AgentType.new("tool#")
     end
   end
 
@@ -216,8 +216,8 @@ defmodule Thalamus.Domain.ValueObjects.AgentTypeTest do
       result =
         case agent_type do
           %AgentType{value: :autonomous} -> :matched_autonomous
-          %AgentType{value: :supervised} -> :matched_supervised
-          %AgentType{value: :ephemeral} -> :matched_ephemeral
+          %AgentType{value: :supervisor} -> :matched_supervisor
+          %AgentType{value: :tool} -> :matched_tool
         end
 
       assert result == :matched_autonomous
@@ -231,16 +231,16 @@ defmodule Thalamus.Domain.ValueObjects.AgentTypeTest do
       assert autonomous.value == :autonomous
     end
 
-    test "supervised indicates human oversight required" do
-      {:ok, supervised} = AgentType.new(:supervised)
-      # In production, supervised agents require human approval for actions
-      assert supervised.value == :supervised
+    test "supervisor indicates human oversight required" do
+      {:ok, supervisor} = AgentType.new(:supervisor)
+      # In production, supervisor agents require human approval for actions
+      assert supervisor.value == :supervisor
     end
 
-    test "ephemeral indicates short-lived task-specific agent" do
-      {:ok, ephemeral} = AgentType.new(:ephemeral)
-      # In production, ephemeral agents are auto-revoked after task completion
-      assert ephemeral.value == :ephemeral
+    test "tool indicates short-lived task-specific agent" do
+      {:ok, tool} = AgentType.new(:tool)
+      # In production, tool agents are auto-revoked after task completion
+      assert tool.value == :tool
     end
   end
 end
