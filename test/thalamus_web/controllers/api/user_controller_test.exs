@@ -1,39 +1,56 @@
 defmodule ThalamusWeb.API.UserControllerTest do
   use ThalamusWeb.ConnCase, async: true
 
-  # TODO: Migrate to new AccessToken.generate API
-  # Old: AccessToken.generate(user_id, client_id, scopes, ttl)
-  # New: AccessToken.generate(scopes, subject, ttl, token_type)
-  @moduletag :skip
-
-  alias Thalamus.Domain.Entities.User
-  alias Thalamus.Domain.ValueObjects.AccessToken
+  alias Thalamus.Domain.Entities.{User, Organization}
+  alias Thalamus.Domain.ValueObjects.{AccessToken, Scope}
+  alias Thalamus.TestHelpers
 
   alias Thalamus.Infrastructure.Repositories.{
     PostgreSQLUserRepository,
+    PostgreSQLOrganizationRepository,
+    PostgreSQLOAuth2ClientRepository,
     PostgreSQLTokenRepository
   }
 
   setup do
+    # Create organization for OAuth2 client
+    {:ok, org} = Organization.new("Test Corp", "owner@test.com", :professional)
+    {:ok, org} = PostgreSQLOrganizationRepository.save(org)
+
     # Create admin user with access token
     {:ok, admin} = User.register("admin@test.com", "AdminPass123!")
     {:ok, admin} = User.verify_email(admin)
     {:ok, admin} = PostgreSQLUserRepository.save(admin)
 
+    # Create OAuth2 client
+    {:ok, client} =
+      TestHelpers.create_test_client("Test Client", org.id, ["zea:read", "zea:write", "zea:admin"])
+
+    {:ok, client} = PostgreSQLOAuth2ClientRepository.save(client)
+
     # Generate access token
+    {:ok, read_scope} = Scope.new("zea:read")
+    {:ok, write_scope} = Scope.new("zea:write")
+    {:ok, admin_scope} = Scope.new("zea:admin")
+    scopes = [read_scope, write_scope, admin_scope]
+
     {:ok, access_token} =
       AccessToken.generate(
+        scopes,
         admin.id,
-        Thalamus.Domain.ValueObjects.ClientId.generate(),
-        [:read, :write, :admin],
         3600
       )
+
+    # Extract client ID without "client_" prefix for DB storage
+    client_id_string = Thalamus.Domain.ValueObjects.ClientId.to_string(client.id)
+    client_uuid = String.replace_prefix(client_id_string, "client_", "")
 
     token_data = %{
       token: access_token.token,
       type: :access_token,
       user_id: admin.id,
-      scope: [:read, :write, :admin],
+      client_id: client_uuid,
+      scopes: ["zea:read", "zea:write", "zea:admin"],
       expires_at: access_token.expires_at
     }
 

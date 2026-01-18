@@ -1,13 +1,9 @@
 defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
   use ThalamusWeb.ConnCase, async: true
 
-  # TODO: Migrate to new AccessToken.generate API
-  # Old: AccessToken.generate(user_id, client_id, scopes, ttl)
-  # New: AccessToken.generate(scopes, subject, ttl, token_type)
-  @moduletag :skip
-
   alias Thalamus.Domain.Entities.{User, Organization, OAuth2Client}
   alias Thalamus.Domain.ValueObjects.{AccessToken, Scope}
+  alias Thalamus.TestHelpers
 
   alias Thalamus.Infrastructure.Repositories.{
     PostgreSQLUserRepository,
@@ -26,6 +22,12 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
     {:ok, admin} = User.verify_email(admin)
     {:ok, admin} = PostgreSQLUserRepository.save(admin)
 
+    # Create OAuth2 client
+    {:ok, client} =
+      TestHelpers.create_test_client("Test Client", org.id, ["zea:read", "zea:write", "zea:admin"])
+
+    {:ok, client} = PostgreSQLOAuth2ClientRepository.save(client)
+
     # Generate access token
     {:ok, read_scope} = Scope.new("zea:read")
     {:ok, write_scope} = Scope.new("zea:write")
@@ -39,14 +41,15 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
         3600
       )
 
-    # Generate a test client UUID (without "client_" prefix for DB storage)
-    test_client_uuid = Ecto.UUID.generate()
+    # Extract client ID without "client_" prefix for DB storage
+    client_id_string = Thalamus.Domain.ValueObjects.ClientId.to_string(client.id)
+    client_uuid = String.replace_prefix(client_id_string, "client_", "")
 
     token_data = %{
       token: access_token.token,
       type: :access_token,
       user_id: admin.id,
-      client_id: test_client_uuid,
+      client_id: client_uuid,
       scopes: ["zea:read", "zea:write", "zea:admin"],
       expires_at: access_token.expires_at
     }

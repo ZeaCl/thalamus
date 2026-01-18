@@ -1,41 +1,57 @@
 defmodule ThalamusWeb.API.MFAControllerTest do
   use ThalamusWeb.ConnCase, async: true
 
-  # TODO: Migrate to new AccessToken.generate API
-  # Old: AccessToken.generate(user_id, client_id, scopes, ttl)
-  # New: AccessToken.generate(scopes, subject, ttl, token_type)
-  @moduletag :skip
-
-  alias Thalamus.Domain.Entities.User
-  alias Thalamus.Domain.ValueObjects.AccessToken
+  alias Thalamus.Domain.Entities.{User, Organization}
+  alias Thalamus.Domain.ValueObjects.{AccessToken, Scope}
+  alias Thalamus.TestHelpers
 
   alias Thalamus.Infrastructure.Repositories.{
     PostgreSQLUserRepository,
+    PostgreSQLOrganizationRepository,
+    PostgreSQLOAuth2ClientRepository,
     PostgreSQLTokenRepository
   }
 
   alias Thalamus.Infrastructure.Adapters.RedisCacheAdapter
 
   setup do
+    # Create organization for OAuth2 client
+    {:ok, org} = Organization.new("Test Corp", "owner@test.com", :professional)
+    {:ok, org} = PostgreSQLOrganizationRepository.save(org)
+
     # Create and verify user
     {:ok, user} = User.register("user@test.com", "Password123!")
     {:ok, user} = User.verify_email(user)
     {:ok, user} = PostgreSQLUserRepository.save(user)
 
+    # Create OAuth2 client
+    {:ok, client} =
+      TestHelpers.create_test_client("Test Client", org.id, ["zea:read", "zea:write"])
+
+    {:ok, client} = PostgreSQLOAuth2ClientRepository.save(client)
+
     # Generate access token for authenticated requests
+    {:ok, read_scope} = Scope.new("zea:read")
+    {:ok, write_scope} = Scope.new("zea:write")
+    scopes = [read_scope, write_scope]
+
     {:ok, access_token} =
       AccessToken.generate(
+        scopes,
         user.id,
-        Thalamus.Domain.ValueObjects.ClientId.generate(),
-        [:read, :write],
         3600
       )
+
+    # Extract client ID without "client_" prefix for DB storage
+    client_id_string = Thalamus.Domain.ValueObjects.ClientId.to_string(client.id)
+    client_uuid = String.replace_prefix(client_id_string, "client_", "")
 
     token_data = %{
       token: access_token.token,
       type: :access_token,
       user_id: user.id,
-      scope: [:read, :write],
+      client_id: client_uuid,
+      scopes: ["zea:read", "zea:write"],
       expires_at: access_token.expires_at
     }
 
