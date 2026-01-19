@@ -100,3 +100,8 @@ defimpl Jason.Encoder, for: Thalamus.Domain.ValueObjects.ClientId do
     Jason.Encode.string(value, opts)
   end
 end
+
+# Implement Phoenix.Param protocol for URL generation
+defimpl Phoenix.Param, for: Thalamus.Domain.ValueObjects.ClientId do
+  def to_param(%Thalamus.Domain.ValueObjects.ClientId{value: value}), do: value
+end

@@ -54,6 +54,7 @@ defmodule Thalamus.Domain.ValueObjects.Email do
       "user@example.com"
   """
   def to_string(%__MODULE__{value: value}), do: value
+  def to_string(nil), do: nil
 
   @doc """
   Creates Email from string (for database loading).

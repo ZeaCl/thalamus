@@ -353,7 +353,7 @@ defmodule ThalamusWeb.API.MFAController do
   # ============================================================================
 
   defp validate_mfa_not_enabled(user) do
-    if user.mfa_enabled do
+    if User.mfa_enabled?(user) do
       {:error, :mfa_already_enabled}
     else
       :ok
@@ -361,7 +361,7 @@ defmodule ThalamusWeb.API.MFAController do
   end
 
   defp validate_user_has_mfa(user) do
-    if user.mfa_enabled do
+    if User.mfa_enabled?(user) do
       :ok
     else
       {:error, :mfa_not_enabled}

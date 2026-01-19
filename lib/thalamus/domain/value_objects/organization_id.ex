@@ -50,6 +50,20 @@ defmodule Thalamus.Domain.ValueObjects.OrganizationId do
   end
 
   @doc """
+  Generates a new unique OrganizationId, raising on error.
+
+  ## Examples
+
+      iex> %OrganizationId{value: value} = OrganizationId.generate!()
+      iex> String.starts_with?(value, "org_")
+      true
+  """
+  def generate! do
+    {:ok, org_id} = generate()
+    org_id
+  end
+
+  @doc """
   Converts OrganizationId to string for database storage or API responses.
 
   ## Examples
@@ -99,4 +113,9 @@ defimpl Jason.Encoder, for: Thalamus.Domain.ValueObjects.OrganizationId do
   def encode(%Thalamus.Domain.ValueObjects.OrganizationId{value: value}, opts) do
     Jason.Encode.string(value, opts)
   end
+end
+
+# Implement Phoenix.Param protocol for URL generation
+defimpl Phoenix.Param, for: Thalamus.Domain.ValueObjects.OrganizationId do
+  def to_param(%Thalamus.Domain.ValueObjects.OrganizationId{value: value}), do: value
 end

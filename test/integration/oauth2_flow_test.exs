@@ -60,6 +60,13 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
     {:ok, %{user: user, client: client, org: org}}
   end
 
+  # Helper function to set session with proper initialization
+  defp put_user_session(conn, user_id) do
+    conn
+    |> Plug.Test.init_test_session(%{})
+    |> put_session(:user_id, user_id)
+  end
+
   describe "Complete Authorization Code Flow" do
     test "completes full flow: authorize → approve → exchange → use token", %{
       conn: conn,
@@ -72,7 +79,7 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
 
       conn1 =
         conn
-        |> put_session(:user_id, to_string(user.id))
+        |> put_user_session(to_string(user.id))
         |> get(~p"/oauth/authorize", %{
           response_type: "code",
           client_id: to_string(client.id),
@@ -88,7 +95,7 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
       # Step 2: User approves authorization
       conn2 =
         conn
-        |> put_session(:user_id, to_string(user.id))
+        |> put_user_session(to_string(user.id))
         |> post(~p"/oauth/authorize", %{
           decision: "approve",
           client_id: to_string(client.id),
@@ -207,7 +214,7 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
       # Step 1: Authorization request with code_challenge
       conn1 =
         conn
-        |> put_session(:user_id, to_string(user.id))
+        |> put_user_session(to_string(user.id))
         |> get(~p"/oauth/authorize", %{
           response_type: "code",
           client_id: to_string(client.id),
@@ -223,7 +230,7 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
       # Step 2: User approves
       conn2 =
         conn
-        |> put_session(:user_id, to_string(user.id))
+        |> put_user_session(to_string(user.id))
         |> post(~p"/oauth/authorize", %{
           decision: "approve",
           client_id: to_string(client.id),
@@ -270,7 +277,7 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
       # Get authorization code
       conn1 =
         conn
-        |> put_session(:user_id, to_string(user.id))
+        |> put_user_session(to_string(user.id))
         |> post(~p"/oauth/authorize", %{
           decision: "approve",
           client_id: to_string(client.id),
@@ -423,7 +430,7 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
       # Get authorization code
       conn1 =
         conn
-        |> put_session(:user_id, to_string(user.id))
+        |> put_user_session(to_string(user.id))
         |> post(~p"/oauth/authorize", %{
           decision: "approve",
           client_id: to_string(client.id),
