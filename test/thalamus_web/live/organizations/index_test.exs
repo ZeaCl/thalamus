@@ -10,7 +10,7 @@ defmodule ThalamusWeb.Organizations.IndexTest do
     # Create an auth user
     org =
       OrganizationSchema.create_changeset(%{
-        "name" => "Auth Org",
+        "name" => "Auth Org #{System.unique_integer()}",
         "plan_type" => "free"
       })
       |> Repo.insert!()

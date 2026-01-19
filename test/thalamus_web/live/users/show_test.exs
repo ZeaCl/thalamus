@@ -16,7 +16,7 @@ defmodule ThalamusWeb.Users.ShowTest do
     # Create test organization
     org =
       OrganizationSchema.create_changeset(%{
-        "name" => "Test Organization",
+        "name" => "Test Org #{System.unique_integer()}",
         "plan_type" => "free"
       })
       |> Repo.insert!()

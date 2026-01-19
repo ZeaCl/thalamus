@@ -10,7 +10,7 @@ defmodule ThalamusWeb.Organizations.FormTest do
     # Create an auth user
     org =
       OrganizationSchema.create_changeset(%{
-        "name" => "Auth Org",
+        "name" => "Auth Org #{System.unique_integer()}",
         "plan_type" => "free"
       })
       |> Repo.insert!()
@@ -74,7 +74,7 @@ defmodule ThalamusWeb.Organizations.FormTest do
       view
       |> form("form", %{
         "organization" => %{
-          "name" => "Duplicate Org",
+          "name" => "Duplicate Org #{System.unique_integer()}",
           "plan_type" => "free"
         }
       })

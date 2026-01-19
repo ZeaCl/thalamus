@@ -7,18 +7,18 @@ defmodule ThalamusWeb.Organizations.ShowTest do
   alias Thalamus.Infrastructure.Persistence.Schemas.{OrganizationSchema, UserSchema}
 
   setup %{conn: conn} do
-    # Create an auth user
+    # Create an auth user with unique org to prevent deadlocks
     org =
       OrganizationSchema.create_changeset(%{
-        "name" => "Auth Org",
+        "name" => "Auth Org #{System.unique_integer()}",
         "plan_type" => "free"
       })
       |> Repo.insert!()
 
     auth_user = create_user(org, "admin@example.com")
 
-    # Create test organization
-    test_org = create_organization("Test Organization", "professional")
+    # Create test organization with unique name to prevent deadlocks
+    test_org = create_organization("Test Org #{System.unique_integer()}", "professional")
 
     conn =
       build_conn()

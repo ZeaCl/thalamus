@@ -13,7 +13,7 @@ defmodule ThalamusWeb.Clients.FormTest do
     # Create test organization using the changeset to set defaults
     org =
       OrganizationSchema.create_changeset(%{
-        "name" => "Test Organization",
+        "name" => "Test Org #{System.unique_integer()}",
         "plan_type" => "free"
       })
       |> Repo.insert!()

@@ -16,7 +16,7 @@ defmodule ThalamusWeb.AuditLogs.IndexTest do
     # Create an organization
     org =
       OrganizationSchema.create_changeset(%{
-        "name" => "Test Org",
+        "name" => "Test Org #{System.unique_integer()}",
         "plan_type" => "professional"
       })
       |> Repo.insert!()

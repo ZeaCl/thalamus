@@ -10,7 +10,7 @@ defmodule ThalamusWeb.Users.IndexTest do
     # Create test organization
     org =
       OrganizationSchema.create_changeset(%{
-        "name" => "Test Organization",
+        "name" => "Test Org #{System.unique_integer()}",
         "plan_type" => "free"
       })
       |> Repo.insert!()
@@ -208,7 +208,7 @@ defmodule ThalamusWeb.Users.IndexTest do
 
       {:ok, _view, html} = live(conn, ~p"/dashboard/users")
 
-      assert html =~ "Test Organization"
+      assert html =~ org.name
     end
 
     test "displays 'No organization' for users without org", %{conn: conn} do

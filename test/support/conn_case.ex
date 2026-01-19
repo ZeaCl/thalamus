@@ -52,19 +52,14 @@ defmodule ThalamusWeb.ConnCase do
     alias Thalamus.Repo
     alias Thalamus.Infrastructure.Persistence.Schemas.{UserSchema, OrganizationSchema}
 
-    # Create or get test organization
+    # Create unique test organization for each test
+    # This prevents deadlocks when running tests in parallel (async: true)
     org =
-      case Repo.get_by(OrganizationSchema, name: "Test Organization") do
-        nil ->
-          OrganizationSchema.create_changeset(%{
-            "name" => "Test Organization",
-            "plan_type" => "free"
-          })
-          |> Repo.insert!()
-
-        org ->
-          org
-      end
+      OrganizationSchema.create_changeset(%{
+        "name" => "Test Org #{System.unique_integer()}",
+        "plan_type" => "free"
+      })
+      |> Repo.insert!()
 
     # Hash password before creating user
     password_hash = Bcrypt.hash_pwd_salt("TestPassword123!")
