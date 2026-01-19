@@ -691,13 +691,17 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLTokenRepositoryTest do
     user_uuid = create_test_user()
     client_uuid = create_test_client()
 
+    # Truncate expires_at to seconds to match :utc_datetime DB column type
+    expires_at = Keyword.get(overrides, :expires_at)
+    expires_at = if expires_at, do: DateTime.truncate(expires_at, :second), else: nil
+
     token = %TokenSchema{
       token: Keyword.get(overrides, :token, "token_#{:rand.uniform(1_000_000)}"),
       type: Keyword.get(overrides, :type, :access_token),
       user_id: user_uuid,
       client_id: client_uuid,
       scopes: Keyword.get(overrides, :scopes, ["openid", "profile"]),
-      expires_at: Keyword.get(overrides, :expires_at),
+      expires_at: expires_at,
       revoked: false
     }
 
