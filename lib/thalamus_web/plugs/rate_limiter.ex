@@ -83,19 +83,27 @@ defmodule ThalamusWeb.Plugs.RateLimiter do
   end
 
   def call(conn, opts) do
-    # Generate rate limit key
-    rate_limit_key = generate_key(conn, opts.key_strategy)
+    # Check if rate limiting is enabled (can be disabled in test environment)
+    rate_limiting_enabled = Application.get_env(:thalamus, :rate_limiting_enabled, true)
 
-    # Check rate limit
-    case check_rate_limit(rate_limit_key, opts.limit, opts.window) do
-      {:ok, remaining, reset_at} ->
-        # Within limit - add headers and continue
-        conn
-        |> put_rate_limit_headers(opts.limit, remaining, reset_at)
+    if rate_limiting_enabled do
+      # Generate rate limit key
+      rate_limit_key = generate_key(conn, opts.key_strategy)
 
-      {:error, :rate_limited, retry_after} ->
-        # Rate limit exceeded
-        rate_limit_exceeded(conn, opts.limit, retry_after)
+      # Check rate limit
+      case check_rate_limit(rate_limit_key, opts.limit, opts.window) do
+        {:ok, remaining, reset_at} ->
+          # Within limit - add headers and continue
+          conn
+          |> put_rate_limit_headers(opts.limit, remaining, reset_at)
+
+        {:error, :rate_limited, retry_after} ->
+          # Rate limit exceeded
+          rate_limit_exceeded(conn, opts.limit, retry_after)
+      end
+    else
+      # Rate limiting disabled - pass through without checks
+      conn
     end
   end
 

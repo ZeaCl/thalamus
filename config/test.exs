@@ -29,3 +29,13 @@ config :phoenix, :plug_init_mode, :runtime
 # Enable helpful, but potentially expensive runtime checks
 config :phoenix_live_view,
   enable_expensive_runtime_checks: true
+
+# Disable rate limiting during tests
+# Tests run rapidly and would hit the production limits (20 req/min for authorization)
+# This allows us to test actual functionality without rate limit interference
+config :thalamus, :rate_limiting_enabled, false
+
+# Configure Hammer with very high limits for test environment
+# This is a fallback in case rate limiting is enabled
+config :hammer,
+  backend: {Hammer.Backend.ETS, [expiry_ms: 60_000, cleanup_interval_ms: 60_000]}
