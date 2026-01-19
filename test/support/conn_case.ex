@@ -66,11 +66,14 @@ defmodule ThalamusWeb.ConnCase do
           org
       end
 
+    # Hash password before creating user
+    password_hash = Bcrypt.hash_pwd_salt("TestPassword123!")
+
     # Create test user
     user =
       UserSchema.create_changeset(%{
         "email" => "test#{System.unique_integer()}@example.com",
-        "password" => "TestPassword123!",
+        "password_hash" => password_hash,
         "organization_id" => org.id,
         "status" => "active"
       })

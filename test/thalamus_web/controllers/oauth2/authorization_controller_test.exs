@@ -2,6 +2,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
   use ThalamusWeb.ConnCase, async: true
 
   alias Thalamus.Domain.Entities.{User, Organization, OAuth2Client}
+  alias Thalamus.Domain.ValueObjects.{ClientId, GrantType, Scope, RedirectUri}
 
   alias Thalamus.Infrastructure.Repositories.{
     PostgreSQLUserRepository,
@@ -19,17 +20,33 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
     {:ok, user} = User.verify_email(user)
     {:ok, user} = PostgreSQLUserRepository.save(user)
 
-    # Create OAuth2 client
+    # Create OAuth2 client with new API
+    {:ok, client_id} = ClientId.generate()
+    {:ok, auth_code_grant} = GrantType.authorization_code()
+    {:ok, refresh_grant} = GrantType.refresh_token()
+    {:ok, read_scope} = Scope.new("zea:read")
+    {:ok, write_scope} = Scope.new("zea:write")
+    {:ok, redirect_uri} = RedirectUri.new("http://localhost:3000/callback")
+
+    # Generate plain text secret to use in tests
+    plain_secret = :crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false)
+
     {:ok, client} =
-      OAuth2Client.new(
-        "Test Client",
-        org.id,
-        ["http://localhost:3000/callback"],
-        [:authorization_code, :refresh_token],
-        [:read, :write]
-      )
+      OAuth2Client.new(%{
+        id: client_id,
+        organization_id: org.id,
+        name: "Test Client",
+        client_type: :confidential,
+        client_secret: plain_secret,
+        grant_types: [auth_code_grant, refresh_grant],
+        redirect_uris: [redirect_uri],
+        allowed_scopes: [read_scope, write_scope]
+      })
 
     {:ok, client} = PostgreSQLOAuth2ClientRepository.save(client)
+
+    # Store plain secret for use in tests
+    client = Map.put(client, :plain_secret, plain_secret)
 
     {:ok, %{user: user, client: client, org: org}}
   end
