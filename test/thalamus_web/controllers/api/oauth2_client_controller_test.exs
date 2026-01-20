@@ -63,23 +63,23 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
     test "lists all OAuth2 clients", %{conn: conn, org: org, access_token: token} do
       # Create test clients
       {:ok, client1} =
-        OAuth2Client.new(
+        TestHelpers.create_test_client(
           "Web App",
           org.id,
-          ["http://localhost:3000/callback"],
-          [:authorization_code, :refresh_token],
-          [:read, :write]
+          ["zea:read", "zea:write"],
+          redirect_uris: ["http://localhost:3000/callback"],
+          grant_types: [:authorization_code, :refresh_token]
         )
 
       {:ok, _} = PostgreSQLOAuth2ClientRepository.save(client1)
 
       {:ok, client2} =
-        OAuth2Client.new(
+        TestHelpers.create_test_client(
           "Mobile App",
           org.id,
-          ["myapp://callback"],
-          [:authorization_code],
-          [:read]
+          ["zea:read"],
+          redirect_uris: ["http://localhost:4000/callback"],
+          grant_types: [:authorization_code]
         )
 
       {:ok, _} = PostgreSQLOAuth2ClientRepository.save(client2)
@@ -99,12 +99,12 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
 
     test "filters clients by organization", %{conn: conn, org: org, access_token: token} do
       {:ok, client} =
-        OAuth2Client.new(
+        TestHelpers.create_test_client(
           "Org Client",
           org.id,
-          ["http://localhost:3000/callback"],
-          [:client_credentials],
-          [:read]
+          ["zea:read"],
+          redirect_uris: ["http://localhost:3000/callback"],
+          grant_types: [:client_credentials]
         )
 
       {:ok, _} = PostgreSQLOAuth2ClientRepository.save(client)
@@ -140,7 +140,7 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
           organization_id: to_string(org.id),
           redirect_uris: ["http://localhost:3000/callback", "http://localhost:3000/auth"],
           allowed_grant_types: ["authorization_code", "refresh_token"],
-          allowed_scopes: ["read", "write"]
+          allowed_scopes: ["zea:read", "zea:write"]
         })
 
       assert %{
@@ -197,7 +197,7 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
           organization_id: to_string(org.id),
           redirect_uris: ["not-a-valid-uri"],
           allowed_grant_types: ["authorization_code"],
-          allowed_scopes: ["read"]
+          allowed_scopes: ["zea:read"]
         })
 
       assert %{
@@ -214,7 +214,7 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
           organization_id: to_string(org.id),
           redirect_uris: ["http://localhost:3000/callback"],
           allowed_grant_types: ["invalid_grant"],
-          allowed_scopes: ["read"]
+          allowed_scopes: ["zea:read"]
         })
 
       assert %{
@@ -251,12 +251,12 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
   describe "GET /api/clients/:id" do
     test "returns client by id", %{conn: conn, org: org, access_token: token} do
       {:ok, client} =
-        OAuth2Client.new(
+        TestHelpers.create_test_client(
           "Get Client",
           org.id,
-          ["http://localhost:3000/callback"],
-          [:authorization_code, :refresh_token],
-          [:read, :write]
+          ["zea:read", "zea:write"],
+          redirect_uris: ["http://localhost:3000/callback"],
+          grant_types: [:authorization_code, :refresh_token]
         )
 
       {:ok, client} = PostgreSQLOAuth2ClientRepository.save(client)
@@ -282,12 +282,12 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
 
     test "does not include secret in response", %{conn: conn, org: org, access_token: token} do
       {:ok, client} =
-        OAuth2Client.new(
+        TestHelpers.create_test_client(
           "Secret Client",
           org.id,
-          ["http://localhost:3000/callback"],
-          [:client_credentials],
-          [:read]
+          ["zea:read"],
+          redirect_uris: ["http://localhost:3000/callback"],
+          grant_types: [:client_credentials]
         )
 
       {:ok, client} = PostgreSQLOAuth2ClientRepository.save(client)
@@ -318,12 +318,12 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
 
     test "requires authentication", %{conn: conn, org: org} do
       {:ok, client} =
-        OAuth2Client.new(
+        TestHelpers.create_test_client(
           "Auth Client",
           org.id,
-          ["http://localhost:3000/callback"],
-          [:authorization_code],
-          [:read]
+          ["zea:read"],
+          redirect_uris: ["http://localhost:3000/callback"],
+          grant_types: [:authorization_code]
         )
 
       {:ok, client} = PostgreSQLOAuth2ClientRepository.save(client)
@@ -337,12 +337,12 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
   describe "PATCH /api/clients/:id" do
     test "updates client name", %{conn: conn, org: org, access_token: token} do
       {:ok, client} =
-        OAuth2Client.new(
+        TestHelpers.create_test_client(
           "Old Name",
           org.id,
-          ["http://localhost:3000/callback"],
-          [:authorization_code],
-          [:read]
+          ["zea:read"],
+          redirect_uris: ["http://localhost:3000/callback"],
+          grant_types: [:authorization_code]
         )
 
       {:ok, client} = PostgreSQLOAuth2ClientRepository.save(client)
@@ -364,12 +364,12 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
 
     test "updates redirect URIs", %{conn: conn, org: org, access_token: token} do
       {:ok, client} =
-        OAuth2Client.new(
+        TestHelpers.create_test_client(
           "Update URIs",
           org.id,
-          ["http://localhost:3000/callback"],
-          [:authorization_code],
-          [:read]
+          ["zea:read"],
+          redirect_uris: ["http://localhost:3000/callback"],
+          grant_types: [:authorization_code]
         )
 
       {:ok, client} = PostgreSQLOAuth2ClientRepository.save(client)
@@ -394,12 +394,12 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
 
     test "updates allowed scopes", %{conn: conn, org: org, access_token: token} do
       {:ok, client} =
-        OAuth2Client.new(
+        TestHelpers.create_test_client(
           "Update Scopes",
           org.id,
-          ["http://localhost:3000/callback"],
-          [:authorization_code],
-          [:read]
+          ["zea:read"],
+          redirect_uris: ["http://localhost:3000/callback"],
+          grant_types: [:authorization_code]
         )
 
       {:ok, client} = PostgreSQLOAuth2ClientRepository.save(client)
@@ -435,12 +435,12 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
 
     test "requires authentication", %{conn: conn, org: org} do
       {:ok, client} =
-        OAuth2Client.new(
+        TestHelpers.create_test_client(
           "No Auth",
           org.id,
-          ["http://localhost:3000/callback"],
-          [:authorization_code],
-          [:read]
+          ["zea:read"],
+          redirect_uris: ["http://localhost:3000/callback"],
+          grant_types: [:authorization_code]
         )
 
       {:ok, client} = PostgreSQLOAuth2ClientRepository.save(client)
@@ -457,12 +457,12 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
   describe "DELETE /api/clients/:id" do
     test "deletes client", %{conn: conn, org: org, access_token: token} do
       {:ok, client} =
-        OAuth2Client.new(
+        TestHelpers.create_test_client(
           "Delete Client",
           org.id,
-          ["http://localhost:3000/callback"],
-          [:client_credentials],
-          [:read]
+          ["zea:read"],
+          redirect_uris: ["http://localhost:3000/callback"],
+          grant_types: [:client_credentials]
         )
 
       {:ok, client} = PostgreSQLOAuth2ClientRepository.save(client)
@@ -491,12 +491,12 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
 
     test "requires authentication", %{conn: conn, org: org} do
       {:ok, client} =
-        OAuth2Client.new(
+        TestHelpers.create_test_client(
           "Auth Delete",
           org.id,
-          ["http://localhost:3000/callback"],
-          [:authorization_code],
-          [:read]
+          ["zea:read"],
+          redirect_uris: ["http://localhost:3000/callback"],
+          grant_types: [:authorization_code]
         )
 
       {:ok, client} = PostgreSQLOAuth2ClientRepository.save(client)
