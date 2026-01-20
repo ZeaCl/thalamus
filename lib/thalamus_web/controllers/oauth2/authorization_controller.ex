@@ -70,6 +70,9 @@ defmodule ThalamusWeb.OAuth2.AuthorizationController do
          {:ok, redirect_uri} <- validate_redirect_uri(params["redirect_uri"], client),
          {:ok, scopes} <- parse_scopes(params["scope"]),
          {:ok, pkce_params} <- extract_pkce_params(params) do
+      # Use client's allowed scopes if no scopes were requested
+      final_scopes = if Enum.empty?(scopes), do: client.allowed_scopes, else: scopes
+
       # Check if user is authenticated
       case get_authenticated_user(conn) do
         {:ok, _user_id} ->
@@ -77,7 +80,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationController do
           render_consent_screen(conn, %{
             client: client,
             client_id_string: client_id_string,
-            scopes: scopes,
+            scopes: final_scopes,
             redirect_uri: redirect_uri,
             state: params["state"],
             response_type: response_type,
@@ -151,6 +154,9 @@ defmodule ThalamusWeb.OAuth2.AuthorizationController do
          {:ok, redirect_uri} <- validate_redirect_uri(params["redirect_uri"], client),
          {:ok, scopes} <- parse_scopes(params["scope"]),
          {:ok, user_id} <- get_authenticated_user(conn) do
+      # Use client's allowed scopes if no scopes were requested
+      final_scopes = if Enum.empty?(scopes), do: client.allowed_scopes, else: scopes
+
       case decision do
         "approve" ->
           # User approved - generate authorization code
@@ -158,7 +164,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationController do
             client_id: client.id,
             user_id: user_id,
             redirect_uri: redirect_uri,
-            scopes: scopes,
+            scopes: final_scopes,
             state: params["state"],
             code_challenge: params["code_challenge"],
             code_challenge_method: params["code_challenge_method"]

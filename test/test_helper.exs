@@ -1,4 +1,12 @@
-ExUnit.start()
+# Exclude rate limit tests when rate limiting is disabled
+exclude_tags =
+  if Application.get_env(:thalamus, :rate_limiting_enabled, true) do
+    []
+  else
+    [:rate_limit]
+  end
+
+ExUnit.start(exclude: exclude_tags)
 
 # Define global mocks for use cases
 Mox.defmock(MockOAuth2ClientRepository, for: Thalamus.Application.Ports.OAuth2ClientRepository)
