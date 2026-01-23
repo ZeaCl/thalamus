@@ -180,7 +180,7 @@ defmodule Thalamus.Domain.Entities.OAuth2Client do
   def create_m2m(name, %OrganizationId{} = org_id) do
     with {:ok, client_id} <- ClientId.generate(),
          {:ok, grant} <- GrantType.client_credentials(),
-         {:ok, scope} <- Scope.new("zea:read") do
+         {:ok, scope} <- Scope.new("api:read") do
       new(%{
         id: client_id,
         organization_id: org_id,

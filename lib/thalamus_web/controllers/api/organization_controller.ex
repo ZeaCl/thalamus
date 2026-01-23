@@ -28,7 +28,7 @@ defmodule ThalamusWeb.API.OrganizationController do
 
   ## Query Parameters
   - status: Filter by status (pending_verification, active, suspended, inactive)
-  - plan_type: Filter by plan (free, starter, professional, enterprise)
+  - plan_type: Filter by plan (free, basic, standard, premium, enterprise)
   - verified: Filter by verification status (true/false)
   - limit: Number of results (default: 50, max: 100)
   - offset: Pagination offset
@@ -101,7 +101,7 @@ defmodule ThalamusWeb.API.OrganizationController do
   {
     "name": "Acme Corporation",
     "owner_email": "owner@acme.com",
-    "plan_type": "free|starter|professional|enterprise"
+    "plan_type": "free|basic|standard|premium|enterprise"
   }
 
   ## Response
@@ -157,7 +157,7 @@ defmodule ThalamusWeb.API.OrganizationController do
   {
     "name": "New Name",
     "status": "active|suspended|inactive",
-    "plan_type": "free|starter|professional|enterprise"
+    "plan_type": "free|basic|standard|premium|enterprise"
   }
 
   ## Response
@@ -270,10 +270,16 @@ defmodule ThalamusWeb.API.OrganizationController do
   end
 
   defp organization_to_json(%Organization{} = org) do
+    owner_email =
+      case org.owner_email do
+        %Email{} = email -> Email.to_string(email)
+        _ -> nil
+      end
+
     %{
       id: OrganizationId.to_string(org.id),
       name: org.name,
-      owner_email: Email.to_string(org.owner_email),
+      owner_email: owner_email,
       status: org.status,
       verified: !is_nil(org.verified_at),
       verified_at: org.verified_at,
@@ -288,9 +294,23 @@ defmodule ThalamusWeb.API.OrganizationController do
   end
 
   defp member_to_json(%Organization.Member{} = member) do
+    user_id_string =
+      if member.user_id do
+        UserId.to_string(member.user_id)
+      else
+        nil
+      end
+
+    email_string =
+      if member.email do
+        Email.to_string(member.email)
+      else
+        nil
+      end
+
     %{
-      user_id: UserId.to_string(member.user_id),
-      email: Email.to_string(member.email),
+      user_id: user_id_string,
+      email: email_string,
       role: member.role,
       joined_at: member.joined_at
     }
@@ -346,7 +366,8 @@ defmodule ThalamusWeb.API.OrganizationController do
     # Apply plan type update if present
     organization =
       if plan_type_string = params["plan_type"] do
-        plan_type = String.to_existing_atom(plan_type_string)
+        # Convert string to atom safely
+        plan_type = String.to_atom(plan_type_string)
 
         case Organization.upgrade_plan(organization, plan_type) do
           {:ok, updated} -> updated

@@ -157,8 +157,12 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLAgentTokenRepositoryTes
       org_id = create_organization()
       client_id = create_client(org_id)
 
+      access_token =
+        "at_empty_scopes_" <>
+          (:crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false))
+
       token_attrs = %{
-        access_token: "at_empty_scopes_#{:rand.uniform(1_000_000)}",
+        access_token: access_token,
         agent_type: agent_type,
         organization_id: org_id,
         client_id: client_id,
@@ -198,7 +202,10 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLAgentTokenRepositoryTes
 
       assert {:ok, saved_token} = PostgreSQLAgentTokenRepository.save(revoked_token)
       assert saved_token.revoked_at != nil
-      assert DateTime.compare(saved_token.revoked_at, revoked_at) == :eq
+      # PostgreSQL truncates microseconds, so we need to compare with truncated timestamp
+      truncated_revoked_at = DateTime.truncate(revoked_at, :second)
+      truncated_saved_at = DateTime.truncate(saved_token.revoked_at, :second)
+      assert DateTime.compare(truncated_saved_at, truncated_revoked_at) == :eq
     end
   end
 
@@ -487,12 +494,26 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLAgentTokenRepositoryTes
 
     test "returns tokens ordered by insertion time (newest first)" do
       org_id = create_organization()
+      now = DateTime.utc_now()
 
-      {:ok, token1} = create_and_save_token(organization_id: org_id)
-      Process.sleep(10)
-      {:ok, _token2} = create_and_save_token(organization_id: org_id)
-      Process.sleep(10)
-      {:ok, token3} = create_and_save_token(organization_id: org_id)
+      # Create tokens with explicit creation timestamps to ensure ordering
+      {:ok, token1} =
+        create_and_save_token(
+          organization_id: org_id,
+          created_at: DateTime.add(now, -120, :second)
+        )
+
+      {:ok, _token2} =
+        create_and_save_token(
+          organization_id: org_id,
+          created_at: DateTime.add(now, -60, :second)
+        )
+
+      {:ok, token3} =
+        create_and_save_token(
+          organization_id: org_id,
+          created_at: now
+        )
 
       assert {:ok, tokens} = PostgreSQLAgentTokenRepository.find_by_organization(org_id)
 
@@ -747,6 +768,13 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLAgentTokenRepositoryTes
     default_token =
       "at_test_" <> (:crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false))
 
+    expires_at =
+      Keyword.get(
+        overrides,
+        :expires_at,
+        DateTime.utc_now() |> DateTime.add(3600, :second)
+      )
+
     token_attrs = %{
       access_token: Keyword.get(overrides, :access_token, default_token),
       agent_type: Keyword.get(overrides, :agent_type, agent_type),
@@ -754,12 +782,7 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLAgentTokenRepositoryTes
       client_id: client_id,
       scopes: Keyword.get(overrides, :scopes, ["read:data"]),
       delegation_chain: chain,
-      expires_at:
-        Keyword.get(
-          overrides,
-          :expires_at,
-          DateTime.utc_now() |> DateTime.add(3600, :second)
-        )
+      expires_at: expires_at
     }
 
     # Add optional fields if present in overrides
@@ -767,8 +790,20 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLAgentTokenRepositoryTes
       token_attrs
       |> maybe_add_field(:task_id, Keyword.get(overrides, :task_id))
       |> maybe_add_field(:reason, Keyword.get(overrides, :reason))
+      |> maybe_add_field(:id, Keyword.get(overrides, :id))
+      |> maybe_add_field(:created_at, Keyword.get(overrides, :created_at))
 
-    {:ok, token} = AgentToken.create(token_attrs)
+    # If token is expired, use from_trusted_attrs to bypass validation
+    # This is needed for cleanup_expired tests
+    token =
+      if DateTime.compare(expires_at, DateTime.utc_now()) == :lt do
+        {:ok, token} = AgentToken.from_trusted_attrs(token_attrs)
+        token
+      else
+        {:ok, token} = AgentToken.create(token_attrs)
+        token
+      end
+
     PostgreSQLAgentTokenRepository.save(token)
   end
 
@@ -780,7 +815,7 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLAgentTokenRepositoryTes
       id: Ecto.UUID.generate(),
       name: "Test Organization #{:rand.uniform(1_000_000)}",
       status: :active,
-      plan_type: :professional,
+      plan_type: :standard,
       verified: true,
       max_users: 100,
       max_api_calls_per_month: 100_000,

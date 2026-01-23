@@ -10,14 +10,14 @@ defmodule Thalamus.Domain.ValueObjects.ScopeTest do
       assert {:ok, %Scope{value: "email"}} = Scope.new("email")
     end
 
-    test "creates valid ZEA scope" do
-      assert {:ok, %Scope{value: "zea:read"}} = Scope.new("zea:read")
-      assert {:ok, %Scope{value: "zea:write"}} = Scope.new("zea:write")
+    test "creates valid API scope" do
+      assert {:ok, %Scope{value: "api:read"}} = Scope.new("api:read")
+      assert {:ok, %Scope{value: "api:write"}} = Scope.new("api:write")
     end
 
     test "normalizes scope to lowercase" do
       assert {:ok, %Scope{value: "openid"}} = Scope.new("OPENID")
-      assert {:ok, %Scope{value: "zea:read"}} = Scope.new("ZEA:READ")
+      assert {:ok, %Scope{value: "api:read"}} = Scope.new("API:READ")
     end
 
     test "trims whitespace" do
@@ -98,18 +98,18 @@ defmodule Thalamus.Domain.ValueObjects.ScopeTest do
       assert Scope.standard?(scope) == true
     end
 
-    test "returns false for ZEA scopes" do
-      {:ok, scope} = Scope.new("zea:read")
+    test "returns false for API scopes" do
+      {:ok, scope} = Scope.new("api:read")
       assert Scope.standard?(scope) == false
     end
   end
 
   describe "zea_scope?/1" do
-    test "returns true for ZEA platform scopes" do
-      {:ok, scope} = Scope.new("zea:read")
+    test "returns true for API platform scopes" do
+      {:ok, scope} = Scope.new("api:read")
       assert Scope.zea_scope?(scope) == true
 
-      {:ok, scope} = Scope.new("synapse:events")
+      {:ok, scope} = Scope.new("webhooks:manage")
       assert Scope.zea_scope?(scope) == true
     end
 
@@ -121,7 +121,7 @@ defmodule Thalamus.Domain.ValueObjects.ScopeTest do
 
   describe "requires_special_permission?/1" do
     test "returns true for admin scopes" do
-      {:ok, scope} = Scope.new("zea:admin")
+      {:ok, scope} = Scope.new("api:admin")
       assert Scope.requires_special_permission?(scope) == true
     end
 
@@ -136,18 +136,18 @@ defmodule Thalamus.Domain.ValueObjects.ScopeTest do
     end
 
     test "returns false for read scopes" do
-      {:ok, scope} = Scope.new("zea:read")
+      {:ok, scope} = Scope.new("api:read")
       assert Scope.requires_special_permission?(scope) == false
     end
   end
 
   describe "resource_type/1" do
     test "extracts resource from namespaced scope" do
-      {:ok, scope} = Scope.new("zea:read")
-      assert Scope.resource_type(scope) == "zea"
+      {:ok, scope} = Scope.new("api:read")
+      assert Scope.resource_type(scope) == "api"
 
-      {:ok, scope} = Scope.new("synapse:events")
-      assert Scope.resource_type(scope) == "synapse"
+      {:ok, scope} = Scope.new("webhooks:manage")
+      assert Scope.resource_type(scope) == "webhooks"
     end
 
     test "returns identity for standard scopes" do
@@ -161,7 +161,7 @@ defmodule Thalamus.Domain.ValueObjects.ScopeTest do
 
   describe "action/1" do
     test "extracts action from namespaced scope" do
-      {:ok, scope} = Scope.new("zea:read")
+      {:ok, scope} = Scope.new("api:read")
       assert Scope.action(scope) == "read"
 
       {:ok, scope} = Scope.new("billing:write")
@@ -183,8 +183,8 @@ defmodule Thalamus.Domain.ValueObjects.ScopeTest do
       assert is_list(scopes)
       assert "openid" in scopes
       assert "profile" in scopes
-      assert "zea:read" in scopes
-      assert "zea:write" in scopes
+      assert "api:read" in scopes
+      assert "api:write" in scopes
     end
   end
 

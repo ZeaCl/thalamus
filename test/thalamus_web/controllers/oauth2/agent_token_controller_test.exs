@@ -49,7 +49,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
 
   setup do
     # Create organization
-    {:ok, org} = Organization.new("Test Corp", "owner@test.com", :professional)
+    {:ok, org} = Organization.new("Test Corp", "owner@test.com", :standard)
     {:ok, org} = PostgreSQLOrganizationRepository.save(org)
 
     # Create and verify delegator user
@@ -62,7 +62,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
       create_test_client(
         "Test Agent Client",
         org.id,
-        ["zea:read", "zea:write", "synapse:events"],
+        ["api:read", "api:write", "data:read"],
         grant_types: [:client_credentials],
         redirect_uris: ["http://localhost:3000/callback"]
       )
@@ -84,14 +84,14 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
           client_secret: @test_client_secret,
           delegated_by_user_id: to_string(delegator.id),
           agent_type: "autonomous",
-          scope: "zea:read"
+          scope: "api:read"
         })
 
       assert %{
                "access_token" => access_token,
                "token_type" => "Bearer",
                "expires_in" => expires_in,
-               "scope" => "zea:read",
+               "scope" => "api:read",
                "agent_type" => "autonomous"
              } = json_response(conn, 200)
 
@@ -111,7 +111,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
           client_secret: @test_client_secret,
           delegated_by_user_id: to_string(delegator.id),
           agent_type: "supervisor",
-          scope: "zea:read zea:write",
+          scope: "api:read api:write",
           task_id: "task_abc123",
           task_type: "document_processing",
           max_operations: 100,
@@ -133,8 +133,8 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
              } = json_response(conn, 200)
 
       assert String.starts_with?(access_token, "at_")
-      assert scope =~ "zea:read"
-      assert scope =~ "zea:write"
+      assert scope =~ "api:read"
+      assert scope =~ "api:write"
     end
 
     test "generates tool agent token with operations limit", %{
@@ -148,7 +148,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
           client_secret: @test_client_secret,
           delegated_by_user_id: to_string(delegator.id),
           agent_type: "tool",
-          scope: "zea:read",
+          scope: "api:read",
           task_id: "tool_task_001",
           max_operations: 10,
           expires_on_completion: true,
@@ -159,7 +159,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
                "access_token" => access_token,
                "token_type" => "Bearer",
                "expires_in" => 300,
-               "scope" => "zea:read",
+               "scope" => "api:read",
                "agent_type" => "tool",
                "task_id" => "tool_task_001",
                "max_operations" => 10,
@@ -176,7 +176,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
           client_secret: @test_client_secret,
           delegated_by_user_id: to_string(delegator.id),
           agent_type: "autonomous",
-          scope: "zea:read",
+          scope: "api:read",
           # Request 2 hours, should be capped at 1 hour
           expires_in: 7200
         })
@@ -200,7 +200,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
           client_secret: @test_client_secret,
           delegated_by_user_id: to_string(delegator.id),
           agent_type: "autonomous",
-          scope: "zea:read"
+          scope: "api:read"
         })
 
       assert_stripe_error(conn, 400, "invalid_request", "client_id is required")
@@ -216,7 +216,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
           client_id: to_string(client.id),
           delegated_by_user_id: to_string(delegator.id),
           agent_type: "autonomous",
-          scope: "zea:read"
+          scope: "api:read"
         })
 
       assert_stripe_error(conn, 400, "invalid_request", "client_secret is required")
@@ -228,7 +228,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
           client_id: to_string(client.id),
           client_secret: @test_client_secret,
           agent_type: "autonomous",
-          scope: "zea:read"
+          scope: "api:read"
         })
 
       assert_stripe_error(conn, 400, "invalid_request", "delegated_by_user_id is required")
@@ -244,7 +244,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
           client_id: to_string(client.id),
           client_secret: @test_client_secret,
           delegated_by_user_id: to_string(delegator.id),
-          scope: "zea:read"
+          scope: "api:read"
         })
 
       assert_stripe_error(conn, 400, "invalid_request", "agent_type is required")
@@ -261,7 +261,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
           client_secret: @test_client_secret,
           delegated_by_user_id: to_string(delegator.id),
           agent_type: "invalid_type",
-          scope: "zea:read"
+          scope: "api:read"
         })
 
       assert_stripe_error(conn, 400, "invalid_request", "agent_type must be autonomous, supervisor, or tool")
@@ -309,7 +309,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
           client_secret: @test_client_secret,
           delegated_by_user_id: to_string(delegator.id),
           agent_type: "autonomous",
-          scope: "zea:read"
+          scope: "api:read"
         })
 
       assert_stripe_error(conn, 401, "invalid_client", "client authentication failed")
@@ -326,7 +326,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
           client_secret: "wrong_secret",
           delegated_by_user_id: to_string(delegator.id),
           agent_type: "autonomous",
-          scope: "zea:read"
+          scope: "api:read"
         })
 
       assert_stripe_error(conn, 401, "invalid_client", "client authentication failed")
@@ -339,7 +339,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
           client_secret: @test_client_secret,
           delegated_by_user_id: "00000000-0000-0000-0000-000000000000",
           agent_type: "autonomous",
-          scope: "zea:read"
+          scope: "api:read"
         })
 
       assert_stripe_error(conn, 400, "invalid_request", "delegated_by_user_id not found")
@@ -358,7 +358,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
           client_secret: @test_client_secret,
           delegated_by_user_id: to_string(inactive_user.id),
           agent_type: "autonomous",
-          scope: "zea:read"
+          scope: "api:read"
         })
 
       assert_stripe_error(conn, 400, "invalid_request", "delegating user is inactive")
@@ -405,8 +405,8 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
           client_secret: @test_client_secret,
           delegated_by_user_id: to_string(delegator.id),
           agent_type: "autonomous",
-          # Only zea:read is allowed
-          scope: "zea:read admin:write billing:admin"
+          # Invalid scopes - not in client's allowed_scopes
+          scope: "api:read admin:all webhooks:manage"
         })
 
       response = json_response(conn, 400)
@@ -419,8 +419,8 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
              } = response
 
       assert message =~ "invalid scopes"
-      assert message =~ "admin:write"
-      assert message =~ "billing:admin"
+      assert message =~ "admin:all"
+      assert message =~ "webhooks:manage"
     end
 
     test "accepts valid subset of client allowed_scopes", %{
@@ -435,7 +435,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
           delegated_by_user_id: to_string(delegator.id),
           agent_type: "autonomous",
           # Both are in allowed scopes
-          scope: "zea:read zea:write"
+          scope: "api:read api:write"
         })
 
       assert %{
@@ -443,8 +443,8 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
                "scope" => scope
              } = json_response(conn, 200)
 
-      assert scope =~ "zea:read"
-      assert scope =~ "zea:write"
+      assert scope =~ "api:read"
+      assert scope =~ "api:write"
     end
   end
 
@@ -456,7 +456,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
           client_secret: @test_client_secret,
           delegated_by_user_id: to_string(delegator.id),
           agent_type: "autonomous",
-          scope: "zea:read",
+          scope: "api:read",
           # 30 minutes
           expires_in: 1800
         })
@@ -478,7 +478,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
           client_secret: @test_client_secret,
           delegated_by_user_id: to_string(delegator.id),
           agent_type: "autonomous",
-          scope: "zea:read"
+          scope: "api:read"
         })
 
       assert %{
@@ -500,7 +500,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
           client_secret: @test_client_secret,
           delegated_by_user_id: to_string(delegator.id),
           agent_type: "autonomous",
-          scope: "zea:read",
+          scope: "api:read",
           task_id: "test_task_123",
           task_type: "data_extraction",
           max_operations: 50,
@@ -519,7 +519,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
       assert token_data.delegation_chain == [delegator.id]
       assert token_data.task_id == "test_task_123"
       assert token_data.task_type == "data_extraction"
-      assert token_data.task_scopes == ["zea:read"]
+      assert token_data.task_scopes == ["api:read"]
       assert token_data.max_operations == 50
       assert token_data.operations_count == 0
       assert token_data.expires_on_completion == true
@@ -539,7 +539,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
           client_secret: @test_client_secret,
           delegated_by_user_id: to_string(delegator.id),
           agent_type: "supervisor",
-          scope: "zea:write",
+          scope: "api:write",
           task_id: "introspection_test",
           max_operations: 25
         })
@@ -556,7 +556,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
 
       assert %{
                "active" => true,
-               "scope" => "zea:write",
+               "scope" => "api:write",
                "client_id" => _,
                "agent_type" => "supervisor",
                "delegated_by" => _,

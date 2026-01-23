@@ -21,6 +21,7 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.UserSchema do
   schema "users" do
     field :email, :string
     field :name, :string
+    field :avatar_url, :string
     field :password_hash, :string
     field :status, Ecto.Enum, values: [:pending_verification, :active, :suspended, :deactivated]
     field :verified_at, :utc_datetime
@@ -49,6 +50,7 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.UserSchema do
     |> cast(attrs, [
       :email,
       :name,
+      :avatar_url,
       :password_hash,
       :organization_id,
       :status,
@@ -72,6 +74,7 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.UserSchema do
     |> cast(attrs, [
       :email,
       :name,
+      :avatar_url,
       :password_hash,
       :status,
       :verified_at,

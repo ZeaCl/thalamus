@@ -14,7 +14,7 @@ defmodule ThalamusWeb.API.PasswordControllerTest do
 
   setup do
     # Create organization for OAuth2 client
-    {:ok, org} = Organization.new("Test Corp", "owner@test.com", :professional)
+    {:ok, org} = Organization.new("Test Corp", "owner@test.com", :standard)
     {:ok, org} = PostgreSQLOrganizationRepository.save(org)
 
     # Create and verify user
@@ -24,13 +24,13 @@ defmodule ThalamusWeb.API.PasswordControllerTest do
 
     # Create OAuth2 client
     {:ok, client} =
-      TestHelpers.create_test_client("Test Client", org.id, ["zea:read", "zea:write"])
+      TestHelpers.create_test_client("Test Client", org.id, ["api:read", "api:write"])
 
     {:ok, client} = PostgreSQLOAuth2ClientRepository.save(client)
 
     # Generate access token for authenticated requests
-    {:ok, read_scope} = Scope.new("zea:read")
-    {:ok, write_scope} = Scope.new("zea:write")
+    {:ok, read_scope} = Scope.new("api:read")
+    {:ok, write_scope} = Scope.new("api:write")
     scopes = [read_scope, write_scope]
 
     {:ok, access_token} =
@@ -49,7 +49,7 @@ defmodule ThalamusWeb.API.PasswordControllerTest do
       type: :access_token,
       user_id: user.id,
       client_id: client_uuid,
-      scopes: ["zea:read", "zea:write"],
+      scopes: ["api:read", "api:write"],
       expires_at: access_token.expires_at
     }
 
@@ -133,8 +133,7 @@ defmodule ThalamusWeb.API.PasswordControllerTest do
 
         # Verify can login with new password
         {:ok, updated_user} = PostgreSQLUserRepository.find_by_id(user.id)
-        {:ok, can_login} = User.verify_password(updated_user, "NewPassword123!")
-        assert can_login == true
+        assert :ok == User.verify_password(updated_user, "NewPassword123!")
       end
     end
 
@@ -212,12 +211,10 @@ defmodule ThalamusWeb.API.PasswordControllerTest do
 
       # Verify can login with new password
       {:ok, updated_user} = PostgreSQLUserRepository.find_by_id(user.id)
-      {:ok, can_login} = User.verify_password(updated_user, "NewPassword456!")
-      assert can_login == true
+      assert :ok == User.verify_password(updated_user, "NewPassword456!")
 
       # Verify old password no longer works
-      {:ok, cannot_login} = User.verify_password(updated_user, "OldPassword123!")
-      assert cannot_login == false
+      assert {:error, :invalid_password} == User.verify_password(updated_user, "OldPassword123!")
     end
 
     test "returns error with incorrect current password", %{conn: conn, access_token: token} do
@@ -281,7 +278,7 @@ defmodule ThalamusWeb.API.PasswordControllerTest do
                "error" => error
              } = json_response(conn, 400)
 
-      assert String.contains?(error, "same") or String.contains?(error, "different")
+      assert String.contains?(error, "different")
     end
 
     test "requires authentication", %{conn: conn} do

@@ -14,7 +14,7 @@ defmodule ThalamusWeb.API.UserControllerTest do
 
   setup do
     # Create organization for OAuth2 client
-    {:ok, org} = Organization.new("Test Corp", "owner@test.com", :professional)
+    {:ok, org} = Organization.new("Test Corp", "owner@test.com", :standard)
     {:ok, org} = PostgreSQLOrganizationRepository.save(org)
 
     # Create admin user with access token
@@ -24,14 +24,14 @@ defmodule ThalamusWeb.API.UserControllerTest do
 
     # Create OAuth2 client
     {:ok, client} =
-      TestHelpers.create_test_client("Test Client", org.id, ["zea:read", "zea:write", "zea:admin"])
+      TestHelpers.create_test_client("Test Client", org.id, ["api:read", "api:write", "api:admin"])
 
     {:ok, client} = PostgreSQLOAuth2ClientRepository.save(client)
 
     # Generate access token
-    {:ok, read_scope} = Scope.new("zea:read")
-    {:ok, write_scope} = Scope.new("zea:write")
-    {:ok, admin_scope} = Scope.new("zea:admin")
+    {:ok, read_scope} = Scope.new("api:read")
+    {:ok, write_scope} = Scope.new("api:write")
+    {:ok, admin_scope} = Scope.new("api:admin")
     scopes = [read_scope, write_scope, admin_scope]
 
     {:ok, access_token} =
@@ -50,7 +50,7 @@ defmodule ThalamusWeb.API.UserControllerTest do
       type: :access_token,
       user_id: admin.id,
       client_id: client_uuid,
-      scopes: ["zea:read", "zea:write", "zea:admin"],
+      scopes: ["api:read", "api:write", "api:admin"],
       expires_at: access_token.expires_at
     }
 

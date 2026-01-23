@@ -17,15 +17,10 @@ defmodule ThalamusWeb.Organizations.IndexTest do
 
     auth_user = create_user(org, "admin@example.com")
 
-    conn =
-      build_conn()
-      |> Plug.Test.init_test_session(%{})
-      |> put_session(:user_id, auth_user.id)
+    # Log in user for protected routes (loads user into session and assigns)
+    conn = log_in_user(conn, auth_user.id)
 
-    # Log in user for protected routes
-    conn = log_in_user(conn)
-
-    {:ok, conn: conn, conn: conn, org: org}
+    {:ok, conn: conn, org: org, auth_user: auth_user}
   end
 
   describe "Index LiveView" do
@@ -38,7 +33,7 @@ defmodule ThalamusWeb.Organizations.IndexTest do
 
     test "displays list of organizations", %{conn: conn} do
       create_organization("Test Org 1", "free")
-      create_organization("Test Org 2", "starter")
+      create_organization("Test Org 2", "basic")
 
       {:ok, _view, html} = live(conn, ~p"/dashboard/organizations")
 
@@ -47,7 +42,7 @@ defmodule ThalamusWeb.Organizations.IndexTest do
     end
 
     test "filters by search query", %{conn: conn} do
-      create_organization("Production Corp", "professional")
+      create_organization("Production Corp", "standard")
       create_organization("Development Ltd", "free")
 
       {:ok, view, _html} = live(conn, ~p"/dashboard/organizations")
@@ -63,7 +58,7 @@ defmodule ThalamusWeb.Organizations.IndexTest do
 
     test "filters by status", %{conn: conn} do
       org1 = create_organization("Active Org", "free")
-      org2 = create_organization("Trial Org", "starter")
+      org2 = create_organization("Trial Org", "basic")
 
       # Update status
       OrganizationSchema.reactivate_changeset(org1) |> Repo.update!()
@@ -108,7 +103,7 @@ defmodule ThalamusWeb.Organizations.IndexTest do
     end
 
     test "shows plan badges", %{conn: conn} do
-      create_organization("Test Org", "professional")
+      create_organization("Test Org", "standard")
 
       {:ok, _view, html} = live(conn, ~p"/dashboard/organizations")
 

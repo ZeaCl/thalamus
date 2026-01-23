@@ -106,7 +106,7 @@ defmodule ThalamusWeb.API.MFAController do
     with {:ok, pending_setup} <- get_pending_mfa_setup(user_id),
          :ok <- validate_totp_code(code, pending_setup.secret),
          {:ok, user} <- PostgreSQLUserRepository.find_by_id(user_id),
-         {:ok, mfa_method} <- MFAMethod.new(:totp, pending_setup.secret),
+         {:ok, mfa_method} <- MFAMethod.new(:totp, pending_setup.secret, true),
          {:ok, _updated_user} <- enable_mfa_for_user(user, mfa_method) do
       # Clear pending setup
       clear_pending_mfa_setup(user_id)
@@ -179,7 +179,7 @@ defmodule ThalamusWeb.API.MFAController do
          {:ok, user} <- PostgreSQLUserRepository.find_by_id(user_id),
          :ok <- validate_user_has_mfa(user),
          {:ok, mfa_method} <- get_user_totp_method(user),
-         :ok <- validate_totp_code(code, mfa_method.secret) do
+         :ok <- validate_totp_code(code, mfa_method.identifier) do
       AuditLoggerImpl.log_mfa_verification_success(user_id, :totp)
 
       conn
@@ -245,7 +245,7 @@ defmodule ThalamusWeb.API.MFAController do
          :ok <- validate_user_has_mfa(user),
          :ok <- validate_user_password(user, password),
          {:ok, mfa_method} <- get_user_totp_method(user),
-         :ok <- validate_totp_code(code, mfa_method.secret),
+         :ok <- validate_totp_code(code, mfa_method.identifier),
          {:ok, _updated_user} <- disable_mfa_for_user(user) do
       AuditLoggerImpl.log_mfa_disabled(user_id)
 
@@ -320,7 +320,7 @@ defmodule ThalamusWeb.API.MFAController do
          :ok <- validate_user_has_mfa(user),
          :ok <- validate_user_password(user, password),
          {:ok, mfa_method} <- get_user_totp_method(user),
-         :ok <- validate_totp_code(code, mfa_method.secret),
+         :ok <- validate_totp_code(code, mfa_method.identifier),
          {:ok, backup_codes} <- generate_backup_codes(),
          :ok <- store_backup_codes(user_id, backup_codes) do
       AuditLoggerImpl.log_backup_codes_regenerated(user_id)
@@ -391,15 +391,18 @@ defmodule ThalamusWeb.API.MFAController do
 
   defp generate_totp_uri(email, secret) do
     email_string = to_string(email)
-    issuer = "ZEA Thalamus"
+    # Configurable issuer name for TOTP authenticator apps
+    issuer = Application.get_env(:thalamus, :mfa_issuer_name, "Thalamus")
 
-    # otpauth://totp/ZEA%20Thalamus:user@example.com?secret=SECRET&issuer=ZEA%20Thalamus
+    # otpauth://totp/Thalamus:user@example.com?secret=SECRET&issuer=Thalamus
     "otpauth://totp/#{URI.encode(issuer)}:#{URI.encode(email_string)}?secret=#{secret}&issuer=#{URI.encode(issuer)}"
   end
 
   defp store_pending_mfa_setup(user_id, secret, backup_codes) do
     # Store in Redis with 10 minute expiration
-    cache_key = "mfa:pending:#{UserId.to_string(user_id)}"
+    # user_id is already a string from conn.assigns[:current_user_id]
+    user_id_string = if is_binary(user_id), do: user_id, else: UserId.to_string(user_id)
+    cache_key = "mfa:pending:#{user_id_string}"
 
     data = %{
       secret: secret,
@@ -418,7 +421,9 @@ defmodule ThalamusWeb.API.MFAController do
   end
 
   defp get_pending_mfa_setup(user_id) do
-    cache_key = "mfa:pending:#{UserId.to_string(user_id)}"
+    # user_id is already a string from conn.assigns[:current_user_id]
+    user_id_string = if is_binary(user_id), do: user_id, else: UserId.to_string(user_id)
+    cache_key = "mfa:pending:#{user_id_string}"
 
     case Thalamus.Infrastructure.Adapters.RedisCacheAdapter.get(cache_key) do
       {:ok, json_data} ->
@@ -434,7 +439,9 @@ defmodule ThalamusWeb.API.MFAController do
   end
 
   defp clear_pending_mfa_setup(user_id) do
-    cache_key = "mfa:pending:#{UserId.to_string(user_id)}"
+    # user_id is already a string from conn.assigns[:current_user_id]
+    user_id_string = if is_binary(user_id), do: user_id, else: UserId.to_string(user_id)
+    cache_key = "mfa:pending:#{user_id_string}"
     Thalamus.Infrastructure.Adapters.RedisCacheAdapter.delete(cache_key)
   end
 
@@ -507,7 +514,7 @@ defmodule ThalamusWeb.API.MFAController do
   defp get_user_totp_method(user) do
     totp_method =
       Enum.find(user.mfa_methods, fn method ->
-        method.method_type == :totp
+        method.type == :totp
       end)
 
     if totp_method do
@@ -519,15 +526,17 @@ defmodule ThalamusWeb.API.MFAController do
 
   defp validate_user_password(user, password) do
     case Thalamus.Domain.Entities.User.verify_password(user, password) do
-      {:ok, true} -> :ok
-      {:ok, false} -> {:error, :invalid_password}
+      :ok -> :ok
+      {:error, :invalid_password} -> {:error, :invalid_password}
       {:error, _} = error -> error
     end
   end
 
   defp store_backup_codes(user_id, backup_codes) do
     # Store hashed backup codes in Redis
-    cache_key = "mfa:backup_codes:#{UserId.to_string(user_id)}"
+    # user_id is already a string from conn.assigns[:current_user_id]
+    user_id_string = if is_binary(user_id), do: user_id, else: UserId.to_string(user_id)
+    cache_key = "mfa:backup_codes:#{user_id_string}"
 
     hashed_codes =
       Enum.map(backup_codes, fn code ->

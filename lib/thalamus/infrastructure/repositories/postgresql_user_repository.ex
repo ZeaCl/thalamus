@@ -27,6 +27,7 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository do
     |> do_find_by_id()
     |> case do
       nil -> {:error, :not_found}
+      {:error, :invalid_uuid} -> {:error, :invalid_uuid}
       schema -> schema_to_entity(schema)
     end
   end
@@ -167,7 +168,12 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository do
   defp do_find_by_id(user_id_string) do
     # Extract UUID from "user_<uuid>" format
     uuid = String.replace_prefix(user_id_string, "user_", "")
-    Repo.get(UserSchema, uuid)
+
+    try do
+      Repo.get(UserSchema, uuid)
+    rescue
+      Ecto.Query.CastError -> {:error, :invalid_uuid}
+    end
   end
 
   defp schema_to_entity(%UserSchema{} = schema) do
@@ -180,10 +186,13 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository do
          {:ok, mfa_methods} <- convert_mfa_methods_from_db(schema.mfa_methods) do
       user = %User{
         id: user_id,
+        organization_id: schema.organization_id,
         email: email,
         name: schema.name,
+        avatar_url: schema.avatar_url,
         password_hash: password_hash,
         status: schema.status,
+        email_verified: schema.verified_at != nil,
         verified_at: schema.verified_at,
         last_login_at: schema.last_login_at,
         failed_login_attempts: schema.failed_login_attempts,
@@ -214,6 +223,7 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository do
       id: user_uuid,
       email: Email.to_string(user.email),
       name: user.name,
+      avatar_url: user.avatar_url,
       password_hash: PasswordHash.to_string(user.password_hash),
       status: user.status,
       verified_at: user.verified_at,

@@ -30,16 +30,10 @@ defmodule ThalamusWeb.Users.ShowTest do
     # Create an authenticated user for session
     auth_user = create_user(org, "admin@example.com", "Admin User", :active)
 
-    # Setup authenticated connection
-    conn =
-      build_conn()
-      |> Plug.Test.init_test_session(%{})
-      |> put_session(:user_id, auth_user.id)
-
     # Log in user for protected routes
-    conn = log_in_user(conn)
+    conn = log_in_user(conn, auth_user.id)
 
-    {:ok, conn: conn, conn: conn, org: org, user: user, auth_user: auth_user, client: client}
+    {:ok, conn: conn, org: org, user: user, auth_user: auth_user, client: client}
   end
 
   describe "Show LiveView" do

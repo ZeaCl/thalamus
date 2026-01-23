@@ -190,7 +190,9 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository 
 
     with {:ok, client_id} <- ClientId.from_string(client_id_string),
          {:ok, org_id} <- OrganizationId.from_string(schema.organization_id),
-         {:ok, grant_types} <- convert_grant_types_from_db(schema.allowed_grant_types) do
+         {:ok, grant_types} <- convert_grant_types_from_db(schema.allowed_grant_types),
+         {:ok, scopes} <- convert_scopes_from_db(schema.allowed_scopes),
+         {:ok, redirect_uris} <- convert_redirect_uris_from_db(schema.redirect_uris) do
       client = %OAuth2Client{
         id: client_id,
         organization_id: org_id,
@@ -198,8 +200,8 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository 
         client_type: schema.client_type,
         client_secret: client_secret,
         grant_types: grant_types,
-        allowed_scopes: schema.allowed_scopes || [],
-        redirect_uris: schema.redirect_uris || [],
+        allowed_scopes: scopes,
+        redirect_uris: redirect_uris,
         is_active: schema.is_active,
         trusted: false,
         created_at: schema.inserted_at,
@@ -289,6 +291,21 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository 
 
   defp convert_grant_types_to_db(_), do: []
 
+  defp convert_scopes_from_db(scope_strings) when is_list(scope_strings) do
+    scopes =
+      Enum.map(scope_strings, fn scope_string ->
+        case Scope.new(scope_string) do
+          {:ok, scope} -> scope
+          {:error, _} -> nil
+        end
+      end)
+      |> Enum.reject(&is_nil/1)
+
+    {:ok, scopes}
+  end
+
+  defp convert_scopes_from_db(_), do: {:ok, []}
+
   defp convert_scopes_to_db(scopes) when is_list(scopes) do
     Enum.map(scopes, fn %Scope{} = scope ->
       Scope.to_string(scope)
@@ -296,6 +313,21 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository 
   end
 
   defp convert_scopes_to_db(_), do: []
+
+  defp convert_redirect_uris_from_db(uri_strings) when is_list(uri_strings) do
+    uris =
+      Enum.map(uri_strings, fn uri_string ->
+        case RedirectUri.new(uri_string) do
+          {:ok, uri} -> uri
+          {:error, _} -> nil
+        end
+      end)
+      |> Enum.reject(&is_nil/1)
+
+    {:ok, uris}
+  end
+
+  defp convert_redirect_uris_from_db(_), do: {:ok, []}
 
   defp convert_redirect_uris_to_db(uris) when is_list(uris) do
     Enum.map(uris, fn %RedirectUri{} = uri ->

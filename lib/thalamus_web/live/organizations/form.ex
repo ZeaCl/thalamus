@@ -152,16 +152,22 @@ defmodule ThalamusWeb.Organizations.Form do
                     Free - 5 users, 10K API calls/month
                   </option>
                   <option
-                    value="starter"
-                    selected={Phoenix.HTML.Form.input_value(f, :plan_type) == :starter}
+                    value="basic"
+                    selected={Phoenix.HTML.Form.input_value(f, :plan_type) == :basic}
                   >
-                    Starter - 20 users, 100K API calls/month
+                    Basic - 10 users, 50K API calls/month
                   </option>
                   <option
-                    value="professional"
-                    selected={Phoenix.HTML.Form.input_value(f, :plan_type) == :professional}
+                    value="standard"
+                    selected={Phoenix.HTML.Form.input_value(f, :plan_type) == :standard}
                   >
-                    Professional - 100 users, 1M API calls/month
+                    Standard - 100 users, 500K API calls/month
+                  </option>
+                  <option
+                    value="premium"
+                    selected={Phoenix.HTML.Form.input_value(f, :plan_type) == :premium}
+                  >
+                    Premium - 500 users, 5M API calls/month
                   </option>
                   <option
                     value="enterprise"

@@ -112,6 +112,7 @@ defmodule Thalamus.MixProject do
       {:timex, "~> 3.7"},
       {:uuid, "~> 1.1"},
       {:decimal, "~> 2.0"},
+      {:csv, "~> 3.2"},
 
       # Development & Testing
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},

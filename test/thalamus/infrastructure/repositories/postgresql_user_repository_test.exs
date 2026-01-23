@@ -543,7 +543,7 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLUserRepositoryTest do
       id: Ecto.UUID.generate(),
       name: "Test Organization #{:rand.uniform(1_000_000)}",
       status: :active,
-      plan_type: :professional,
+      plan_type: :standard,
       verified: true,
       max_users: 100,
       max_api_calls_per_month: 100_000,

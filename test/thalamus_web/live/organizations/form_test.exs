@@ -17,15 +17,10 @@ defmodule ThalamusWeb.Organizations.FormTest do
 
     auth_user = create_user(org, "admin@example.com")
 
-    conn =
-      build_conn()
-      |> Plug.Test.init_test_session(%{})
-      |> put_session(:user_id, auth_user.id)
+    # Log in user for protected routes (loads user into session and assigns)
+    conn = log_in_user(conn, auth_user.id)
 
-    # Log in user for protected routes
-    conn = log_in_user(conn)
-
-    {:ok, conn: conn, conn: conn, org: org}
+    {:ok, conn: conn, org: org, auth_user: auth_user}
   end
 
   describe "Form LiveView - New Organization" do
@@ -43,14 +38,14 @@ defmodule ThalamusWeb.Organizations.FormTest do
       |> form("form", %{
         "organization" => %{
           "name" => "New Test Org",
-          "plan_type" => "professional"
+          "plan_type" => "standard"
         }
       })
       |> render_submit()
 
       org = Repo.get_by(OrganizationSchema, name: "New Test Org")
       assert org
-      assert org.plan_type == :professional
+      assert org.plan_type == :standard
       assert org.status == :trial
       assert org.verified == false
     end
@@ -87,7 +82,7 @@ defmodule ThalamusWeb.Organizations.FormTest do
 
   describe "Form LiveView - Edit Organization" do
     setup %{org: org} do
-      edit_org = create_organization("Edit Test Org", "starter")
+      edit_org = create_organization("Edit Test Org", "basic")
       {:ok, edit_org: edit_org}
     end
 

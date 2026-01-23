@@ -39,3 +39,14 @@ config :thalamus, :rate_limiting_enabled, false
 # This is a fallback in case rate limiting is enabled
 config :hammer,
   backend: {Hammer.Backend.ETS, [expiry_ms: 60_000, cleanup_interval_ms: 60_000]}
+
+# Enable all feature flags in test environment
+config :thalamus, :feature_flags, %{
+  agent_tokens: true
+}
+
+# Configure Oban for test environment (disable all queues and plugins)
+config :thalamus, Oban,
+  testing: :manual,
+  queues: false,
+  plugins: false

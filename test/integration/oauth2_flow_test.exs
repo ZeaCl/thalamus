@@ -20,7 +20,7 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
 
   setup do
     # Create organization
-    {:ok, org} = Organization.new("Test Corp", "owner@test.com", :professional)
+    {:ok, org} = Organization.new("Test Corp", "owner@test.com", :standard)
     {:ok, org} = PostgreSQLOrganizationRepository.save(org)
 
     # Create and verify user
@@ -33,8 +33,8 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
     {:ok, auth_code_grant} = GrantType.authorization_code()
     {:ok, refresh_grant} = GrantType.refresh_token()
     {:ok, client_creds_grant} = GrantType.client_credentials()
-    {:ok, read_scope} = Scope.new("zea:read")
-    {:ok, write_scope} = Scope.new("zea:write")
+    {:ok, read_scope} = Scope.new("api:read")
+    {:ok, write_scope} = Scope.new("api:write")
     {:ok, redirect_uri} = RedirectUri.new("http://localhost:3000/callback")
 
     # Generate plain text secret to use in tests
@@ -84,7 +84,7 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
           response_type: "code",
           client_id: to_string(client.id),
           redirect_uri: "http://localhost:3000/callback",
-          scope: "read write",
+          scope: "api:read api:write",
           state: state
         })
 
@@ -100,7 +100,7 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
           decision: "approve",
           client_id: to_string(client.id),
           redirect_uri: "http://localhost:3000/callback",
-          scope: "read write",
+          scope: "api:read api:write",
           state: state
         })
 
@@ -135,7 +135,7 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
 
       assert is_binary(access_token)
       assert is_binary(refresh_token)
-      assert String.contains?(scope, "read")
+      assert String.contains?(scope, "api:read")
 
       # Step 4: Use access token to access protected resource
       conn4 =
@@ -219,7 +219,7 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
           response_type: "code",
           client_id: to_string(client.id),
           redirect_uri: "http://localhost:3000/callback",
-          scope: "read",
+          scope: "api:read",
           state: "state_123",
           code_challenge: code_challenge,
           code_challenge_method: "S256"
@@ -235,7 +235,7 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
           decision: "approve",
           client_id: to_string(client.id),
           redirect_uri: "http://localhost:3000/callback",
-          scope: "read",
+          scope: "api:read",
           state: "state_123",
           code_challenge: code_challenge,
           code_challenge_method: "S256"
@@ -282,7 +282,7 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
           decision: "approve",
           client_id: to_string(client.id),
           redirect_uri: "http://localhost:3000/callback",
-          scope: "read",
+          scope: "api:read",
           code_challenge: code_challenge,
           code_challenge_method: "S256"
         })
@@ -319,7 +319,7 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
           grant_type: "client_credentials",
           client_id: to_string(client.id),
           client_secret: client.plain_secret,
-          scope: "read write"
+          scope: "api:read api:write"
         })
 
       assert %{
@@ -330,7 +330,7 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
              } = json_response(conn1, 200)
 
       assert is_binary(access_token)
-      assert String.contains?(scope, "read")
+      assert String.contains?(scope, "api:read")
 
       # Step 2: Use token to access API
       conn2 =
@@ -507,7 +507,7 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
           client_id: to_string(client.id),
           client_secret: client.plain_secret,
           # Only read, not write
-          scope: "read"
+          scope: "api:read"
         })
 
       %{"access_token" => access_token} = json_response(conn1, 200)

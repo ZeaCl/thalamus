@@ -13,7 +13,7 @@ defmodule ThalamusWeb.OAuth2.IntrospectionControllerTest do
 
   setup do
     # Create organization
-    {:ok, org} = Organization.new("Test Corp", "owner@test.com", :professional)
+    {:ok, org} = Organization.new("Test Corp", "owner@test.com", :standard)
     {:ok, org} = PostgreSQLOrganizationRepository.save(org)
 
     # Create and verify user
@@ -26,8 +26,8 @@ defmodule ThalamusWeb.OAuth2.IntrospectionControllerTest do
     {:ok, auth_code_grant} = GrantType.authorization_code()
     {:ok, refresh_grant} = GrantType.refresh_token()
     {:ok, client_creds_grant} = GrantType.client_credentials()
-    {:ok, read_scope} = Scope.new("zea:read")
-    {:ok, write_scope} = Scope.new("zea:write")
+    {:ok, read_scope} = Scope.new("api:read")
+    {:ok, write_scope} = Scope.new("api:write")
     {:ok, redirect_uri} = RedirectUri.new("http://localhost:3000/callback")
 
     # Generate plain text secret to use in tests
@@ -56,8 +56,8 @@ defmodule ThalamusWeb.OAuth2.IntrospectionControllerTest do
   describe "POST /oauth/introspect" do
     test "returns active: true for valid access token", %{conn: conn, user: user, client: client} do
       # Generate access token
-      {:ok, read_scope} = Scope.new("zea:read")
-      {:ok, write_scope} = Scope.new("zea:write")
+      {:ok, read_scope} = Scope.new("api:read")
+      {:ok, write_scope} = Scope.new("api:write")
 
       {:ok, access_token} =
         AccessToken.generate(
@@ -72,7 +72,7 @@ defmodule ThalamusWeb.OAuth2.IntrospectionControllerTest do
         type: :access_token,
         user_id: user.id,
         client_id: client.id,
-        scopes: ["zea:read", "zea:write"],
+        scopes: ["api:read", "api:write"],
         expires_at: access_token.expires_at
       }
 
@@ -123,7 +123,7 @@ defmodule ThalamusWeb.OAuth2.IntrospectionControllerTest do
     @tag :skip
     test "returns active: false for expired token", %{conn: conn, user: user, client: client} do
       # Generate token and manually set it as expired
-      {:ok, read_scope} = Scope.new("zea:read")
+      {:ok, read_scope} = Scope.new("api:read")
       {:ok, access_token} = AccessToken.generate([read_scope], user.id, 3600)
 
       # Set expiry to the past
@@ -134,7 +134,7 @@ defmodule ThalamusWeb.OAuth2.IntrospectionControllerTest do
         type: :access_token,
         user_id: user.id,
         client_id: client.id,
-        scopes: ["zea:read"],
+        scopes: ["api:read"],
         expires_at: past_time
       }
 
@@ -156,7 +156,7 @@ defmodule ThalamusWeb.OAuth2.IntrospectionControllerTest do
 
     @tag :skip
     test "returns active: false for revoked token", %{conn: conn, user: user, client: client} do
-      {:ok, read_scope} = Scope.new("zea:read")
+      {:ok, read_scope} = Scope.new("api:read")
       {:ok, access_token} = AccessToken.generate([read_scope], user.id, 3600)
 
       token_data = %{
@@ -164,7 +164,7 @@ defmodule ThalamusWeb.OAuth2.IntrospectionControllerTest do
         type: :access_token,
         user_id: user.id,
         client_id: client.id,
-        scopes: ["zea:read"],
+        scopes: ["api:read"],
         expires_at: access_token.expires_at,
         revoked: true
       }
@@ -223,7 +223,7 @@ defmodule ThalamusWeb.OAuth2.IntrospectionControllerTest do
     end
 
     test "includes user info for user tokens", %{conn: conn, user: user, client: client} do
-      {:ok, read_scope} = Scope.new("zea:read")
+      {:ok, read_scope} = Scope.new("api:read")
       {:ok, access_token} = AccessToken.generate([read_scope], user.id, 3600)
 
       token_data = %{
@@ -231,7 +231,7 @@ defmodule ThalamusWeb.OAuth2.IntrospectionControllerTest do
         type: :access_token,
         user_id: user.id,
         client_id: client.id,
-        scopes: ["zea:read"],
+        scopes: ["api:read"],
         expires_at: access_token.expires_at
       }
 

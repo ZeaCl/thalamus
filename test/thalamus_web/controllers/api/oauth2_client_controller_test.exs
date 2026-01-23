@@ -14,7 +14,7 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
 
   setup do
     # Create organization
-    {:ok, org} = Organization.new("Test Corp", "owner@test.com", :professional)
+    {:ok, org} = Organization.new("Test Corp", "owner@test.com", :standard)
     {:ok, org} = PostgreSQLOrganizationRepository.save(org)
 
     # Create admin user with access token
@@ -24,14 +24,14 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
 
     # Create OAuth2 client
     {:ok, client} =
-      TestHelpers.create_test_client("Test Client", org.id, ["zea:read", "zea:write", "zea:admin"])
+      TestHelpers.create_test_client("Test Client", org.id, ["api:read", "api:write", "api:admin"])
 
     {:ok, client} = PostgreSQLOAuth2ClientRepository.save(client)
 
     # Generate access token
-    {:ok, read_scope} = Scope.new("zea:read")
-    {:ok, write_scope} = Scope.new("zea:write")
-    {:ok, admin_scope} = Scope.new("zea:admin")
+    {:ok, read_scope} = Scope.new("api:read")
+    {:ok, write_scope} = Scope.new("api:write")
+    {:ok, admin_scope} = Scope.new("api:admin")
     scopes = [read_scope, write_scope, admin_scope]
 
     {:ok, access_token} =
@@ -50,7 +50,7 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
       type: :access_token,
       user_id: admin.id,
       client_id: client_uuid,
-      scopes: ["zea:read", "zea:write", "zea:admin"],
+      scopes: ["api:read", "api:write", "api:admin"],
       expires_at: access_token.expires_at
     }
 
@@ -66,7 +66,7 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
         TestHelpers.create_test_client(
           "Web App",
           org.id,
-          ["zea:read", "zea:write"],
+          ["api:read", "api:write"],
           redirect_uris: ["http://localhost:3000/callback"],
           grant_types: [:authorization_code, :refresh_token]
         )
@@ -77,7 +77,7 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
         TestHelpers.create_test_client(
           "Mobile App",
           org.id,
-          ["zea:read"],
+          ["api:read"],
           redirect_uris: ["http://localhost:4000/callback"],
           grant_types: [:authorization_code]
         )
@@ -102,7 +102,7 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
         TestHelpers.create_test_client(
           "Org Client",
           org.id,
-          ["zea:read"],
+          ["api:read"],
           redirect_uris: ["http://localhost:3000/callback"],
           grant_types: [:client_credentials]
         )
@@ -139,8 +139,8 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
           name: "New Client",
           organization_id: to_string(org.id),
           redirect_uris: ["http://localhost:3000/callback", "http://localhost:3000/auth"],
-          allowed_grant_types: ["authorization_code", "refresh_token"],
-          allowed_scopes: ["zea:read", "zea:write"]
+          grant_types: ["authorization_code", "refresh_token"],
+          scopes: ["api:read", "api:write"]
         })
 
       assert %{
@@ -149,9 +149,9 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
                  "name" => "New Client",
                  "organization_id" => org_id,
                  "redirect_uris" => redirect_uris,
-                 "allowed_grant_types" => grant_types,
-                 "allowed_scopes" => scopes,
-                 "secret" => secret
+                 "grant_types" => grant_types,
+                 "scopes" => scopes,
+                 "client_secret" => secret
                }
              } = json_response(conn, 201)
 
@@ -179,8 +179,8 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
 
       assert %{
                "data" => %{
-                 "allowed_grant_types" => grant_types,
-                 "allowed_scopes" => scopes
+                 "grant_types" => grant_types,
+                 "scopes" => scopes
                }
              } = json_response(conn, 201)
 
@@ -196,8 +196,8 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
           name: "Bad URI Client",
           organization_id: to_string(org.id),
           redirect_uris: ["not-a-valid-uri"],
-          allowed_grant_types: ["authorization_code"],
-          allowed_scopes: ["zea:read"]
+          grant_types: ["authorization_code"],
+          scopes: ["api:read"]
         })
 
       assert %{
@@ -213,8 +213,8 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
           name: "Bad Grant Client",
           organization_id: to_string(org.id),
           redirect_uris: ["http://localhost:3000/callback"],
-          allowed_grant_types: ["invalid_grant"],
-          allowed_scopes: ["zea:read"]
+          grant_types: ["invalid_grant"],
+          scopes: ["api:read"]
         })
 
       assert %{
@@ -254,7 +254,7 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
         TestHelpers.create_test_client(
           "Get Client",
           org.id,
-          ["zea:read", "zea:write"],
+          ["api:read", "api:write"],
           redirect_uris: ["http://localhost:3000/callback"],
           grant_types: [:authorization_code, :refresh_token]
         )
@@ -271,7 +271,7 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
                  "id" => id,
                  "name" => "Get Client",
                  "redirect_uris" => redirect_uris,
-                 "allowed_grant_types" => grant_types
+                 "grant_types" => grant_types
                }
              } = json_response(conn, 200)
 
@@ -285,7 +285,7 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
         TestHelpers.create_test_client(
           "Secret Client",
           org.id,
-          ["zea:read"],
+          ["api:read"],
           redirect_uris: ["http://localhost:3000/callback"],
           grant_types: [:client_credentials]
         )
@@ -304,12 +304,13 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
     end
 
     test "returns 404 for non-existent client", %{conn: conn, access_token: token} do
-      fake_id = Thalamus.Domain.ValueObjects.ClientId.generate()
+      {:ok, fake_id} = Thalamus.Domain.ValueObjects.ClientId.generate()
+      fake_id_string = Thalamus.Domain.ValueObjects.ClientId.to_string(fake_id)
 
       conn =
         conn
         |> put_req_header("authorization", "Bearer #{token}")
-        |> get(~p"/api/clients/#{fake_id}")
+        |> get(~p"/api/clients/#{fake_id_string}")
 
       assert %{
                "error" => _
@@ -321,7 +322,7 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
         TestHelpers.create_test_client(
           "Auth Client",
           org.id,
-          ["zea:read"],
+          ["api:read"],
           redirect_uris: ["http://localhost:3000/callback"],
           grant_types: [:authorization_code]
         )
@@ -340,7 +341,7 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
         TestHelpers.create_test_client(
           "Old Name",
           org.id,
-          ["zea:read"],
+          ["api:read"],
           redirect_uris: ["http://localhost:3000/callback"],
           grant_types: [:authorization_code]
         )
@@ -367,7 +368,7 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
         TestHelpers.create_test_client(
           "Update URIs",
           org.id,
-          ["zea:read"],
+          ["api:read"],
           redirect_uris: ["http://localhost:3000/callback"],
           grant_types: [:authorization_code]
         )
@@ -397,7 +398,7 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
         TestHelpers.create_test_client(
           "Update Scopes",
           org.id,
-          ["zea:read"],
+          ["api:read"],
           redirect_uris: ["http://localhost:3000/callback"],
           grant_types: [:authorization_code]
         )
@@ -408,25 +409,26 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
         conn
         |> put_req_header("authorization", "Bearer #{token}")
         |> patch(~p"/api/clients/#{client.id}", %{
-          allowed_scopes: ["read", "write", "admin"]
+          scopes: ["api:read", "api:write", "api:admin"]
         })
 
       assert %{
                "data" => %{
-                 "allowed_scopes" => scopes
+                 "scopes" => scopes
                }
              } = json_response(conn, 200)
 
-      assert "admin" in scopes
+      assert "api:admin" in scopes
     end
 
     test "returns 404 for non-existent client", %{conn: conn, access_token: token} do
-      fake_id = Thalamus.Domain.ValueObjects.ClientId.generate()
+      {:ok, fake_id} = Thalamus.Domain.ValueObjects.ClientId.generate()
+      fake_id_string = Thalamus.Domain.ValueObjects.ClientId.to_string(fake_id)
 
       conn =
         conn
         |> put_req_header("authorization", "Bearer #{token}")
-        |> patch(~p"/api/clients/#{fake_id}", %{
+        |> patch(~p"/api/clients/#{fake_id_string}", %{
           name: "Not Found"
         })
 
@@ -438,7 +440,7 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
         TestHelpers.create_test_client(
           "No Auth",
           org.id,
-          ["zea:read"],
+          ["api:read"],
           redirect_uris: ["http://localhost:3000/callback"],
           grant_types: [:authorization_code]
         )
@@ -460,7 +462,7 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
         TestHelpers.create_test_client(
           "Delete Client",
           org.id,
-          ["zea:read"],
+          ["api:read"],
           redirect_uris: ["http://localhost:3000/callback"],
           grant_types: [:client_credentials]
         )
@@ -479,12 +481,13 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
     end
 
     test "returns 404 for non-existent client", %{conn: conn, access_token: token} do
-      fake_id = Thalamus.Domain.ValueObjects.ClientId.generate()
+      {:ok, fake_id} = Thalamus.Domain.ValueObjects.ClientId.generate()
+      fake_id_string = Thalamus.Domain.ValueObjects.ClientId.to_string(fake_id)
 
       conn =
         conn
         |> put_req_header("authorization", "Bearer #{token}")
-        |> delete(~p"/api/clients/#{fake_id}")
+        |> delete(~p"/api/clients/#{fake_id_string}")
 
       assert json_response(conn, 404)
     end
@@ -494,7 +497,7 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
         TestHelpers.create_test_client(
           "Auth Delete",
           org.id,
-          ["zea:read"],
+          ["api:read"],
           redirect_uris: ["http://localhost:3000/callback"],
           grant_types: [:authorization_code]
         )

@@ -18,16 +18,10 @@ defmodule ThalamusWeb.Users.IndexTest do
     # Create an authenticated user for session
     auth_user = create_user(org, "admin@example.com", "Admin User", :active)
 
-    # Setup authenticated connection
-    conn =
-      build_conn()
-      |> Plug.Test.init_test_session(%{})
-      |> put_session(:user_id, auth_user.id)
+    # Log in user for protected routes (loads user into session and assigns)
+    conn = log_in_user(conn, auth_user.id)
 
-    # Log in user for protected routes
-    conn = log_in_user(conn)
-
-    {:ok, conn: conn, conn: conn, org: org, auth_user: auth_user}
+    {:ok, conn: conn, org: org, auth_user: auth_user}
   end
 
   describe "Index LiveView" do

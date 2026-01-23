@@ -17,7 +17,7 @@ defmodule ThalamusWeb.Tokens.IndexTest do
     org =
       OrganizationSchema.create_changeset(%{
         "name" => "Test Org #{System.unique_integer()}",
-        "plan_type" => "professional"
+        "plan_type" => "standard"
       })
       |> Repo.insert!()
 

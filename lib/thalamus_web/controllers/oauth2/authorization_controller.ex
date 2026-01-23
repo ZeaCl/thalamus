@@ -64,15 +64,15 @@ defmodule ThalamusWeb.OAuth2.AuthorizationController do
   """
   def new(conn, params) do
     # Validate required OAuth2 parameters
+    # NOTE: Per RFC 6749, response_type and client_id MUST be validated BEFORE
+    # considering redirect_uri for error responses (security requirement)
     with {:ok, response_type} <- validate_response_type(params["response_type"]),
          {:ok, client_id_string} <- validate_client_id_param(params["client_id"]),
          {:ok, client} <- PostgreSQLOAuth2ClientRepository.find_by_client_id(client_id_string),
          {:ok, redirect_uri} <- validate_redirect_uri(params["redirect_uri"], client),
          {:ok, scopes} <- parse_scopes(params["scope"]),
-         {:ok, pkce_params} <- extract_pkce_params(params) do
-      # Use client's allowed scopes if no scopes were requested
-      final_scopes = if Enum.empty?(scopes), do: client.allowed_scopes, else: scopes
-
+         {:ok, final_scopes} <- validate_and_finalize_scopes(scopes, client),
+         {:ok, pkce_params} <- extract_and_validate_pkce_params(params) do
       # Check if user is authenticated
       case get_authenticated_user(conn) do
         {:ok, _user_id} ->
@@ -96,19 +96,13 @@ defmodule ThalamusWeb.OAuth2.AuthorizationController do
       end
     else
       {:error, error_code, description} ->
-        # OAuth2 error - redirect back to client if we have redirect_uri
-        case params["redirect_uri"] do
-          nil ->
-            conn
-            |> put_status(:bad_request)
-            |> json(%{
-              error: error_code,
-              error_description: description
-            })
-
-          redirect_uri ->
-            redirect_with_error(conn, redirect_uri, error_code, description, params["state"])
-        end
+        # Return 400 error for validation failures
+        conn
+        |> put_status(:bad_request)
+        |> json(%{
+          error: error_code,
+          error_description: description
+        })
 
       {:error, :not_found} ->
         conn
@@ -149,14 +143,12 @@ defmodule ThalamusWeb.OAuth2.AuthorizationController do
   def create(conn, params) do
     decision = params["decision"]
 
-    with {:ok, client_id_string} <- validate_client_id_param(params["client_id"]),
+    with {:ok, user_id} <- get_authenticated_user(conn),
+         {:ok, client_id_string} <- validate_client_id_param(params["client_id"]),
          {:ok, client} <- PostgreSQLOAuth2ClientRepository.find_by_client_id(client_id_string),
          {:ok, redirect_uri} <- validate_redirect_uri(params["redirect_uri"], client),
          {:ok, scopes} <- parse_scopes(params["scope"]),
-         {:ok, user_id} <- get_authenticated_user(conn) do
-      # Use client's allowed scopes if no scopes were requested
-      final_scopes = if Enum.empty?(scopes), do: client.allowed_scopes, else: scopes
-
+         {:ok, final_scopes} <- validate_and_finalize_scopes(scopes, client) do
       case decision do
         "approve" ->
           # User approved - generate authorization code
@@ -196,6 +188,11 @@ defmodule ThalamusWeb.OAuth2.AuthorizationController do
         |> put_status(:bad_request)
         |> json(%{error: error_code, error_description: description})
 
+      {:error, :not_found} ->
+        conn
+        |> put_status(:bad_request)
+        |> json(%{error: "invalid_client", error_description: "Client not found"})
+
       {:error, reason} ->
         conn
         |> put_status(:bad_request)
@@ -221,19 +218,25 @@ defmodule ThalamusWeb.OAuth2.AuthorizationController do
   defp validate_redirect_uri(nil, client) do
     # If no redirect_uri provided, use the first registered one
     case client.redirect_uris do
-      [first_uri | _] -> {:ok, first_uri}
+      [first_uri | _] -> {:ok, RedirectUri.to_string(first_uri)}
       [] -> {:error, "invalid_request", "No redirect_uri available"}
     end
   end
 
   defp validate_redirect_uri(redirect_uri, client) do
+    # Convert client redirect_uris (Value Objects) to strings for comparison
+    allowed_uris = Enum.map(client.redirect_uris, &redirect_uri_to_string/1)
+
     # Check if redirect_uri is in the client's registered URIs
-    if redirect_uri in client.redirect_uris do
+    if redirect_uri in allowed_uris do
       {:ok, redirect_uri}
     else
       {:error, "invalid_request", "Invalid redirect_uri"}
     end
   end
+
+  defp redirect_uri_to_string(%RedirectUri{value: value}), do: value
+  defp redirect_uri_to_string(str) when is_binary(str), do: str
 
   defp parse_scopes(nil), do: {:ok, []}
   defp parse_scopes(""), do: {:ok, []}
@@ -253,14 +256,52 @@ defmodule ThalamusWeb.OAuth2.AuthorizationController do
     {:ok, scopes}
   end
 
-  defp extract_pkce_params(params) do
-    pkce_params = %{
-      code_challenge: params["code_challenge"],
-      code_challenge_method: params["code_challenge_method"] || "S256"
-    }
+  defp extract_and_validate_pkce_params(params) do
+    code_challenge = params["code_challenge"]
+    code_challenge_method = params["code_challenge_method"] || "S256"
 
-    {:ok, pkce_params}
+    # If PKCE is provided, validate the method
+    if code_challenge do
+      case code_challenge_method do
+        method when method in ["S256", "plain"] ->
+          {:ok, %{code_challenge: code_challenge, code_challenge_method: method}}
+
+        _ ->
+          {:error, "invalid_request", "Invalid code_challenge_method. Only S256 and plain are supported"}
+      end
+    else
+      # No PKCE provided - that's OK (though not recommended)
+      {:ok, %{code_challenge: nil, code_challenge_method: nil}}
+    end
   end
+
+  defp validate_and_finalize_scopes(requested_scopes, client) do
+    # Use client's allowed scopes if no scopes were requested
+    final_scopes = if Enum.empty?(requested_scopes), do: client.allowed_scopes, else: requested_scopes
+
+    # Validate that all requested scopes are in client's allowed list
+    if Enum.empty?(final_scopes) do
+      {:error, "invalid_scope", "No scopes available for this client"}
+    else
+      # Convert scopes to comparable format (all to strings)
+      requested_scope_strings = Enum.map(final_scopes, &scope_to_string/1)
+      allowed_scope_strings = Enum.map(client.allowed_scopes, &scope_to_string/1)
+
+      unauthorized_scopes =
+        Enum.reject(requested_scope_strings, fn scope ->
+          scope in allowed_scope_strings
+        end)
+
+      if Enum.empty?(unauthorized_scopes) do
+        {:ok, final_scopes}
+      else
+        {:error, "invalid_scope", "Requested scopes not allowed for this client: #{Enum.join(unauthorized_scopes, ", ")}"}
+      end
+    end
+  end
+
+  defp scope_to_string(%Scope{value: value}), do: value
+  defp scope_to_string(str) when is_binary(str), do: str
 
   defp get_authenticated_user(conn) do
     # Check if user is authenticated via session or token
@@ -291,16 +332,19 @@ defmodule ThalamusWeb.OAuth2.AuthorizationController do
   end
 
   defp render_consent_screen(conn, data) do
+    # Convert scopes to strings for rendering (handle both Scope structs and strings)
+    scope_strings = Enum.map(data.scopes, &scope_to_string/1)
+
     # Render HTML consent screen
     render(conn, :consent,
       client_name: data.client.name,
-      scopes: Enum.map(data.scopes, &Scope.to_string/1),
+      scopes: scope_strings,
       redirect_uri: data.redirect_uri,
       state: data.state,
       form_data: %{
         client_id: data.client_id_string,
         redirect_uri: data.redirect_uri,
-        scope: Enum.map(data.scopes, &Scope.to_string/1) |> Enum.join(" "),
+        scope: Enum.join(scope_strings, " "),
         state: data.state,
         code_challenge: data.pkce_params.code_challenge,
         code_challenge_method: data.pkce_params.code_challenge_method

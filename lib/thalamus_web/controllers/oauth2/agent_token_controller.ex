@@ -14,13 +14,16 @@ defmodule ThalamusWeb.OAuth2.AgentTokenController do
 
   alias Thalamus.Application.UseCases.GenerateAgentToken
   alias Thalamus.Application.DTOs.{AgentTokenRequest, AgentTokenResponse}
+  alias Thalamus.FeatureFlags
 
   # Dependencies
   @deps %{
     client_repository: Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository,
     user_repository: Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository,
     token_repository: Thalamus.Infrastructure.Repositories.PostgreSQLTokenRepository,
-    audit_logger: Thalamus.Infrastructure.Adapters.AuditLoggerImpl
+    audit_logger: Thalamus.Infrastructure.Adapters.AuditLoggerImpl,
+    role_repository: Thalamus.Infrastructure.Repositories.PostgresqlRoleRepository,
+    cache_service: Thalamus.Infrastructure.Adapters.RedisCacheAdapter
   }
 
   @doc """
@@ -51,7 +54,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenController do
     "access_token": "at_...",
     "token_type": "Bearer",
     "expires_in": 3600,
-    "scope": "corpus:read corpus:write",
+    "scope": "api:read data:read",
     "agent_type": "autonomous",
     "task_id": "task_abc123",
     "max_operations": 100,
@@ -68,16 +71,27 @@ defmodule ThalamusWeb.OAuth2.AgentTokenController do
   ```
   """
   def create(conn, params) do
-    request = build_request(params)
+    # Epic 8: Feature flag check
+    if FeatureFlags.agent_tokens_enabled?() do
+      request = build_request(params)
 
-    case GenerateAgentToken.execute(request, @deps) do
-      {:ok, response} ->
-        conn
-        |> put_status(:ok)
-        |> json(AgentTokenResponse.to_map(response))
+      case GenerateAgentToken.execute(request, @deps) do
+        {:ok, response} ->
+          conn
+          |> put_status(:ok)
+          |> json(AgentTokenResponse.to_map(response))
 
-      {:error, error} ->
-        handle_error(conn, error)
+        {:error, error} ->
+          handle_error(conn, error)
+      end
+    else
+      # Feature disabled - return 404 to avoid leaking feature existence
+      conn
+      |> put_status(:not_found)
+      |> json(%{
+        error: "not_found",
+        error_description: "Endpoint not available"
+      })
     end
   end
 
@@ -172,6 +186,15 @@ defmodule ThalamusWeb.OAuth2.AgentTokenController do
 
   defp handle_error(conn, :delegator_inactive) do
     error_response(conn, :bad_request, "invalid_request", "delegating user is inactive")
+  end
+
+  defp handle_error(conn, :delegator_insufficient_permissions) do
+    error_response(
+      conn,
+      :forbidden,
+      "insufficient_scope",
+      "delegating user lacks permission to delegate the requested scopes"
+    )
   end
 
   defp handle_error(conn, :empty_task_scopes) do

@@ -114,6 +114,12 @@ defmodule ThalamusWeb.Clients.Show do
           </div>
           <div class="flex gap-2">
             <.link
+              navigate={~p"/dashboard/clients"}
+              class="btn btn-sm btn-ghost"
+            >
+              Back to Clients
+            </.link>
+            <.link
               navigate={~p"/dashboard/clients/#{@client.client_id_string}/edit"}
               class="btn btn-sm btn-ghost"
             >

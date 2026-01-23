@@ -67,8 +67,13 @@ config :phoenix, :json_library, Jason
 config :thalamus, Thalamus.Infrastructure.Adapters.EmailServiceImpl,
   mode: :development,
   from_email: "noreply@localhost",
-  from_name: "ZEA Thalamus (Dev)",
+  from_name: "Thalamus (Dev)",
   base_url: "http://localhost:4000"
+
+# MFA configuration
+config :thalamus,
+  # Issuer name displayed in authenticator apps (Google Authenticator, Authy, etc.)
+  mfa_issuer_name: "Thalamus"
 
 # Security tokens configuration
 config :thalamus,
@@ -103,6 +108,22 @@ config :thalamus,
 config :thalamus, Thalamus.Mailer,
   # Default to Local adapter, override in env configs
   adapter: Swoosh.Adapters.Local
+
+# Oban background job processing configuration
+config :thalamus, Oban,
+  repo: Thalamus.Repo,
+  plugins: [
+    # Periodic job pruning (keeps completed jobs for 60 seconds)
+    {Oban.Plugins.Pruner, max_age: 60}
+  ],
+  queues: [
+    # Default queue for general background jobs
+    default: 10,
+    # Email sending queue
+    emails: 20,
+    # Cleanup and maintenance tasks
+    maintenance: 5
+  ]
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.

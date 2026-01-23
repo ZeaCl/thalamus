@@ -19,7 +19,7 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
 
   setup do
     # Create organization
-    {:ok, org} = Organization.new("Test Corp", "owner@test.com", :professional)
+    {:ok, org} = Organization.new("Test Corp", "owner@test.com", :standard)
     {:ok, org} = PostgreSQLOrganizationRepository.save(org)
 
     # Create and verify user
@@ -32,8 +32,8 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
     {:ok, auth_code_grant} = GrantType.authorization_code()
     {:ok, refresh_grant} = GrantType.refresh_token()
     {:ok, client_creds_grant} = GrantType.client_credentials()
-    {:ok, read_scope} = Scope.new("zea:read")
-    {:ok, write_scope} = Scope.new("zea:write")
+    {:ok, read_scope} = Scope.new("api:read")
+    {:ok, write_scope} = Scope.new("api:write")
     {:ok, redirect_uri} = RedirectUri.new("http://localhost:3000/callback")
 
     # Generate plain text secret to use in tests
@@ -67,7 +67,7 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
     } do
       # Generate authorization code
       {:ok, redirect_uri} = RedirectUri.new("http://localhost:3000/callback")
-      {:ok, read_scope} = Scope.new("zea:read")
+      {:ok, read_scope} = Scope.new("api:read")
 
       {:ok, auth_code} =
         AuthorizationCode.generate(
@@ -85,7 +85,7 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
         type: :authorization_code,
         user_id: user.id,
         client_id: client.id,
-        scopes: ["zea:read"],
+        scopes: ["api:read"],
         expires_at: DateTime.add(DateTime.utc_now(), 600, :second)
       }
 
@@ -106,7 +106,7 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
                "token_type" => "Bearer",
                "expires_in" => expires_in,
                "refresh_token" => refresh_token,
-               "scope" => "zea:read"
+               "scope" => "api:read"
              } = json_response(conn, 200)
 
       assert is_binary(access_token)
@@ -136,7 +136,7 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
       client: client
     } do
       {:ok, redirect_uri} = RedirectUri.new("http://localhost:3000/callback")
-      {:ok, read_scope} = Scope.new("zea:read")
+      {:ok, read_scope} = Scope.new("api:read")
 
       {:ok, auth_code} =
         AuthorizationCode.generate(
@@ -165,7 +165,7 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
 
     test "returns error with mismatched redirect_uri", %{conn: conn, user: user, client: client} do
       {:ok, redirect_uri} = RedirectUri.new("http://localhost:3000/callback")
-      {:ok, read_scope} = Scope.new("zea:read")
+      {:ok, read_scope} = Scope.new("api:read")
 
       {:ok, auth_code} =
         AuthorizationCode.generate(
@@ -182,7 +182,7 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
         type: :authorization_code,
         user_id: user.id,
         client_id: client.id,
-        scopes: ["zea:read"],
+        scopes: ["api:read"],
         redirect_uri: "http://localhost:3000/callback",
         expires_at: DateTime.add(DateTime.utc_now(), 600, :second)
       }
@@ -212,7 +212,7 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
           grant_type: "client_credentials",
           client_id: to_string(client.id),
           client_secret: client.plain_secret,
-          scope: "zea:read zea:write"
+          scope: "api:read api:write"
         })
 
       assert %{
@@ -223,7 +223,7 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
              } = json_response(conn, 200)
 
       assert is_binary(access_token)
-      assert scope in ["zea:read zea:write", "zea:read,zea:write"]
+      assert scope in ["api:read api:write", "api:read,api:write"]
     end
 
     test "returns error with invalid client credentials", %{conn: conn, client: client} do
@@ -232,7 +232,7 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
           grant_type: "client_credentials",
           client_id: to_string(client.id),
           client_secret: "wrong_secret",
-          scope: "zea:read"
+          scope: "api:read"
         })
 
       assert %{
@@ -266,7 +266,7 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
     } do
       # First, get tokens via authorization code
       {:ok, redirect_uri} = RedirectUri.new("http://localhost:3000/callback")
-      {:ok, read_scope} = Scope.new("zea:read")
+      {:ok, read_scope} = Scope.new("api:read")
 
       {:ok, auth_code} =
         AuthorizationCode.generate(
@@ -283,7 +283,7 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
         type: :authorization_code,
         user_id: user.id,
         client_id: client.id,
-        scopes: ["zea:read"],
+        scopes: ["api:read"],
         expires_at: DateTime.add(DateTime.utc_now(), 600, :second)
       }
 
@@ -314,7 +314,7 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
                "token_type" => "Bearer",
                "expires_in" => 3600,
                "refresh_token" => new_refresh_token,
-               "scope" => "zea:read"
+               "scope" => "api:read"
              } = json_response(conn2, 200)
 
       assert is_binary(new_access_token)
@@ -392,7 +392,7 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
 
       # Generate authorization code with PKCE
       {:ok, redirect_uri} = RedirectUri.new("http://localhost:3000/callback")
-      {:ok, read_scope} = Scope.new("zea:read")
+      {:ok, read_scope} = Scope.new("api:read")
 
       {:ok, auth_code} =
         AuthorizationCode.generate(
@@ -409,7 +409,7 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
         type: :authorization_code,
         user_id: user.id,
         client_id: client.id,
-        scopes: ["zea:read"],
+        scopes: ["api:read"],
         code_challenge: code_challenge,
         code_challenge_method: "S256",
         expires_at: DateTime.add(DateTime.utc_now(), 600, :second)
@@ -445,7 +445,7 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
       code_challenge = pkce_challenge.value
 
       {:ok, redirect_uri} = RedirectUri.new("http://localhost:3000/callback")
-      {:ok, read_scope} = Scope.new("zea:read")
+      {:ok, read_scope} = Scope.new("api:read")
 
       {:ok, auth_code} =
         AuthorizationCode.generate(
@@ -462,7 +462,7 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
         type: :authorization_code,
         user_id: user.id,
         client_id: client.id,
-        scopes: ["zea:read"],
+        scopes: ["api:read"],
         code_challenge: code_challenge,
         code_challenge_method: "S256",
         expires_at: DateTime.add(DateTime.utc_now(), 600, :second)

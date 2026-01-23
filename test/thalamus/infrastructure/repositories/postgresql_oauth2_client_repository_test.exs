@@ -62,9 +62,9 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepositoryT
 
       assert {:ok, saved_client} = PostgreSQLOAuth2ClientRepository.save(client)
       assert length(saved_client.allowed_scopes) == 3
-      assert "openid" in saved_client.allowed_scopes
-      assert "profile" in saved_client.allowed_scopes
-      assert "email" in saved_client.allowed_scopes
+      assert "openid" in Enum.map(saved_client.allowed_scopes, &to_string/1)
+      assert "profile" in Enum.map(saved_client.allowed_scopes, &to_string/1)
+      assert "email" in Enum.map(saved_client.allowed_scopes, &to_string/1)
     end
 
     test "saves client with redirect URIs" do
@@ -74,8 +74,8 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepositoryT
 
       assert {:ok, saved_client} = PostgreSQLOAuth2ClientRepository.save(client)
       assert length(saved_client.redirect_uris) == 2
-      assert "https://app.example.com/callback" in saved_client.redirect_uris
-      assert "https://app.example.com/callback2" in saved_client.redirect_uris
+      assert "https://app.example.com/callback" in Enum.map(saved_client.redirect_uris, &to_string/1)
+      assert "https://app.example.com/callback2" in Enum.map(saved_client.redirect_uris, &to_string/1)
     end
 
     test "updates existing client when id exists in database" do
@@ -131,7 +131,7 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepositoryT
 
       assert {:ok, result} = PostgreSQLOAuth2ClientRepository.save(updated_client)
       assert length(result.allowed_scopes) == 2
-      assert "profile" in result.allowed_scopes
+      assert "profile" in Enum.map(result.allowed_scopes, &to_string/1)
     end
 
     test "updates client with new redirect URIs" do
@@ -266,7 +266,7 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepositoryT
 
       assert {:ok, found_client} = PostgreSQLOAuth2ClientRepository.find_by_id(saved_client.id)
       assert length(found_client.redirect_uris) == 1
-      assert "https://app.example.com/callback" in found_client.redirect_uris
+      assert "https://app.example.com/callback" in Enum.map(found_client.redirect_uris, &to_string/1)
     end
 
     test "finds confidential client with hashed secret" do
@@ -756,22 +756,22 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepositoryT
       assert {:ok, found_client} = PostgreSQLOAuth2ClientRepository.find_by_id(saved_client.id)
 
       assert length(found_client.allowed_scopes) == 3
-      assert "openid" in found_client.allowed_scopes
-      assert "profile" in found_client.allowed_scopes
-      assert "email" in found_client.allowed_scopes
+      assert "openid" in Enum.map(found_client.allowed_scopes, &to_string/1)
+      assert "profile" in Enum.map(found_client.allowed_scopes, &to_string/1)
+      assert "email" in Enum.map(found_client.allowed_scopes, &to_string/1)
     end
 
     test "converts custom scopes correctly" do
-      {:ok, custom1} = Scope.new("zea:read")
-      {:ok, custom2} = Scope.new("zea:write")
+      {:ok, custom1} = Scope.new("api:read")
+      {:ok, custom2} = Scope.new("api:write")
       {:ok, client} = create_client_entity(allowed_scopes: [custom1, custom2])
 
       assert {:ok, saved_client} = PostgreSQLOAuth2ClientRepository.save(client)
       assert {:ok, found_client} = PostgreSQLOAuth2ClientRepository.find_by_id(saved_client.id)
 
       assert length(found_client.allowed_scopes) == 2
-      assert "zea:read" in found_client.allowed_scopes
-      assert "zea:write" in found_client.allowed_scopes
+      assert "api:read" in Enum.map(found_client.allowed_scopes, &to_string/1)
+      assert "api:write" in Enum.map(found_client.allowed_scopes, &to_string/1)
     end
 
     test "handles empty scopes list" do
@@ -794,8 +794,8 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepositoryT
       assert {:ok, found_client} = PostgreSQLOAuth2ClientRepository.find_by_id(saved_client.id)
 
       assert length(found_client.redirect_uris) == 2
-      assert "https://app.example.com/callback" in found_client.redirect_uris
-      assert "https://app.example.com/callback2" in found_client.redirect_uris
+      assert "https://app.example.com/callback" in Enum.map(found_client.redirect_uris, &to_string/1)
+      assert "https://app.example.com/callback2" in Enum.map(found_client.redirect_uris, &to_string/1)
     end
 
     test "converts localhost redirect URIs correctly" do
@@ -806,7 +806,7 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepositoryT
       assert {:ok, found_client} = PostgreSQLOAuth2ClientRepository.find_by_id(saved_client.id)
 
       assert length(found_client.redirect_uris) == 1
-      assert "http://localhost:3000/callback" in found_client.redirect_uris
+      assert "http://localhost:3000/callback" in Enum.map(found_client.redirect_uris, &to_string/1)
     end
 
     test "handles empty redirect URIs list" do
@@ -887,7 +887,7 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepositoryT
       id: Ecto.UUID.generate(),
       name: "Test Organization #{:rand.uniform(1_000_000)}",
       status: :active,
-      plan_type: :professional,
+      plan_type: :standard,
       verified: true,
       max_users: 100,
       max_api_calls_per_month: 100_000,

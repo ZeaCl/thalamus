@@ -16,11 +16,14 @@ defmodule Thalamus.Domain.Entities.User do
   @type status :: :active | :suspended | :deactivated | :pending_verification
   @type t :: %__MODULE__{
           id: UserId.t(),
+          organization_id: binary() | nil,
           email: Email.t(),
           name: String.t() | nil,
+          avatar_url: String.t() | nil,
           password_hash: PasswordHash.t(),
           mfa_methods: [MFAMethod.t()],
           status: status(),
+          email_verified: boolean(),
           failed_login_attempts: non_neg_integer(),
           locked_until: DateTime.t() | nil,
           created_at: DateTime.t(),
@@ -31,11 +34,14 @@ defmodule Thalamus.Domain.Entities.User do
 
   defstruct [
     :id,
+    :organization_id,
     :email,
     :name,
+    :avatar_url,
     :password_hash,
     :mfa_methods,
     :status,
+    :email_verified,
     :failed_login_attempts,
     :locked_until,
     :created_at,
@@ -73,6 +79,7 @@ defmodule Thalamus.Domain.Entities.User do
       id: id,
       email: email,
       name: Map.get(attrs, :name),
+      avatar_url: Map.get(attrs, :avatar_url),
       password_hash: password_hash,
       mfa_methods: Map.get(attrs, :mfa_methods, []),
       status: Map.get(attrs, :status, :pending_verification),
@@ -184,8 +191,43 @@ defmodule Thalamus.Domain.Entities.User do
   """
   def change_password(%__MODULE__{} = user, current_password, new_password)
       when is_binary(current_password) and is_binary(new_password) do
-    with :ok <- verify_password(user, current_password),
-         {:ok, new_hash} <- PasswordHash.from_password(new_password) do
+    # Verify new password is different from current
+    if current_password == new_password do
+      {:error, :password_must_be_different}
+    else
+      with :ok <- verify_password(user, current_password),
+           {:ok, new_hash} <- PasswordHash.from_password(new_password) do
+        {:ok,
+         %{
+           user
+           | password_hash: new_hash,
+             updated_at: DateTime.truncate(DateTime.utc_now(), :second)
+         }}
+      else
+        {:error, :invalid_password} -> {:error, :incorrect_current_password}
+        {:error, reason} -> {:error, reason}
+      end
+    end
+  end
+
+  def change_password(_, _, _), do: {:error, :invalid_password_change}
+
+  @doc """
+  Resets the user's password (for password reset flow, no current password required).
+
+  Use this for password reset with token flow. For authenticated password change, use change_password/3.
+
+  ## Examples
+
+      iex> {:ok, user} = User.register("user@example.com", "OldP@ssw0rd!")
+      iex> User.reset_password(user, "NewP@ssw0rd!")
+      {:ok, %User{password_hash: new_hash, ...}}
+
+      iex> User.reset_password(user, "weak")
+      {:error, :password_too_short}
+  """
+  def reset_password(%__MODULE__{} = user, new_password) when is_binary(new_password) do
+    with {:ok, new_hash} <- PasswordHash.from_password(new_password) do
       {:ok,
        %{
          user
@@ -193,12 +235,11 @@ defmodule Thalamus.Domain.Entities.User do
            updated_at: DateTime.truncate(DateTime.utc_now(), :second)
        }}
     else
-      {:error, :invalid_password} -> {:error, :invalid_current_password}
       {:error, reason} -> {:error, reason}
     end
   end
 
-  def change_password(_, _, _), do: {:error, :invalid_password_change}
+  def reset_password(_, _), do: {:error, :invalid_password_reset}
 
   @doc """
   Records a failed login attempt and locks account if threshold exceeded.
@@ -417,6 +458,38 @@ defmodule Thalamus.Domain.Entities.User do
      %{user | status: :deactivated, updated_at: DateTime.truncate(DateTime.utc_now(), :second)}}
   end
 
+  @doc """
+  Sets the user's avatar URL.
+
+  ## Examples
+
+      iex> user = %User{avatar_url: nil}
+      iex> User.set_avatar(user, "https://example.com/avatars/user123.jpg")
+      {:ok, %User{avatar_url: "https://example.com/avatars/user123.jpg"}}
+
+      iex> User.set_avatar(user, "")
+      {:error, :invalid_avatar_url}
+  """
+  def set_avatar(%__MODULE__{} = user, avatar_url) when is_binary(avatar_url) and avatar_url != "" do
+    {:ok,
+     %{user | avatar_url: avatar_url, updated_at: DateTime.truncate(DateTime.utc_now(), :second)}}
+  end
+
+  def set_avatar(_, _), do: {:error, :invalid_avatar_url}
+
+  @doc """
+  Removes the user's avatar URL.
+
+  ## Examples
+
+      iex> user = %User{avatar_url: "https://example.com/avatar.jpg"}
+      iex> User.remove_avatar(user)
+      {:ok, %User{avatar_url: nil}}
+  """
+  def remove_avatar(%__MODULE__{} = user) do
+    {:ok, %{user | avatar_url: nil, updated_at: DateTime.truncate(DateTime.utc_now(), :second)}}
+  end
+
   # Private functions
 
   defp validate_user(%__MODULE__{} = user) do
@@ -453,6 +526,8 @@ defimpl Jason.Encoder, for: Thalamus.Domain.Entities.User do
     %{
       id: user.id,
       email: user.email,
+      name: user.name,
+      avatar_url: user.avatar_url,
       status: user.status,
       mfa_enabled: Thalamus.Domain.Entities.User.mfa_enabled?(user),
       verified_at: user.verified_at,

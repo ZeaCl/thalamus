@@ -18,17 +18,12 @@ defmodule ThalamusWeb.Organizations.ShowTest do
     auth_user = create_user(org, "admin@example.com")
 
     # Create test organization with unique name to prevent deadlocks
-    test_org = create_organization("Test Org #{System.unique_integer()}", "professional")
+    test_org = create_organization("Test Org #{System.unique_integer()}", "standard")
 
-    conn =
-      build_conn()
-      |> Plug.Test.init_test_session(%{})
-      |> put_session(:user_id, auth_user.id)
+    # Log in user for protected routes (loads user into session and assigns)
+    conn = log_in_user(conn, auth_user.id)
 
-    # Log in user for protected routes
-    conn = log_in_user(conn)
-
-    {:ok, conn: conn, conn: conn, org: test_org}
+    {:ok, conn: conn, org: test_org, auth_user: auth_user}
   end
 
   describe "Show LiveView" do

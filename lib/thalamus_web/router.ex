@@ -165,6 +165,14 @@ defmodule ThalamusWeb.Router do
     post "/authorize", AuthorizationController, :create
   end
 
+  # OpenID Connect Discovery (public, no auth required)
+  scope "/.well-known", ThalamusWeb.OAuth2 do
+    pipe_through :api
+
+    # OpenID Connect Discovery endpoint
+    get "/openid-configuration", DiscoveryController, :show
+  end
+
   # OAuth2 Token Endpoints (API-based, NO CSRF protection)
   scope "/oauth", ThalamusWeb.OAuth2 do
     pipe_through :oauth2_api
@@ -218,12 +226,28 @@ defmodule ThalamusWeb.Router do
     # Password change (requires authentication)
     put "/password/change", PasswordController, :change
 
+    # Avatar management (requires authentication)
+    post "/avatar", AvatarController, :upload
+    delete "/avatar", AvatarController, :delete
+
     # MFA (Multi-Factor Authentication) management
     post "/mfa/totp/setup", MFAController, :setup_totp
     post "/mfa/totp/verify", MFAController, :verify_totp
     post "/mfa/verify", MFAController, :verify_mfa_code
     delete "/mfa/disable", MFAController, :disable_mfa
     post "/mfa/backup-codes/regenerate", MFAController, :regenerate_backup_codes
+
+    # RBAC - Role management
+    resources "/roles", RoleController, except: [:new, :edit]
+
+    # RBAC - User-role assignments
+    post "/users/:user_id/roles", UserRoleController, :assign
+    delete "/users/:user_id/roles/:role_id", UserRoleController, :revoke
+    get "/users/:user_id/roles", UserRoleController, :index
+    get "/users/:user_id/effective-scopes", UserRoleController, :effective_scopes
+
+    # Audit Logs - Compliance exports
+    get "/audit-logs/export", AuditLogController, :export
   end
 
   # OAuth2 Client Management API - accepts both JWT and API Keys

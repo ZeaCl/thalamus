@@ -147,7 +147,8 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLTokenRepository do
       expires_on_completion: Map.get(token_data, :expires_on_completion, false),
       intent_description: Map.get(token_data, :intent_description),
       orchestrator_id: Map.get(token_data, :orchestrator_id),
-      environment: Map.get(token_data, :environment)
+      environment: Map.get(token_data, :environment),
+      inserted_at: Map.get(token_data, :inserted_at)
     }
     |> Enum.reject(fn {_k, v} -> is_nil(v) end)
     |> Map.new()

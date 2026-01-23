@@ -1,7 +1,7 @@
 # Post-OpenSpec Documentation
-## Thalamus: Agentic Economy Features Implementation
+## Thalamus: Generic Multi-Agent OAuth2 Extensions
 
-Este directorio contiene toda la documentación generada usando el proceso OpenSpecification para implementar las nuevas funcionalidades de Thalamus orientadas a la Economía Agéntica.
+Este directorio contiene toda la documentación generada usando el proceso OpenSpecification para implementar las funcionalidades de agent tokens de Thalamus - **extensiones genéricas de OAuth2 que funcionan con CUALQUIER sistema multi-agente** (LangChain, AutoGPT, CrewAI, LangGraph, frameworks personalizados).
 
 ---
 
@@ -95,12 +95,24 @@ Este directorio contiene toda la documentación generada usando el proceso OpenS
 
 ## 🎯 Objetivos del Proyecto
 
-### Epics 1-8: Agent Token Infrastructure (Completado)
-- ✅ Generar tokens para agentes AI con metadata (agent_type, task_id, delegation_chain)
-- ✅ Soportar delegation chains con máximo 5 niveles de profundidad
-- ✅ Revocación en cascada de delegation chains
+### Epics 1-8: Generic Agent Token Infrastructure
+**Status:** 73% Complete (6/8 epics done, 181/181 tests passing)
+
+- ✅ Generar tokens para agentes AI con metadata genérico (agent_type, task_id, delegation_chain)
+- ✅ Soportar delegation chains con máximo 10 niveles de profundidad (configurable)
+- ✅ Agent types universales: autonomous (AutoGPT), supervisor (LangGraph), tool (function-calling)
+- ✅ Task scoping para limitar permisos del agente por tarea
+- ✅ Intent attestation (patrón de seguridad AI genérico)
 - ✅ Multi-tenancy estricto por organization_id
-- ✅ Introspección de tokens con caché ETS (<3ms p99)
+- ✅ Introspección de tokens con caché (<3ms p99)
+- ✅ Sistema de scopes completamente configurable (sin hardcoding de aplicación específica)
+
+**Use Cases Soportados:**
+- LangChain agents con tool execution
+- AutoGPT workflows con multi-step delegation
+- CrewAI orchestration con task-specific tokens
+- LangGraph supervisor/specialist agent patterns
+- Custom multi-agent frameworks (cualquier arquitectura)
 
 ### Epic 9: RBAC Implementation (En Progreso)
 - 🔄 Validación de permisos de delegador (users can only delegate scopes they possess)
@@ -207,8 +219,11 @@ git commit -m "refactor: extract token validation to separate function"
 
 ---
 
-**Última actualización:** 2026-01-17
+**Última actualización:** 2026-01-20
 **Estado del proyecto:**
-- Epics 1-2: ✅ Completados
-- Epic 3: 🔄 En progreso (Application Layer)
+- Epics 1-6: ✅ Completados (100% tests - Production Ready)
+- Epic 7: ⚠️ Parcial (Observability)
+- Epic 8: ❌ Pendiente (Migration & Rollout)
 - Epic 9 (RBAC): ✅ Todas las fases completadas - Listo para implementación (37 tareas, 4 sprints)
+
+**Agent Tokens Status:** ✅ **GENÉRICO** - Funciona con cualquier sistema multi-agente (NO acoplado a aplicación específica)

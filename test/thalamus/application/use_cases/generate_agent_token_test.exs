@@ -39,7 +39,9 @@ defmodule Thalamus.Application.UseCases.GenerateAgentTokenTest do
         client_repository: MockOAuth2ClientRepository,
         user_repository: MockUserRepository,
         token_repository: MockTokenRepository,
-        audit_logger: MockAuditLogger
+        audit_logger: MockAuditLogger,
+        role_repository: MockRoleRepository,
+        cache_service: MockCacheService
       }
 
       expect(MockOAuth2ClientRepository, :find_by_client_id, fn ^client_id ->
@@ -48,6 +50,15 @@ defmodule Thalamus.Application.UseCases.GenerateAgentTokenTest do
 
       expect(MockUserRepository, :find_by_id, fn ^user_id ->
         {:ok, delegator}
+      end)
+
+      # Mock GetEffectiveScopes dependencies
+      expect(MockCacheService, :get, fn _cache_key ->
+        {:error, :not_found}
+      end)
+
+      expect(MockRoleRepository, :get_user_roles, fn _user_id ->
+        {:ok, []}
       end)
 
       expect(MockTokenRepository, :store, fn token_data ->
@@ -80,7 +91,7 @@ defmodule Thalamus.Application.UseCases.GenerateAgentTokenTest do
       assert response.expires_on_completion == false
     end
 
-    test "generates supervised agent token with all optional parameters" do
+    test "generates supervisor agent token with all optional parameters" do
       client_id = Ecto.UUID.generate()
       user_id = Ecto.UUID.generate()
       org_id = Ecto.UUID.generate()
@@ -89,7 +100,7 @@ defmodule Thalamus.Application.UseCases.GenerateAgentTokenTest do
         id: client_id,
         client_secret: Bcrypt.hash_pwd_salt("test_secret"),
         is_active: true,
-        allowed_scopes: ["corpus:read", "corpus:write", "zea:read"],
+        allowed_scopes: ["corpus:read", "corpus:write", "api:read"],
         organization_id: org_id
       }
 
@@ -102,7 +113,7 @@ defmodule Thalamus.Application.UseCases.GenerateAgentTokenTest do
         client_id: client_id,
         client_secret: "test_secret",
         delegated_by_user_id: user_id,
-        agent_type: "supervised",
+        agent_type: "supervisor",
         task_scopes: ["corpus:read", "corpus:write"],
         task_id: "task_abc123",
         task_type: "document_processing",
@@ -117,7 +128,9 @@ defmodule Thalamus.Application.UseCases.GenerateAgentTokenTest do
         client_repository: MockOAuth2ClientRepository,
         user_repository: MockUserRepository,
         token_repository: MockTokenRepository,
-        audit_logger: MockAuditLogger
+        audit_logger: MockAuditLogger,
+        role_repository: MockRoleRepository,
+        cache_service: MockCacheService
       }
 
       expect(MockOAuth2ClientRepository, :find_by_client_id, fn ^client_id ->
@@ -128,8 +141,17 @@ defmodule Thalamus.Application.UseCases.GenerateAgentTokenTest do
         {:ok, delegator}
       end)
 
+      # Mock GetEffectiveScopes dependencies
+      expect(MockCacheService, :get, fn _cache_key ->
+        {:error, :not_found}
+      end)
+
+      expect(MockRoleRepository, :get_user_roles, fn _user_id ->
+        {:ok, []}
+      end)
+
       expect(MockTokenRepository, :store, fn token_data ->
-        assert token_data.agent_type == "supervised"
+        assert token_data.agent_type == "supervisor"
         assert token_data.task_id == "task_abc123"
         assert token_data.task_type == "document_processing"
         assert token_data.task_scopes == ["corpus:read", "corpus:write"]
@@ -150,14 +172,14 @@ defmodule Thalamus.Application.UseCases.GenerateAgentTokenTest do
 
       assert {:ok, response} = GenerateAgentToken.execute(request, deps)
 
-      assert response.agent_type == "supervised"
+      assert response.agent_type == "supervisor"
       assert response.task_id == "task_abc123"
       assert response.max_operations == 100
       assert response.expires_on_completion == true
       assert response.expires_in == 1800
     end
 
-    test "generates ephemeral agent token with short TTL" do
+    test "generates tool agent token with short TTL" do
       client_id = Ecto.UUID.generate()
       user_id = Ecto.UUID.generate()
       org_id = Ecto.UUID.generate()
@@ -166,7 +188,7 @@ defmodule Thalamus.Application.UseCases.GenerateAgentTokenTest do
         id: client_id,
         client_secret: Bcrypt.hash_pwd_salt("test_secret"),
         is_active: true,
-        allowed_scopes: ["zea:read"],
+        allowed_scopes: ["api:read"],
         organization_id: org_id
       }
 
@@ -179,9 +201,9 @@ defmodule Thalamus.Application.UseCases.GenerateAgentTokenTest do
         client_id: client_id,
         client_secret: "test_secret",
         delegated_by_user_id: user_id,
-        agent_type: "ephemeral",
-        task_scopes: ["zea:read"],
-        task_id: "ephemeral_task_001",
+        agent_type: "tool",
+        task_scopes: ["api:read"],
+        task_id: "tool_task_001",
         max_operations: 10,
         expires_on_completion: true,
         ttl: 300
@@ -191,7 +213,9 @@ defmodule Thalamus.Application.UseCases.GenerateAgentTokenTest do
         client_repository: MockOAuth2ClientRepository,
         user_repository: MockUserRepository,
         token_repository: MockTokenRepository,
-        audit_logger: MockAuditLogger
+        audit_logger: MockAuditLogger,
+        role_repository: MockRoleRepository,
+        cache_service: MockCacheService
       }
 
       expect(MockOAuth2ClientRepository, :find_by_client_id, fn ^client_id ->
@@ -202,8 +226,17 @@ defmodule Thalamus.Application.UseCases.GenerateAgentTokenTest do
         {:ok, delegator}
       end)
 
+      # Mock GetEffectiveScopes dependencies
+      expect(MockCacheService, :get, fn _cache_key ->
+        {:error, :not_found}
+      end)
+
+      expect(MockRoleRepository, :get_user_roles, fn _user_id ->
+        {:ok, []}
+      end)
+
       expect(MockTokenRepository, :store, fn token_data ->
-        assert token_data.agent_type == "ephemeral"
+        assert token_data.agent_type == "tool"
         assert token_data.max_operations == 10
         assert token_data.expires_on_completion == true
         assert token_data.expires_in == 300
@@ -214,7 +247,7 @@ defmodule Thalamus.Application.UseCases.GenerateAgentTokenTest do
 
       assert {:ok, response} = GenerateAgentToken.execute(request, deps)
 
-      assert response.agent_type == "ephemeral"
+      assert response.agent_type == "tool"
       assert response.expires_in == 300
     end
 
@@ -250,7 +283,9 @@ defmodule Thalamus.Application.UseCases.GenerateAgentTokenTest do
         client_repository: MockOAuth2ClientRepository,
         user_repository: MockUserRepository,
         token_repository: MockTokenRepository,
-        audit_logger: MockAuditLogger
+        audit_logger: MockAuditLogger,
+        role_repository: MockRoleRepository,
+        cache_service: MockCacheService
       }
 
       expect(MockOAuth2ClientRepository, :find_by_client_id, fn ^client_id ->
@@ -259,6 +294,15 @@ defmodule Thalamus.Application.UseCases.GenerateAgentTokenTest do
 
       expect(MockUserRepository, :find_by_id, fn ^user_id ->
         {:ok, delegator}
+      end)
+
+      # Mock GetEffectiveScopes dependencies
+      expect(MockCacheService, :get, fn _cache_key ->
+        {:error, :not_found}
+      end)
+
+      expect(MockRoleRepository, :get_user_roles, fn _user_id ->
+        {:ok, []}
       end)
 
       expect(MockTokenRepository, :store, fn token_data ->
@@ -289,7 +333,9 @@ defmodule Thalamus.Application.UseCases.GenerateAgentTokenTest do
         client_repository: MockOAuth2ClientRepository,
         user_repository: MockUserRepository,
         token_repository: MockTokenRepository,
-        audit_logger: MockAuditLogger
+        audit_logger: MockAuditLogger,
+        role_repository: MockRoleRepository,
+        cache_service: MockCacheService
       }
 
       assert {:error, :missing_client_id} = GenerateAgentToken.execute(request, deps)
@@ -308,7 +354,9 @@ defmodule Thalamus.Application.UseCases.GenerateAgentTokenTest do
         client_repository: MockOAuth2ClientRepository,
         user_repository: MockUserRepository,
         token_repository: MockTokenRepository,
-        audit_logger: MockAuditLogger
+        audit_logger: MockAuditLogger,
+        role_repository: MockRoleRepository,
+        cache_service: MockCacheService
       }
 
       assert {:error, :missing_client_secret} = GenerateAgentToken.execute(request, deps)
@@ -327,7 +375,9 @@ defmodule Thalamus.Application.UseCases.GenerateAgentTokenTest do
         client_repository: MockOAuth2ClientRepository,
         user_repository: MockUserRepository,
         token_repository: MockTokenRepository,
-        audit_logger: MockAuditLogger
+        audit_logger: MockAuditLogger,
+        role_repository: MockRoleRepository,
+        cache_service: MockCacheService
       }
 
       assert {:error, :missing_delegated_by_user_id} = GenerateAgentToken.execute(request, deps)
@@ -346,7 +396,9 @@ defmodule Thalamus.Application.UseCases.GenerateAgentTokenTest do
         client_repository: MockOAuth2ClientRepository,
         user_repository: MockUserRepository,
         token_repository: MockTokenRepository,
-        audit_logger: MockAuditLogger
+        audit_logger: MockAuditLogger,
+        role_repository: MockRoleRepository,
+        cache_service: MockCacheService
       }
 
       assert {:error, :missing_agent_type} = GenerateAgentToken.execute(request, deps)
@@ -365,7 +417,9 @@ defmodule Thalamus.Application.UseCases.GenerateAgentTokenTest do
         client_repository: MockOAuth2ClientRepository,
         user_repository: MockUserRepository,
         token_repository: MockTokenRepository,
-        audit_logger: MockAuditLogger
+        audit_logger: MockAuditLogger,
+        role_repository: MockRoleRepository,
+        cache_service: MockCacheService
       }
 
       assert {:error, :invalid_agent_type} = GenerateAgentToken.execute(request, deps)
@@ -384,7 +438,9 @@ defmodule Thalamus.Application.UseCases.GenerateAgentTokenTest do
         client_repository: MockOAuth2ClientRepository,
         user_repository: MockUserRepository,
         token_repository: MockTokenRepository,
-        audit_logger: MockAuditLogger
+        audit_logger: MockAuditLogger,
+        role_repository: MockRoleRepository,
+        cache_service: MockCacheService
       }
 
       assert {:error, :empty_task_scopes} = GenerateAgentToken.execute(request, deps)
@@ -407,7 +463,9 @@ defmodule Thalamus.Application.UseCases.GenerateAgentTokenTest do
         client_repository: MockOAuth2ClientRepository,
         user_repository: MockUserRepository,
         token_repository: MockTokenRepository,
-        audit_logger: MockAuditLogger
+        audit_logger: MockAuditLogger,
+        role_repository: MockRoleRepository,
+        cache_service: MockCacheService
       }
 
       expect(MockOAuth2ClientRepository, :find_by_client_id, fn ^client_id ->
@@ -440,7 +498,9 @@ defmodule Thalamus.Application.UseCases.GenerateAgentTokenTest do
         client_repository: MockOAuth2ClientRepository,
         user_repository: MockUserRepository,
         token_repository: MockTokenRepository,
-        audit_logger: MockAuditLogger
+        audit_logger: MockAuditLogger,
+        role_repository: MockRoleRepository,
+        cache_service: MockCacheService
       }
 
       expect(MockOAuth2ClientRepository, :find_by_client_id, fn ^client_id ->
@@ -474,7 +534,9 @@ defmodule Thalamus.Application.UseCases.GenerateAgentTokenTest do
         client_repository: MockOAuth2ClientRepository,
         user_repository: MockUserRepository,
         token_repository: MockTokenRepository,
-        audit_logger: MockAuditLogger
+        audit_logger: MockAuditLogger,
+        role_repository: MockRoleRepository,
+        cache_service: MockCacheService
       }
 
       expect(MockOAuth2ClientRepository, :find_by_client_id, fn ^client_id ->
@@ -508,7 +570,9 @@ defmodule Thalamus.Application.UseCases.GenerateAgentTokenTest do
         client_repository: MockOAuth2ClientRepository,
         user_repository: MockUserRepository,
         token_repository: MockTokenRepository,
-        audit_logger: MockAuditLogger
+        audit_logger: MockAuditLogger,
+        role_repository: MockRoleRepository,
+        cache_service: MockCacheService
       }
 
       expect(MockOAuth2ClientRepository, :find_by_client_id, fn ^client_id ->
@@ -552,7 +616,9 @@ defmodule Thalamus.Application.UseCases.GenerateAgentTokenTest do
         client_repository: MockOAuth2ClientRepository,
         user_repository: MockUserRepository,
         token_repository: MockTokenRepository,
-        audit_logger: MockAuditLogger
+        audit_logger: MockAuditLogger,
+        role_repository: MockRoleRepository,
+        cache_service: MockCacheService
       }
 
       expect(MockOAuth2ClientRepository, :find_by_client_id, fn ^client_id ->
@@ -599,7 +665,9 @@ defmodule Thalamus.Application.UseCases.GenerateAgentTokenTest do
         client_repository: MockOAuth2ClientRepository,
         user_repository: MockUserRepository,
         token_repository: MockTokenRepository,
-        audit_logger: MockAuditLogger
+        audit_logger: MockAuditLogger,
+        role_repository: MockRoleRepository,
+        cache_service: MockCacheService
       }
 
       expect(MockOAuth2ClientRepository, :find_by_client_id, fn ^client_id ->
@@ -624,7 +692,7 @@ defmodule Thalamus.Application.UseCases.GenerateAgentTokenTest do
         id: client_id,
         client_secret: Bcrypt.hash_pwd_salt("test_secret"),
         is_active: true,
-        allowed_scopes: ["corpus:read", "corpus:write", "zea:read", "zea:write"],
+        allowed_scopes: ["corpus:read", "corpus:write", "api:read", "zea:write"],
         organization_id: org_id
       }
 
@@ -639,14 +707,16 @@ defmodule Thalamus.Application.UseCases.GenerateAgentTokenTest do
         delegated_by_user_id: user_id,
         agent_type: "autonomous",
         # Valid subset
-        task_scopes: ["corpus:read", "zea:read"]
+        task_scopes: ["corpus:read", "api:read"]
       }
 
       deps = %{
         client_repository: MockOAuth2ClientRepository,
         user_repository: MockUserRepository,
         token_repository: MockTokenRepository,
-        audit_logger: MockAuditLogger
+        audit_logger: MockAuditLogger,
+        role_repository: MockRoleRepository,
+        cache_service: MockCacheService
       }
 
       expect(MockOAuth2ClientRepository, :find_by_client_id, fn ^client_id ->
@@ -657,8 +727,17 @@ defmodule Thalamus.Application.UseCases.GenerateAgentTokenTest do
         {:ok, delegator}
       end)
 
+      # Mock GetEffectiveScopes dependencies
+      expect(MockCacheService, :get, fn _cache_key ->
+        {:error, :not_found}
+      end)
+
+      expect(MockRoleRepository, :get_user_roles, fn _user_id ->
+        {:ok, []}
+      end)
+
       expect(MockTokenRepository, :store, fn token_data ->
-        assert token_data.task_scopes == ["corpus:read", "zea:read"]
+        assert token_data.task_scopes == ["corpus:read", "api:read"]
         {:ok, token_data}
       end)
 
@@ -699,7 +778,9 @@ defmodule Thalamus.Application.UseCases.GenerateAgentTokenTest do
         client_repository: MockOAuth2ClientRepository,
         user_repository: MockUserRepository,
         token_repository: MockTokenRepository,
-        audit_logger: MockAuditLogger
+        audit_logger: MockAuditLogger,
+        role_repository: MockRoleRepository,
+        cache_service: MockCacheService
       }
 
       expect(MockOAuth2ClientRepository, :find_by_client_id, fn ^client_id ->
@@ -708,6 +789,15 @@ defmodule Thalamus.Application.UseCases.GenerateAgentTokenTest do
 
       expect(MockUserRepository, :find_by_id, fn ^user_id ->
         {:ok, delegator}
+      end)
+
+      # Mock GetEffectiveScopes dependencies
+      expect(MockCacheService, :get, fn _cache_key ->
+        {:error, :not_found}
+      end)
+
+      expect(MockRoleRepository, :get_user_roles, fn _user_id ->
+        {:ok, []}
       end)
 
       expect(MockTokenRepository, :store, fn token_data ->

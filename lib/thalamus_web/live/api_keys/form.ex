@@ -143,8 +143,10 @@ defmodule ThalamusWeb.ApiKeys.Form do
         label: "Write Organizations",
         description: "Create and update organizations"
       },
-      %{value: "corpus:read", label: "Read Corpus", description: "Access corpus data"},
-      %{value: "corpus:write", label: "Write Corpus", description: "Modify corpus data"}
+      %{value: "api:read", label: "Read API", description: "Read-only API access"},
+      %{value: "api:write", label: "Write API", description: "Full API write access"},
+      %{value: "data:read", label: "Read Data", description: "Access data resources"},
+      %{value: "data:write", label: "Write Data", description: "Modify data resources"}
     ]
   end
 

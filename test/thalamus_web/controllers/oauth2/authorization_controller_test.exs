@@ -12,7 +12,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
 
   setup do
     # Create organization
-    {:ok, org} = Organization.new("Test Corp", "owner@test.com", :professional)
+    {:ok, org} = Organization.new("Test Corp", "owner@test.com", :standard)
     {:ok, org} = PostgreSQLOrganizationRepository.save(org)
 
     # Create and verify user
@@ -20,12 +20,13 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
     {:ok, user} = User.verify_email(user)
     {:ok, user} = PostgreSQLUserRepository.save(user)
 
-    # Create OAuth2 client with new API
+    # Create OAuth2 client with STANDARD OIDC scopes (generic, not ZEA-specific)
     {:ok, client_id} = ClientId.generate()
     {:ok, auth_code_grant} = GrantType.authorization_code()
     {:ok, refresh_grant} = GrantType.refresh_token()
-    {:ok, read_scope} = Scope.new("zea:read")
-    {:ok, write_scope} = Scope.new("zea:write")
+    {:ok, openid_scope} = Scope.new("openid")
+    {:ok, profile_scope} = Scope.new("profile")
+    {:ok, email_scope} = Scope.new("email")
     {:ok, redirect_uri} = RedirectUri.new("http://localhost:3000/callback")
 
     # Generate plain text secret to use in tests
@@ -40,7 +41,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
         client_secret: plain_secret,
         grant_types: [auth_code_grant, refresh_grant],
         redirect_uris: [redirect_uri],
-        allowed_scopes: [read_scope, write_scope]
+        allowed_scopes: [openid_scope, profile_scope, email_scope]
       })
 
     {:ok, client} = PostgreSQLOAuth2ClientRepository.save(client)
@@ -68,15 +69,15 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
           response_type: "code",
           client_id: to_string(client.id),
           redirect_uri: "http://localhost:3000/callback",
-          scope: "read write",
+          scope: "openid profile",
           state: "random_state_123"
         })
 
       # Should show consent screen (200 OK)
       assert html_response(conn, 200)
       assert conn.resp_body =~ "Test Client"
-      assert conn.resp_body =~ "read"
-      assert conn.resp_body =~ "write"
+      assert conn.resp_body =~ "openid"
+      assert conn.resp_body =~ "profile"
     end
 
     test "shows consent screen with PKCE parameters", %{conn: conn, client: client} do
@@ -90,7 +91,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
           response_type: "code",
           client_id: to_string(client.id),
           redirect_uri: "http://localhost:3000/callback",
-          scope: "read",
+          scope: "openid",
           state: "state_123",
           code_challenge: code_challenge,
           code_challenge_method: "S256"
@@ -105,7 +106,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
           response_type: "code",
           client_id: to_string(client.id),
           redirect_uri: "http://localhost:3000/callback",
-          scope: "read",
+          scope: "openid",
           state: "state_123"
         })
 
@@ -161,7 +162,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
           client_id: to_string(client.id),
           # Not in allowed list
           redirect_uri: "http://evil.com/callback",
-          scope: "read"
+          scope: "openid"
         })
 
       assert response(conn, 400)
@@ -176,8 +177,8 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
           response_type: "code",
           client_id: to_string(client.id),
           redirect_uri: "http://localhost:3000/callback",
-          # Not allowed for this client
-          scope: "admin delete"
+          # Not allowed for this client (only has openid, profile, email)
+          scope: "address phone"
         })
 
       assert response(conn, 400)
@@ -191,9 +192,9 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
           response_type: "code",
           client_id: to_string(client.id),
           redirect_uri: "http://localhost:3000/callback",
-          scope: "read",
+          scope: "openid",
           code_challenge: "some_challenge",
-          # Invalid method
+          # Invalid method (only S256 and plain are supported)
           code_challenge_method: "MD5"
         })
 
@@ -214,7 +215,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
           decision: "approve",
           client_id: to_string(client.id),
           redirect_uri: "http://localhost:3000/callback",
-          scope: "read",
+          scope: "openid",
           state: "state_123"
         })
 
@@ -242,7 +243,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
           decision: "deny",
           client_id: to_string(client.id),
           redirect_uri: "http://localhost:3000/callback",
-          scope: "read",
+          scope: "openid",
           state: "state_123"
         })
 
@@ -272,7 +273,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
           decision: "approve",
           client_id: to_string(client.id),
           redirect_uri: "http://localhost:3000/callback",
-          scope: "read",
+          scope: "openid",
           state: "state_123",
           code_challenge: code_challenge,
           code_challenge_method: "S256"
@@ -297,7 +298,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
           decision: "approve",
           client_id: to_string(client.id),
           redirect_uri: "http://localhost:3000/callback",
-          scope: "read",
+          scope: "openid",
           state: random_state
         })
 
@@ -316,7 +317,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
           decision: "invalid_decision",
           client_id: to_string(client.id),
           redirect_uri: "http://localhost:3000/callback",
-          scope: "read"
+          scope: "openid"
         })
 
       assert response(conn, 400)
@@ -328,7 +329,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
           decision: "approve",
           client_id: to_string(client.id),
           redirect_uri: "http://localhost:3000/callback",
-          scope: "read"
+          scope: "openid"
         })
 
       assert response(conn, 401)
@@ -382,7 +383,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
       user: user,
       client: client
     } do
-      # Client allows [:read, :write], request only [:read]
+      # Client allows [openid, profile, email], request only openid
       conn =
         conn
         |> put_user_session(to_string(user.id))
@@ -391,7 +392,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
           client_id: to_string(client.id),
           redirect_uri: "http://localhost:3000/callback",
           # Subset of allowed scopes
-          scope: "read",
+          scope: "openid",
           state: "state_123"
         })
 
@@ -399,7 +400,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
     end
 
     test "rejects scopes not in client allowed list", %{conn: conn, user: user, client: client} do
-      # Client allows [:read, :write], request [:admin]
+      # Client allows [openid, profile, email], request [address]
       conn =
         conn
         |> put_user_session(to_string(user.id))
@@ -408,7 +409,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
           client_id: to_string(client.id),
           redirect_uri: "http://localhost:3000/callback",
           # Not in allowed scopes
-          scope: "admin",
+          scope: "address",
           state: "state_123"
         })
 

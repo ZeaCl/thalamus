@@ -12,6 +12,7 @@ defmodule Thalamus.Application do
     children = [
       ThalamusWeb.Telemetry,
       Thalamus.Repo,
+      {Oban, Application.fetch_env!(:thalamus, Oban)},
       {DNSCluster, query: Application.get_env(:thalamus, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Thalamus.PubSub},
       # Start a worker by calling: Thalamus.Worker.start_link(arg)

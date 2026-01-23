@@ -46,13 +46,13 @@ defmodule Thalamus.Domain.Entities.OrganizationTest do
   end
 
   defp plan_max_users(:free), do: 5
-  defp plan_max_users(:starter), do: 25
-  defp plan_max_users(:professional), do: 100
+  defp plan_max_users(:basic), do: 25
+  defp plan_max_users(:standard), do: 100
   defp plan_max_users(:enterprise), do: nil
 
   defp plan_max_api_calls(:free), do: 10_000
-  defp plan_max_api_calls(:starter), do: 100_000
-  defp plan_max_api_calls(:professional), do: 1_000_000
+  defp plan_max_api_calls(:basic), do: 100_000
+  defp plan_max_api_calls(:standard), do: 1_000_000
   defp plan_max_api_calls(:enterprise), do: nil
 
   describe "new/2 (with email string)" do
@@ -337,7 +337,7 @@ defmodule Thalamus.Domain.Entities.OrganizationTest do
       {:ok, org} = create_org_with_owner("Acme", user_id, :free)
 
       assert {:ok, upgraded_org} = Organization.upgrade_plan(org)
-      assert upgraded_org.plan.type == :starter
+      assert upgraded_org.plan.type == :basic
     end
 
     test "fails when already at highest tier" do
@@ -351,7 +351,7 @@ defmodule Thalamus.Domain.Entities.OrganizationTest do
   describe "downgrade_plan/1" do
     test "successfully downgrades when within limits" do
       {:ok, user_id} = UserId.generate()
-      {:ok, org} = create_org_with_owner("Acme", user_id, :starter)
+      {:ok, org} = create_org_with_owner("Acme", user_id, :basic)
 
       assert {:ok, downgraded_org} = Organization.downgrade_plan(org)
       assert downgraded_org.plan.type == :free
@@ -369,15 +369,19 @@ defmodule Thalamus.Domain.Entities.OrganizationTest do
           updated
         end)
 
-      # Try to downgrade to professional (100 users) - should work
+      # Try to downgrade to premium (500 users) - should work
       {:ok, org} = Organization.downgrade_plan(org)
-      assert org.plan.type == :professional
+      assert org.plan.type == :premium
 
-      # Try to downgrade to starter (25 users) - should work
+      # Try to downgrade to standard (100 users) - should work
       {:ok, org} = Organization.downgrade_plan(org)
-      assert org.plan.type == :starter
+      assert org.plan.type == :standard
 
-      # Try to downgrade to free (5 users) - should fail
+      # Try to downgrade to basic (25 users) - should work
+      {:ok, org} = Organization.downgrade_plan(org)
+      assert org.plan.type == :basic
+
+      # Try to downgrade to free (5 users) - should fail (has 10 members)
       assert {:error, :too_many_members_for_plan} = Organization.downgrade_plan(org)
     end
 
@@ -504,23 +508,23 @@ defmodule Thalamus.Domain.Entities.OrganizationTest do
     test "successfully upgrades to starter plan" do
       {:ok, org} = Organization.new("Acme", "owner@acme.com", :free)
 
-      assert {:ok, upgraded_org} = Organization.upgrade_plan(org, :starter)
-      assert upgraded_org.plan_type == :starter
+      assert {:ok, upgraded_org} = Organization.upgrade_plan(org, :basic)
+      assert upgraded_org.plan_type == :basic
       assert upgraded_org.max_users == 25
       assert upgraded_org.max_api_calls_per_month == 100_000
     end
 
-    test "successfully upgrades to professional plan" do
-      {:ok, org} = Organization.new("Acme", "owner@acme.com", :starter)
+    test "successfully upgrades to standard plan" do
+      {:ok, org} = Organization.new("Acme", "owner@acme.com", :basic)
 
-      assert {:ok, upgraded_org} = Organization.upgrade_plan(org, :professional)
-      assert upgraded_org.plan_type == :professional
+      assert {:ok, upgraded_org} = Organization.upgrade_plan(org, :standard)
+      assert upgraded_org.plan_type == :standard
       assert upgraded_org.max_users == 100
-      assert upgraded_org.max_api_calls_per_month == 1_000_000
+      assert upgraded_org.max_api_calls_per_month == 500_000
     end
 
     test "successfully upgrades to enterprise plan" do
-      {:ok, org} = Organization.new("Acme", "owner@acme.com", :professional)
+      {:ok, org} = Organization.new("Acme", "owner@acme.com", :standard)
 
       assert {:ok, upgraded_org} = Organization.upgrade_plan(org, :enterprise)
       assert upgraded_org.plan_type == :enterprise
@@ -539,8 +543,8 @@ defmodule Thalamus.Domain.Entities.OrganizationTest do
       {:ok, org} = Organization.new("Acme", "owner@acme.com")
 
       assert {:error, :invalid_plan_type} = Organization.upgrade_plan(org, :invalid)
-      assert {:error, :invalid_plan_type} = Organization.upgrade_plan(org, "starter")
-      assert {:error, :invalid_plan_type} = Organization.upgrade_plan("not-an-org", :starter)
+      assert {:error, :invalid_plan_type} = Organization.upgrade_plan(org, "basic")
+      assert {:error, :invalid_plan_type} = Organization.upgrade_plan("not-an-org", :basic)
     end
 
     test "same plan is allowed" do

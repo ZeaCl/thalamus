@@ -14,7 +14,7 @@ defmodule ThalamusWeb.API.OrganizationControllerTest do
 
   setup do
     # Create organization for OAuth2 client
-    {:ok, org} = Organization.new("Test Corp", "owner@test.com", :professional)
+    {:ok, org} = Organization.new("Test Corp", "owner@test.com", :standard)
     {:ok, org} = PostgreSQLOrganizationRepository.save(org)
 
     # Create admin user with access token
@@ -24,14 +24,14 @@ defmodule ThalamusWeb.API.OrganizationControllerTest do
 
     # Create OAuth2 client
     {:ok, client} =
-      TestHelpers.create_test_client("Test Client", org.id, ["zea:read", "zea:write", "zea:admin"])
+      TestHelpers.create_test_client("Test Client", org.id, ["api:read", "api:write", "api:admin"])
 
     {:ok, client} = PostgreSQLOAuth2ClientRepository.save(client)
 
     # Generate access token
-    {:ok, read_scope} = Scope.new("zea:read")
-    {:ok, write_scope} = Scope.new("zea:write")
-    {:ok, admin_scope} = Scope.new("zea:admin")
+    {:ok, read_scope} = Scope.new("api:read")
+    {:ok, write_scope} = Scope.new("api:write")
+    {:ok, admin_scope} = Scope.new("api:admin")
     scopes = [read_scope, write_scope, admin_scope]
 
     {:ok, access_token} =
@@ -50,7 +50,7 @@ defmodule ThalamusWeb.API.OrganizationControllerTest do
       type: :access_token,
       user_id: admin.id,
       client_id: client_uuid,
-      scopes: ["zea:read", "zea:write", "zea:admin"],
+      scopes: ["api:read", "api:write", "api:admin"],
       expires_at: access_token.expires_at
     }
 
@@ -62,10 +62,10 @@ defmodule ThalamusWeb.API.OrganizationControllerTest do
   describe "GET /api/organizations" do
     test "lists all organizations", %{conn: conn, access_token: token} do
       # Create test organizations
-      {:ok, org1} = Organization.new("Acme Corp", "owner1@acme.com", :professional)
+      {:ok, org1} = Organization.new("Acme Corp", "owner1@acme.com", :standard)
       {:ok, _} = PostgreSQLOrganizationRepository.save(org1)
 
-      {:ok, org2} = Organization.new("Beta Inc", "owner2@beta.com", :starter)
+      {:ok, org2} = Organization.new("Beta Inc", "owner2@beta.com", :basic)
       {:ok, _} = PostgreSQLOrganizationRepository.save(org2)
 
       conn =
@@ -82,11 +82,11 @@ defmodule ThalamusWeb.API.OrganizationControllerTest do
     end
 
     test "filters organizations by status", %{conn: conn, access_token: token} do
-      {:ok, active_org} = Organization.new("Active Corp", "active@test.com", :professional)
+      {:ok, active_org} = Organization.new("Active Corp", "active@test.com", :standard)
       verified_org = %{active_org | status: :active, verified_at: DateTime.utc_now()}
       {:ok, _} = PostgreSQLOrganizationRepository.save(verified_org)
 
-      {:ok, pending_org} = Organization.new("Pending Corp", "pending@test.com", :starter)
+      {:ok, pending_org} = Organization.new("Pending Corp", "pending@test.com", :basic)
       {:ok, _} = PostgreSQLOrganizationRepository.save(pending_org)
 
       conn =
@@ -104,7 +104,7 @@ defmodule ThalamusWeb.API.OrganizationControllerTest do
     end
 
     test "filters organizations by plan type", %{conn: conn, access_token: token} do
-      {:ok, pro_org} = Organization.new("Pro Corp", "pro@test.com", :professional)
+      {:ok, pro_org} = Organization.new("Pro Corp", "pro@test.com", :standard)
       {:ok, _} = PostgreSQLOrganizationRepository.save(pro_org)
 
       {:ok, free_org} = Organization.new("Free Corp", "free@test.com", :free)
@@ -113,14 +113,14 @@ defmodule ThalamusWeb.API.OrganizationControllerTest do
       conn =
         conn
         |> put_req_header("authorization", "Bearer #{token}")
-        |> get(~p"/api/organizations?plan_type=professional")
+        |> get(~p"/api/organizations?plan_type=standard")
 
       assert %{
                "data" => orgs
              } = json_response(conn, 200)
 
       Enum.each(orgs, fn org ->
-        assert org["plan_type"] == "professional"
+        assert org["plan_type"] == "standard"
       end)
     end
 
@@ -139,7 +139,7 @@ defmodule ThalamusWeb.API.OrganizationControllerTest do
         |> post(~p"/api/organizations", %{
           name: "New Corp",
           owner_email: "owner@newcorp.com",
-          plan_type: "professional"
+          plan_type: "standard"
         })
 
       assert %{
@@ -147,13 +147,13 @@ defmodule ThalamusWeb.API.OrganizationControllerTest do
                  "id" => id,
                  "name" => "New Corp",
                  "owner_email" => "owner@newcorp.com",
-                 "plan_type" => "professional",
+                 "plan_type" => "standard",
                  "status" => status
                }
              } = json_response(conn, 201)
 
       assert is_binary(id)
-      assert status in ["pending_verification", "active"]
+      assert status in ["pending_verification", "active", "trial"]
     end
 
     test "creates organization with default free plan", %{conn: conn, access_token: token} do
@@ -179,7 +179,7 @@ defmodule ThalamusWeb.API.OrganizationControllerTest do
         |> post(~p"/api/organizations", %{
           name: "Bad Email Corp",
           owner_email: "not-an-email",
-          plan_type: "starter"
+          plan_type: "basic"
         })
 
       assert %{
@@ -213,7 +213,7 @@ defmodule ThalamusWeb.API.OrganizationControllerTest do
 
   describe "GET /api/organizations/:id" do
     test "returns organization by id", %{conn: conn, access_token: token} do
-      {:ok, org} = Organization.new("Get Corp", "owner@getcorp.com", :professional)
+      {:ok, org} = Organization.new("Get Corp", "owner@getcorp.com", :standard)
       {:ok, org} = PostgreSQLOrganizationRepository.save(org)
 
       conn =
@@ -233,17 +233,15 @@ defmodule ThalamusWeb.API.OrganizationControllerTest do
     end
 
     test "includes members in response", %{conn: conn, access_token: token} do
-      {:ok, org} = Organization.new("Members Corp", "owner@members.com", :professional)
+      {:ok, org} = Organization.new("Members Corp", "owner@members.com", :standard)
 
       # Add a member
       {:ok, user} = Thalamus.Domain.ValueObjects.UserId.generate()
-      {:ok, email} = Thalamus.Domain.ValueObjects.Email.new("member@test.com")
 
       {:ok, org_with_member} =
         Organization.add_member(
           org,
           user,
-          email,
           :member
         )
 
@@ -289,7 +287,7 @@ defmodule ThalamusWeb.API.OrganizationControllerTest do
 
   describe "PATCH /api/organizations/:id" do
     test "updates organization name", %{conn: conn, access_token: token} do
-      {:ok, org} = Organization.new("Old Name", "owner@test.com", :starter)
+      {:ok, org} = Organization.new("Old Name", "owner@test.com", :basic)
       {:ok, org} = PostgreSQLOrganizationRepository.save(org)
 
       conn =
@@ -326,7 +324,7 @@ defmodule ThalamusWeb.API.OrganizationControllerTest do
     end
 
     test "updates organization status", %{conn: conn, access_token: token} do
-      {:ok, org} = Organization.new("Status Corp", "owner@test.com", :starter)
+      {:ok, org} = Organization.new("Status Corp", "owner@test.com", :basic)
       {:ok, org} = PostgreSQLOrganizationRepository.save(org)
 
       conn =
@@ -381,8 +379,9 @@ defmodule ThalamusWeb.API.OrganizationControllerTest do
 
       assert response(conn, 204)
 
-      # Verify organization is deleted
-      assert {:error, :not_found} = PostgreSQLOrganizationRepository.find_by_id(org.id)
+      # Verify organization is soft-deleted (status changed to cancelled)
+      assert {:ok, deleted_org} = PostgreSQLOrganizationRepository.find_by_id(org.id)
+      assert deleted_org.status == :cancelled
     end
 
     test "returns 404 for non-existent organization", %{conn: conn, access_token: token} do

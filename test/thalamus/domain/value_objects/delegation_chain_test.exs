@@ -42,8 +42,9 @@ defmodule Thalamus.Domain.ValueObjects.DelegationChainTest do
   end
 
   describe "new/1 with invalid inputs" do
-    test "fails with empty list" do
-      assert {:error, :empty_delegation_chain} = DelegationChain.new([])
+    test "accepts empty list (equivalent to root)" do
+      assert {:ok, chain} = DelegationChain.new([])
+      assert DelegationChain.depth(chain) == 0
     end
 
     test "fails with nil" do

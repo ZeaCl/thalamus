@@ -25,18 +25,22 @@ defmodule Thalamus.Application.UseCases.GenerateAgentToken do
   require Logger
 
   alias Thalamus.Application.DTOs.{AgentTokenRequest, AgentTokenResponse}
+  alias Thalamus.Application.UseCases.GetEffectiveScopes
 
   alias Thalamus.Domain.ValueObjects.{
     AgentType,
     TaskId,
-    DelegationChain
+    DelegationChain,
+    UserId
   }
 
   @type deps :: %{
           client_repository: module(),
           user_repository: module(),
           token_repository: module(),
-          audit_logger: module()
+          audit_logger: module(),
+          role_repository: module(),
+          cache_service: module()
         }
 
   # 1 hour max for agent tokens
@@ -65,46 +69,55 @@ defmodule Thalamus.Application.UseCases.GenerateAgentToken do
       ...>   client_secret: "secret",
       ...>   delegated_by_user_id: "user_123",
       ...>   agent_type: "autonomous",
-      ...>   task_scopes: ["corpus:read"]
+      ...>   task_scopes: ["api:read", "data:read"]
       ...> }
       iex> GenerateAgentToken.execute(request, deps)
       {:ok, %AgentTokenResponse{access_token: "at_...", ...}}
   """
   @spec execute(AgentTokenRequest.t(), deps()) :: {:ok, AgentTokenResponse.t()} | {:error, atom()}
   def execute(%AgentTokenRequest{} = request, deps) do
-    with :ok <- AgentTokenRequest.validate(request),
-         {:ok, client} <- authenticate_client(request, deps),
-         {:ok, delegator} <- validate_delegator(request, deps),
-         {:ok, agent_type} <- parse_agent_type(request),
-         {:ok, task_id} <- parse_task_id(request),
-         {:ok, task_scopes} <- validate_task_scopes(request, client),
-         {:ok, delegation_chain} <- build_delegation_chain(delegator),
-         {:ok, token_data} <-
-           build_token_data(
-             request,
-             client,
-             delegator,
-             agent_type,
-             task_id,
-             task_scopes,
-             delegation_chain
-           ),
-         store_result <- deps.token_repository.store(token_data),
-         :ok <- normalize_store_result(store_result),
-         :ok <- log_agent_token_creation(token_data, deps) do
-      response = %AgentTokenResponse{
-        access_token: token_data.token,
-        token_type: "Bearer",
-        expires_in: token_data.expires_in,
-        scope: Enum.join(task_scopes, " "),
-        agent_type: request.agent_type,
-        task_id: request.task_id,
-        max_operations: request.max_operations,
-        expires_on_completion: request.expires_on_completion
-      }
+    start_time = System.monotonic_time()
 
-      {:ok, response}
-    end
+    result =
+      with :ok <- AgentTokenRequest.validate(request),
+           {:ok, client} <- authenticate_client(request, deps),
+           {:ok, delegator} <- validate_delegator(request, deps),
+           {:ok, agent_type} <- parse_agent_type(request),
+           {:ok, task_id} <- parse_task_id(request),
+           {:ok, task_scopes} <- validate_task_scopes(request, client),
+           :ok <- validate_delegator_has_scopes(delegator, task_scopes, deps),
+           {:ok, delegation_chain} <- build_delegation_chain(delegator),
+           {:ok, token_data} <-
+             build_token_data(
+               request,
+               client,
+               delegator,
+               agent_type,
+               task_id,
+               task_scopes,
+               delegation_chain
+             ),
+           store_result <- deps.token_repository.store(token_data),
+           :ok <- normalize_store_result(store_result),
+           :ok <- log_agent_token_creation(token_data, deps) do
+        response = %AgentTokenResponse{
+          access_token: token_data.token,
+          token_type: "Bearer",
+          expires_in: token_data.expires_in,
+          scope: Enum.join(task_scopes, " "),
+          agent_type: request.agent_type,
+          task_id: request.task_id,
+          max_operations: request.max_operations,
+          expires_on_completion: request.expires_on_completion
+        }
+
+        # Emit telemetry events (Epic 7)
+        emit_agent_token_telemetry(token_data, delegation_chain, start_time)
+
+        {:ok, response}
+      end
+
+    result
   end
 
   # --- Private Functions ---
@@ -204,6 +217,43 @@ defmodule Thalamus.Application.UseCases.GenerateAgentToken do
       :ok
     else
       {:error, invalid}
+    end
+  end
+
+  # RBAC: Validate that delegator has permission to delegate the requested scopes
+  defp validate_delegator_has_scopes(delegator, requested_scopes, deps) do
+    # Extract raw UUID from UserId value object (remove "user_" prefix)
+    user_uuid = extract_user_uuid(delegator.id)
+
+    # Get user's effective scopes (from assigned roles)
+    case GetEffectiveScopes.execute(user_uuid, deps) do
+      {:ok, []} ->
+        # User has no roles assigned - allow delegation (backward compatibility)
+        # This ensures existing users without roles continue to work
+        Logger.info(
+          "User #{delegator.id} has no roles assigned, allowing delegation (backward compatible)"
+        )
+
+        :ok
+
+      {:ok, user_scopes} ->
+        # User has roles - enforce scope validation
+        requested_set = MapSet.new(requested_scopes)
+        user_set = MapSet.new(user_scopes)
+
+        if MapSet.subset?(requested_set, user_set) do
+          :ok
+        else
+          Logger.warning(
+            "User #{delegator.id} attempted to delegate scopes beyond their permissions. " <>
+              "Requested: #{inspect(requested_scopes)}, User scopes: #{inspect(user_scopes)}"
+          )
+
+          {:error, :delegator_insufficient_permissions}
+        end
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 
@@ -318,5 +368,50 @@ defmodule Thalamus.Application.UseCases.GenerateAgentToken do
         orchestrator_id: token.orchestrator_id
       }
     })
+  end
+
+  # Emit telemetry events for observability (Epic 7)
+  defp emit_agent_token_telemetry(token_data, delegation_chain, start_time) do
+    end_time = System.monotonic_time()
+    duration = end_time - start_time
+
+    # Counter: agent tokens issued
+    :telemetry.execute(
+      [:thalamus, :agent_tokens, :issued],
+      %{count: 1},
+      %{
+        agent_type: token_data.agent_type,
+        organization_id: to_string(token_data.organization_id)
+      }
+    )
+
+    # Histogram: delegation chain depth
+    depth = DelegationChain.depth(delegation_chain)
+
+    :telemetry.execute(
+      [:thalamus, :agent_tokens, :delegation_depth],
+      %{depth: depth},
+      %{agent_type: token_data.agent_type}
+    )
+
+    # Summary: generation duration
+    :telemetry.execute(
+      [:thalamus, :agent_tokens, :generation_duration],
+      %{duration: duration},
+      %{agent_type: token_data.agent_type}
+    )
+
+    :ok
+  end
+
+  # Helper to extract raw UUID from UserId value object
+  # UserId.value has format "user_xxxxx", we need just "xxxxx"
+  defp extract_user_uuid(%UserId{value: value}) when is_binary(value) do
+    String.replace_prefix(value, "user_", "")
+  end
+
+  defp extract_user_uuid(user_id) when is_binary(user_id) do
+    # Already a raw UUID string
+    String.replace_prefix(user_id, "user_", "")
   end
 end

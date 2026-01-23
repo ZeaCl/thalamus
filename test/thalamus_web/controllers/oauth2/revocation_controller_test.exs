@@ -13,7 +13,7 @@ defmodule ThalamusWeb.OAuth2.RevocationControllerTest do
 
   setup do
     # Create organization
-    {:ok, org} = Organization.new("Test Corp", "owner@test.com", :professional)
+    {:ok, org} = Organization.new("Test Corp", "owner@test.com", :standard)
     {:ok, org} = PostgreSQLOrganizationRepository.save(org)
 
     # Create and verify user
@@ -26,7 +26,7 @@ defmodule ThalamusWeb.OAuth2.RevocationControllerTest do
     {:ok, auth_code_grant} = GrantType.authorization_code()
     {:ok, refresh_grant} = GrantType.refresh_token()
     {:ok, client_creds_grant} = GrantType.client_credentials()
-    {:ok, read_scope} = Scope.new("zea:read")
+    {:ok, read_scope} = Scope.new("api:read")
     {:ok, write_scope} = Scope.new("zea:write")
     {:ok, redirect_uri} = RedirectUri.new("http://localhost:3000/callback")
 
@@ -57,7 +57,7 @@ defmodule ThalamusWeb.OAuth2.RevocationControllerTest do
     @tag :skip
     test "revokes valid access token", %{conn: conn, user: user, client: client} do
       # Generate access token
-      {:ok, read_scope} = Scope.new("zea:read")
+      {:ok, read_scope} = Scope.new("api:read")
       {:ok, access_token} = AccessToken.generate([read_scope], user.id, 3600)
 
       token_data = %{
@@ -65,7 +65,7 @@ defmodule ThalamusWeb.OAuth2.RevocationControllerTest do
         type: :access_token,
         user_id: user.id,
         client_id: client.id,
-        scopes: ["zea:read"],
+        scopes: ["api:read"],
         expires_at: access_token.expires_at
       }
 
@@ -136,7 +136,7 @@ defmodule ThalamusWeb.OAuth2.RevocationControllerTest do
 
     @tag :skip
     test "returns 200 for already revoked token", %{conn: conn, user: user, client: client} do
-      {:ok, read_scope} = Scope.new("zea:read")
+      {:ok, read_scope} = Scope.new("api:read")
       {:ok, access_token} = AccessToken.generate([read_scope], user.id, 3600)
 
       token_data = %{
@@ -144,7 +144,7 @@ defmodule ThalamusWeb.OAuth2.RevocationControllerTest do
         type: :access_token,
         user_id: user.id,
         client_id: client.id,
-        scopes: ["zea:read"],
+        scopes: ["api:read"],
         expires_at: access_token.expires_at,
         revoked: true
       }
@@ -206,7 +206,7 @@ defmodule ThalamusWeb.OAuth2.RevocationControllerTest do
       # Create another client
       {:ok, other_client_id} = ClientId.generate()
       {:ok, client_creds_grant} = GrantType.client_credentials()
-      {:ok, read_scope} = Scope.new("zea:read")
+      {:ok, read_scope} = Scope.new("api:read")
       {:ok, redirect_uri} = RedirectUri.new("http://other.com/callback")
 
       other_plain_secret = :crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false)
@@ -226,7 +226,7 @@ defmodule ThalamusWeb.OAuth2.RevocationControllerTest do
       {:ok, other_client} = PostgreSQLOAuth2ClientRepository.save(other_client)
 
       # Create token for first client
-      {:ok, read_scope} = Scope.new("zea:read")
+      {:ok, read_scope} = Scope.new("api:read")
       {:ok, access_token} = AccessToken.generate([read_scope], user.id, 3600)
 
       token_data = %{
@@ -234,7 +234,7 @@ defmodule ThalamusWeb.OAuth2.RevocationControllerTest do
         type: :access_token,
         user_id: user.id,
         client_id: client.id,
-        scopes: ["zea:read"],
+        scopes: ["api:read"],
         expires_at: access_token.expires_at
       }
 

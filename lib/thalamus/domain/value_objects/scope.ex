@@ -14,49 +14,71 @@ defmodule Thalamus.Domain.ValueObjects.Scope do
 
   defstruct [:value]
 
-  # Predefined standard scopes for OAuth2/OpenID Connect
-  @standard_scopes [
-    # OpenID Connect identity
+  # Standard OIDC scopes (always valid, cannot be changed)
+  @standard_oidc_scopes [
     "openid",
-    # Basic profile information
     "profile",
-    # Email address
     "email",
-    # Physical address
     "address",
-    # Phone number
     "phone",
-    # Refresh token capability
     "offline_access"
   ]
 
-  # Custom ZEA platform scopes
-  @zea_scopes [
-    # Read access to ZEA resources
-    "zea:read",
-    # Write access to ZEA resources
-    "zea:write",
-    # Administrative access
-    "zea:admin",
-    # Access to Synapse telemetry events
-    "synapse:events",
-    # Access to Synapse metrics
-    "synapse:metrics",
-    # Access to Cortex chat API
-    "cortex:chat",
-    # Access to Cortex completions
-    "cortex:completions",
-    # Read billing information
+  # Default custom scopes - GENERIC examples
+  # Override these via configuration for your specific application:
+  #   config :thalamus, :oauth2_scopes, %{
+  #     custom_scopes: ["api:read", "api:write", "admin:all"],
+  #     restricted_scopes: ["admin:all", "offline_access"]
+  #   }
+  @default_custom_scopes [
+    "api:read",
+    "api:write",
+    "api:admin",
+    "data:read",
+    "data:write",
+    "webhooks:manage",
     "billing:read",
-    # Modify billing information
-    "billing:write",
-    # Read organization data
-    "organizations:read",
-    # Modify organization data
-    "organizations:write"
+    "billing:write"
   ]
 
-  @all_valid_scopes @standard_scopes ++ @zea_scopes
+  # Default restricted scopes requiring special permission
+  @default_restricted_scopes [
+    "api:admin",
+    "billing:write",
+    "offline_access"
+  ]
+
+  # Configuration helpers
+  defp get_scope_config do
+    Application.get_env(:thalamus, :oauth2_scopes, default_scope_config())
+  end
+
+  defp default_scope_config do
+    %{
+      standard_scopes: @standard_oidc_scopes,
+      custom_scopes: @default_custom_scopes,
+      restricted_scopes: @default_restricted_scopes
+    }
+  end
+
+  defp get_standard_scopes do
+    config = get_scope_config()
+    Map.get(config, :standard_scopes, @standard_oidc_scopes)
+  end
+
+  defp get_custom_scopes do
+    config = get_scope_config()
+    Map.get(config, :custom_scopes, @default_custom_scopes)
+  end
+
+  defp get_restricted_scopes do
+    config = get_scope_config()
+    Map.get(config, :restricted_scopes, @default_restricted_scopes)
+  end
+
+  defp get_all_valid_scopes do
+    get_standard_scopes() ++ get_custom_scopes()
+  end
 
   @doc """
   Creates a new Scope.
@@ -140,29 +162,34 @@ defmodule Thalamus.Domain.ValueObjects.Scope do
       iex> Scope.standard?(scope)
       true
 
-      iex> scope = %Scope{value: "zea:read"}
+      iex> scope = %Scope{value: "api:read"}
       iex> Scope.standard?(scope)
       false
   """
   def standard?(%__MODULE__{value: value}) do
-    Enum.member?(@standard_scopes, value)
+    Enum.member?(get_standard_scopes(), value)
   end
 
   @doc """
-  Checks if a scope is a ZEA platform specific scope.
+  Checks if a scope is a custom application-specific scope.
 
   ## Examples
 
-      iex> scope = %Scope{value: "zea:read"}
-      iex> Scope.zea_scope?(scope)
+      iex> scope = %Scope{value: "api:read"}
+      iex> Scope.custom_scope?(scope)
       true
 
       iex> scope = %Scope{value: "openid"}
-      iex> Scope.zea_scope?(scope)
+      iex> Scope.custom_scope?(scope)
       false
   """
-  def zea_scope?(%__MODULE__{value: value}) do
-    Enum.member?(@zea_scopes, value)
+  def custom_scope?(%__MODULE__{value: value}) do
+    Enum.member?(get_custom_scopes(), value)
+  end
+
+  @doc deprecated: "Use custom_scope?/1 instead"
+  def zea_scope?(%__MODULE__{} = scope) do
+    custom_scope?(scope)
   end
 
   @doc """
@@ -179,14 +206,7 @@ defmodule Thalamus.Domain.ValueObjects.Scope do
       false
   """
   def requires_special_permission?(%__MODULE__{value: value}) do
-    special_permission_scopes = [
-      "zea:admin",
-      "billing:write",
-      "organizations:write",
-      "offline_access"
-    ]
-
-    Enum.member?(special_permission_scopes, value)
+    Enum.member?(get_restricted_scopes(), value)
   end
 
   @doc """
@@ -194,9 +214,9 @@ defmodule Thalamus.Domain.ValueObjects.Scope do
 
   ## Examples
 
-      iex> scope = %Scope{value: "zea:read"}
+      iex> scope = %Scope{value: "api:read"}
       iex> Scope.resource_type(scope)
-      "zea"
+      "api"
 
       iex> scope = %Scope{value: "synapse:events"}
       iex> Scope.resource_type(scope)
@@ -208,9 +228,18 @@ defmodule Thalamus.Domain.ValueObjects.Scope do
   """
   def resource_type(%__MODULE__{value: value}) do
     case String.split(value, ":") do
-      [resource, _action] -> resource
-      [scope] when scope in @standard_scopes -> "identity"
-      _ -> "unknown"
+      [resource, _action] ->
+        resource
+
+      [scope] ->
+        if Enum.member?(get_standard_scopes(), scope) do
+          "identity"
+        else
+          "unknown"
+        end
+
+      _ ->
+        "unknown"
     end
   end
 
@@ -219,7 +248,7 @@ defmodule Thalamus.Domain.ValueObjects.Scope do
 
   ## Examples
 
-      iex> scope = %Scope{value: "zea:read"}
+      iex> scope = %Scope{value: "api:read"}
       iex> Scope.action(scope)
       "read"
 
@@ -229,21 +258,30 @@ defmodule Thalamus.Domain.ValueObjects.Scope do
   """
   def action(%__MODULE__{value: value}) do
     case String.split(value, ":") do
-      [_resource, action] -> action
-      [scope] when scope in @standard_scopes -> "access"
-      _ -> "unknown"
+      [_resource, action] ->
+        action
+
+      [scope] ->
+        if Enum.member?(get_standard_scopes(), scope) do
+          "access"
+        else
+          "unknown"
+        end
+
+      _ ->
+        "unknown"
     end
   end
 
   @doc """
-  Lists all valid scopes for the ZEA platform.
+  Lists all valid scopes (standard + custom).
 
   ## Examples
 
       iex> Scope.valid_scopes()
-      ["openid", "profile", "email", ..., "zea:read", "zea:write", ...]
+      ["openid", "profile", "email", ..., "app:read", "app:write", ...]
   """
-  def valid_scopes, do: @all_valid_scopes
+  def valid_scopes, do: get_all_valid_scopes()
 
   # Private functions
 
@@ -258,7 +296,7 @@ defmodule Thalamus.Domain.ValueObjects.Scope do
       not String.match?(value, ~r/^[a-zA-Z0-9_:-]+$/) ->
         {:error, :invalid_scope_format}
 
-      not Enum.member?(@all_valid_scopes, value) ->
+      not Enum.member?(get_all_valid_scopes(), value) ->
         {:error, :unknown_scope}
 
       true ->

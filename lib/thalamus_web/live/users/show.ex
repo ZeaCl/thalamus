@@ -157,6 +157,9 @@ defmodule ThalamusWeb.Users.Show do
             </p>
           </div>
           <div class="flex gap-2 items-center">
+            <.link navigate={~p"/dashboard/users"} class="btn btn-sm btn-ghost">
+              Back to Users
+            </.link>
             <.link navigate={~p"/dashboard/users/#{@user.id}/edit"} class="btn btn-sm btn-ghost">
               Edit
             </.link>

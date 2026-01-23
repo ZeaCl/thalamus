@@ -9,11 +9,11 @@ defmodule Thalamus.Domain.ValueObjects.PlanTest do
     end
 
     test "creates valid starter plan" do
-      assert {:ok, %Plan{type: :starter}} = Plan.new(:starter)
+      assert {:ok, %Plan{type: :basic}} = Plan.new(:basic)
     end
 
     test "creates valid professional plan" do
-      assert {:ok, %Plan{type: :professional}} = Plan.new(:professional)
+      assert {:ok, %Plan{type: :standard}} = Plan.new(:standard)
     end
 
     test "creates valid enterprise plan" do
@@ -39,8 +39,8 @@ defmodule Thalamus.Domain.ValueObjects.PlanTest do
       assert plan.support_level == :community
     end
 
-    test "starter plan has correct limits" do
-      {:ok, plan} = Plan.starter()
+    test "basic plan has correct limits" do
+      {:ok, plan} = Plan.basic()
 
       assert plan.max_users == 25
       assert plan.max_api_calls_per_month == 100_000
@@ -50,14 +50,25 @@ defmodule Thalamus.Domain.ValueObjects.PlanTest do
       assert plan.support_level == :email
     end
 
-    test "professional plan has correct limits" do
-      {:ok, plan} = Plan.professional()
+    test "standard plan has correct limits" do
+      {:ok, plan} = Plan.standard()
 
       assert plan.max_users == 100
-      assert plan.max_api_calls_per_month == 1_000_000
+      assert plan.max_api_calls_per_month == 500_000
       assert plan.mfa_required == true
       assert plan.sso_enabled == true
       assert plan.audit_logs_retention_days == 90
+      assert plan.support_level == :priority
+    end
+
+    test "premium plan has correct limits" do
+      {:ok, plan} = Plan.premium()
+
+      assert plan.max_users == 500
+      assert plan.max_api_calls_per_month == 2_000_000
+      assert plan.mfa_required == true
+      assert plan.sso_enabled == true
+      assert plan.audit_logs_retention_days == 180
       assert plan.support_level == :priority
     end
 
@@ -112,54 +123,63 @@ defmodule Thalamus.Domain.ValueObjects.PlanTest do
   end
 
   describe "requires_mfa?/1" do
-    test "free and starter do not require MFA" do
+    test "free and basic do not require MFA" do
       {:ok, free} = Plan.free()
-      {:ok, starter} = Plan.starter()
+      {:ok, basic} = Plan.basic()
 
       refute Plan.requires_mfa?(free)
-      refute Plan.requires_mfa?(starter)
+      refute Plan.requires_mfa?(basic)
     end
 
-    test "professional and enterprise require MFA" do
-      {:ok, pro} = Plan.professional()
+    test "standard, premium and enterprise require MFA" do
+      {:ok, standard} = Plan.standard()
+      {:ok, premium} = Plan.premium()
       {:ok, enterprise} = Plan.enterprise()
 
-      assert Plan.requires_mfa?(pro)
+      assert Plan.requires_mfa?(standard)
+      assert Plan.requires_mfa?(premium)
       assert Plan.requires_mfa?(enterprise)
     end
   end
 
   describe "sso_enabled?/1" do
-    test "free and starter do not have SSO" do
+    test "free and basic do not have SSO" do
       {:ok, free} = Plan.free()
-      {:ok, starter} = Plan.starter()
+      {:ok, basic} = Plan.basic()
 
       refute Plan.sso_enabled?(free)
-      refute Plan.sso_enabled?(starter)
+      refute Plan.sso_enabled?(basic)
     end
 
-    test "professional and enterprise have SSO" do
-      {:ok, pro} = Plan.professional()
+    test "standard, premium and enterprise have SSO" do
+      {:ok, standard} = Plan.standard()
+      {:ok, premium} = Plan.premium()
       {:ok, enterprise} = Plan.enterprise()
 
-      assert Plan.sso_enabled?(pro)
+      assert Plan.sso_enabled?(standard)
+      assert Plan.sso_enabled?(premium)
       assert Plan.sso_enabled?(enterprise)
     end
   end
 
   describe "upgrade/1" do
-    test "can upgrade from free to starter" do
+    test "can upgrade from free to basic" do
       {:ok, plan} = Plan.free()
-      assert {:ok, %Plan{type: :starter}} = Plan.upgrade(plan)
+      assert {:ok, %Plan{type: :basic}} = Plan.upgrade(plan)
     end
 
-    test "can upgrade from starter to professional" do
-      {:ok, plan} = Plan.starter()
-      assert {:ok, %Plan{type: :professional}} = Plan.upgrade(plan)
+    test "can upgrade from basic to standard" do
+      {:ok, plan} = Plan.basic()
+      assert {:ok, %Plan{type: :standard}} = Plan.upgrade(plan)
     end
 
-    test "can upgrade from professional to enterprise" do
-      {:ok, plan} = Plan.professional()
+    test "can upgrade from standard to premium" do
+      {:ok, plan} = Plan.standard()
+      assert {:ok, %Plan{type: :premium}} = Plan.upgrade(plan)
+    end
+
+    test "can upgrade from premium to enterprise" do
+      {:ok, plan} = Plan.premium()
       assert {:ok, %Plan{type: :enterprise}} = Plan.upgrade(plan)
     end
 
@@ -170,18 +190,23 @@ defmodule Thalamus.Domain.ValueObjects.PlanTest do
   end
 
   describe "downgrade/1" do
-    test "can downgrade from enterprise to professional" do
+    test "can downgrade from enterprise to premium" do
       {:ok, plan} = Plan.enterprise()
-      assert {:ok, %Plan{type: :professional}} = Plan.downgrade(plan)
+      assert {:ok, %Plan{type: :premium}} = Plan.downgrade(plan)
     end
 
-    test "can downgrade from professional to starter" do
-      {:ok, plan} = Plan.professional()
-      assert {:ok, %Plan{type: :starter}} = Plan.downgrade(plan)
+    test "can downgrade from premium to standard" do
+      {:ok, plan} = Plan.premium()
+      assert {:ok, %Plan{type: :standard}} = Plan.downgrade(plan)
     end
 
-    test "can downgrade from starter to free" do
-      {:ok, plan} = Plan.starter()
+    test "can downgrade from standard to basic" do
+      {:ok, plan} = Plan.standard()
+      assert {:ok, %Plan{type: :basic}} = Plan.downgrade(plan)
+    end
+
+    test "can downgrade from basic to free" do
+      {:ok, plan} = Plan.basic()
       assert {:ok, %Plan{type: :free}} = Plan.downgrade(plan)
     end
 
@@ -198,10 +223,10 @@ defmodule Thalamus.Domain.ValueObjects.PlanTest do
     end
 
     test "implements Jason.Encoder protocol" do
-      {:ok, plan} = Plan.professional()
+      {:ok, plan} = Plan.standard()
       json = Jason.encode!(plan)
 
-      assert String.contains?(json, "professional")
+      assert String.contains?(json, "standard")
       assert String.contains?(json, "\"max_users\":100")
       assert String.contains?(json, "\"mfa_required\":true")
     end

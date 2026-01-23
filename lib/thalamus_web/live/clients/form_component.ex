@@ -241,7 +241,7 @@ defmodule ThalamusWeb.Clients.FormComponent do
                   <span class="label-text">Allowed Scopes</span>
                 </label>
                 <div class="grid grid-cols-2 gap-2">
-                  <%= for scope <- ["openid", "profile", "email", "offline_access", "zea:read", "zea:write"] do %>
+                  <%= for scope <- ["openid", "profile", "email", "offline_access", "api:read", "api:write", "data:read", "data:write"] do %>
                     <label class="label cursor-pointer justify-start gap-3">
                       <input
                         type="checkbox"

@@ -4,7 +4,7 @@ defmodule ThalamusWeb.Clients.IndexTest do
   import Phoenix.LiveViewTest
 
   alias Thalamus.Repo
-  alias Thalamus.Infrastructure.Persistence.Schemas.{OAuth2ClientSchema, OrganizationSchema}
+  alias Thalamus.Infrastructure.Persistence.Schemas.{OAuth2ClientSchema, OrganizationSchema, UserSchema}
 
   setup %{conn: conn} do
     # Create test organization using the changeset to set defaults
@@ -15,10 +15,13 @@ defmodule ThalamusWeb.Clients.IndexTest do
       })
       |> Repo.insert!()
 
-    # Log in user for protected routes
-    conn = log_in_user(conn)
+    # Create auth user in the test organization
+    auth_user = create_user(org, "admin@example.com")
 
-    {:ok, conn: conn, org: org}
+    # Log in user for protected routes
+    conn = log_in_user(conn, auth_user.id)
+
+    {:ok, conn: conn, org: org, auth_user: auth_user}
   end
 
   describe "Index LiveView" do
@@ -172,7 +175,19 @@ defmodule ThalamusWeb.Clients.IndexTest do
     end
   end
 
-  # Helper function to create test clients
+  # Helper functions
+  defp create_user(org, email) do
+    password_hash = Bcrypt.hash_pwd_salt("password123")
+
+    UserSchema.create_changeset(%{
+      email: email,
+      password_hash: password_hash,
+      status: :active,
+      organization_id: org.id
+    })
+    |> Repo.insert!()
+  end
+
   defp create_client(org, name, client_type, attrs \\ []) do
     client_id = Ecto.UUID.generate()
     client_secret = :crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false)

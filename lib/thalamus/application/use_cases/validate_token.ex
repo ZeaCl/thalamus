@@ -177,6 +177,8 @@ defmodule Thalamus.Application.UseCases.ValidateToken do
       email: nil,
       exp: nil,
       iat: nil,
+      revoked: false,
+      expired: false,
 
       # Agent-specific fields (all nil for invalid tokens)
       agent_type: nil,

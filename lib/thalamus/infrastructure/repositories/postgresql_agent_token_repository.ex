@@ -112,23 +112,30 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLAgentTokenRepository do
 
   @impl true
   def revoke_delegation_chain(user_id) when is_binary(user_id) do
-    # Wrap in transaction for atomicity
-    Repo.transaction(fn ->
-      now = DateTime.utc_now()
+    # Convert UUID string to binary for PostgreSQL comparison
+    case Ecto.UUID.dump(user_id) do
+      {:ok, user_id_binary} ->
+        # Wrap in transaction for atomicity
+        Repo.transaction(fn ->
+          now = DateTime.utc_now()
 
-      # Revoke all tokens where this user_id appears in the delegation chain
-      # Using fragment with ANY for better PostgreSQL performance
-      {count, _} =
-        base_agent_tokens_query()
-        |> where([t], t.revoked == false)
-        |> where([t], fragment("? = ANY(?)", ^user_id, t.delegation_chain))
-        |> Repo.update_all(set: [revoked: true, revoked_at: now])
+          # Revoke all tokens where this user_id appears in the delegation chain
+          # Using fragment with ANY for better PostgreSQL performance
+          {count, _} =
+            base_agent_tokens_query()
+            |> where([t], t.revoked == false)
+            |> where([t], fragment("? = ANY(?)", ^user_id_binary, t.delegation_chain))
+            |> Repo.update_all(set: [revoked: true, revoked_at: now])
 
-      count
-    end)
-    |> case do
-      {:ok, count} -> {:ok, count}
-      {:error, reason} -> {:error, reason}
+          count
+        end)
+        |> case do
+          {:ok, count} -> {:ok, count}
+          {:error, reason} -> {:error, reason}
+        end
+
+      :error ->
+        {:error, :invalid_user_id}
     end
   end
 

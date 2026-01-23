@@ -118,8 +118,10 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.AdminApiKeySchema do
         "users:write",
         "organizations:read",
         "organizations:write",
-        "corpus:read",
-        "corpus:write"
+        "api:read",
+        "api:write",
+        "data:read",
+        "data:write"
       ]
 
       invalid_scopes = Enum.reject(scopes, fn scope -> scope in valid_scopes end)

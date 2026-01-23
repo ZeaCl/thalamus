@@ -565,19 +565,34 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLTokenRepositoryTest do
     test "returns tokens ordered by insertion time (newest first)" do
       user_uuid = create_test_user()
       user_id = build_user_id(user_uuid)
+      now = DateTime.utc_now()
 
-      # Insert tokens with slight delay
-      token1 = build_token_data(user_id: user_id, token: "token_oldest")
+      # Insert tokens with explicit timestamps to ensure ordering
+      token1 =
+        build_token_data(
+          user_id: user_id,
+          token: "token_oldest",
+          inserted_at: DateTime.add(now, -120, :second)
+        )
+
       :ok = PostgreSQLTokenRepository.store(token1)
 
-      Process.sleep(10)
+      token2 =
+        build_token_data(
+          user_id: user_id,
+          token: "token_middle",
+          inserted_at: DateTime.add(now, -60, :second)
+        )
 
-      token2 = build_token_data(user_id: user_id, token: "token_middle")
       :ok = PostgreSQLTokenRepository.store(token2)
 
-      Process.sleep(10)
+      token3 =
+        build_token_data(
+          user_id: user_id,
+          token: "token_newest",
+          inserted_at: now
+        )
 
-      token3 = build_token_data(user_id: user_id, token: "token_newest")
       :ok = PostgreSQLTokenRepository.store(token3)
 
       assert {:ok, tokens} = PostgreSQLTokenRepository.find_by_user(user_id)
@@ -612,7 +627,9 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLTokenRepositoryTest do
     end
 
     test "handles UserId value object with user_ prefix" do
-      {:ok, user_id} = UserId.generate()
+      # Create a real user in the database first
+      user_uuid = create_test_user()
+      user_id = build_user_id(user_uuid)
 
       token1 = build_token_data(user_id: user_id, token: "token_1")
       token2 = build_token_data(user_id: user_id, token: "token_2")
@@ -672,7 +689,8 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLTokenRepositoryTest do
       :expires_on_completion,
       :intent_description,
       :orchestrator_id,
-      :environment
+      :environment,
+      :inserted_at
     ]
 
     Enum.reduce(optional_fields, base_data, fn field, acc ->
@@ -752,7 +770,7 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLTokenRepositoryTest do
       id: org_uuid,
       name: "Test Org #{org_uuid}",
       status: :active,
-      plan_type: :professional,
+      plan_type: :standard,
       verified: true,
       max_users: 100,
       max_api_calls_per_month: 100_000,

@@ -386,13 +386,15 @@ defmodule ThalamusWeb.Organizations.Show do
   defp format_status(:cancelled), do: "Cancelled"
 
   defp plan_badge_class(:free), do: "badge-ghost"
-  defp plan_badge_class(:starter), do: "badge-info"
-  defp plan_badge_class(:professional), do: "badge-primary"
+  defp plan_badge_class(:basic), do: "badge-info"
+  defp plan_badge_class(:standard), do: "badge-primary"
+  defp plan_badge_class(:premium), do: "badge-success"
   defp plan_badge_class(:enterprise), do: "badge-accent"
 
   defp format_plan(:free), do: "Free"
-  defp format_plan(:starter), do: "Starter"
-  defp format_plan(:professional), do: "Professional"
+  defp format_plan(:basic), do: "Basic"
+  defp format_plan(:standard), do: "Standard"
+  defp format_plan(:premium), do: "Premium"
   defp format_plan(:enterprise), do: "Enterprise"
 
   defp format_support(:community), do: "Community"

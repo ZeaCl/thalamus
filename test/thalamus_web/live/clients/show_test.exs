@@ -8,13 +8,11 @@ defmodule ThalamusWeb.Clients.ShowTest do
   alias Thalamus.Infrastructure.Persistence.Schemas.{
     OAuth2ClientSchema,
     OrganizationSchema,
-    TokenSchema
+    TokenSchema,
+    UserSchema
   }
 
   setup %{conn: conn} do
-    # Clean up any existing organizations
-    Repo.delete_all(OrganizationSchema)
-
     # Create test organization
     org =
       OrganizationSchema.create_changeset(%{
@@ -26,10 +24,13 @@ defmodule ThalamusWeb.Clients.ShowTest do
     # Create test client
     client = create_test_client(org, "Test Client", "confidential")
 
-    # Log in user for protected routes
-    conn = log_in_user(conn)
+    # Create auth user in the test organization
+    auth_user = create_user(org, "admin@example.com")
 
-    {:ok, conn: conn, org: org, client: client}
+    # Log in user for protected routes
+    conn = log_in_user(conn, auth_user.id)
+
+    {:ok, conn: conn, org: org, client: client, auth_user: auth_user}
   end
 
   describe "Show LiveView" do
@@ -145,6 +146,18 @@ defmodule ThalamusWeb.Clients.ShowTest do
   end
 
   # Helper functions
+  defp create_user(org, email) do
+    password_hash = Bcrypt.hash_pwd_salt("password123")
+
+    UserSchema.create_changeset(%{
+      email: email,
+      password_hash: password_hash,
+      status: :active,
+      organization_id: org.id
+    })
+    |> Repo.insert!()
+  end
+
   defp create_test_client(org, name, client_type) do
     client_id = Ecto.UUID.generate()
     client_secret = :crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false)
