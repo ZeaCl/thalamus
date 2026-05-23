@@ -59,13 +59,17 @@ defmodule Thalamus.Application.UseCases.ValidateToken do
       {:ok, %{valid: false, active: false}}
   """
   def execute(token, deps) when is_binary(token) do
-    case find_token(token, deps) do
-      {:ok, token_data} ->
-        result = validate_token_data(token_data)
-        {:ok, result}
+    if String.starts_with?(token, "th_pat_") do
+      validate_personal_access_token(token, deps)
+    else
+      case find_token(token, deps) do
+        {:ok, token_data} ->
+          result = validate_token_data(token_data)
+          {:ok, result}
 
-      {:error, :not_found} ->
-        {:ok, invalid_token_result()}
+        {:error, :not_found} ->
+          {:ok, invalid_token_result()}
+      end
     end
   end
 
@@ -90,6 +94,77 @@ defmodule Thalamus.Application.UseCases.ValidateToken do
   end
 
   # Private functions
+
+  defp validate_personal_access_token(token, deps) do
+    pat_repo =
+      Map.get(
+        deps,
+        :personal_access_token_repository,
+        Thalamus.Infrastructure.Repositories.PostgreSQLPersonalAccessTokenRepository
+      )
+
+    with {:ok, prefix} <-
+           Thalamus.Domain.Services.PersonalAccessTokenGenerator.extract_prefix(token),
+         {:ok, pat} <- pat_repo.find_by_prefix(prefix) do
+      if Thalamus.Domain.Services.PersonalAccessTokenGenerator.verify_token(token, pat.token_hash) do
+        now = DateTime.utc_now()
+
+        is_expired =
+          if pat.expires_at, do: DateTime.compare(now, pat.expires_at) == :gt, else: false
+
+        is_valid = pat.is_active and not is_expired
+
+        # Track usage asynchronously if valid
+        if is_valid do
+          Task.start(fn -> pat_repo.mark_as_used(pat) end)
+        end
+
+        # Get user email
+        user_email =
+          case Thalamus.Repo.get(
+                 Thalamus.Infrastructure.Persistence.Schemas.UserSchema,
+                 pat.user_id
+               ) do
+            nil -> nil
+            user -> user.email
+          end
+
+        {:ok,
+         %{
+           valid: is_valid,
+           active: is_valid,
+           scope: pat.scopes || [],
+           client_id: "thalamus_cli",
+           user_id: pat.user_id,
+           organization_id: pat.organization_id,
+           email: user_email,
+           exp: pat.expires_at,
+           iat: pat.created_at,
+           revoked: not pat.is_active,
+           expired: is_expired,
+
+           # Agent fields
+           agent_type: nil,
+           delegated_by: nil,
+           delegation_chain: [],
+           delegation_depth: 0,
+           task_id: nil,
+           task_type: nil,
+           task_scopes: [],
+           max_operations: nil,
+           operations_remaining: nil,
+           expires_on_completion: false,
+           intent_description: nil,
+           orchestrator_id: nil,
+           environment: nil
+         }}
+      else
+        {:ok, invalid_token_result()}
+      end
+    else
+      _ -> {:ok, invalid_token_result()}
+    end
+  end
 
   defp find_token(token, %{token_repository: repo}) do
     repo.find(token)

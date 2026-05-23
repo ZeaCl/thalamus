@@ -26,14 +26,42 @@ defmodule ThalamusWeb.OAuth2.UserinfoController do
   """
   def show(conn, _params) do
     with {:ok, token} <- extract_bearer_token(conn),
-         {:ok, token_data} <- PostgreSQLTokenRepository.find(token),
-         :ok <- validate_token_type(token_data),
-         :ok <- validate_token_not_expired(token_data),
-         {:ok, user} <- PostgreSQLUserRepository.find_by_id(token_data.user_id),
-         {:ok, user_schema} <- get_user_schema(token_data.user_id),
+         {:ok, validation_result} <-
+           Thalamus.Application.UseCases.ValidateToken.execute(token, %{
+             token_repository: PostgreSQLTokenRepository
+           }),
+         true <- validation_result.valid and validation_result.active,
+         user_id_string =
+           (case validation_result.user_id do
+              %{__struct__: _} -> to_string(validation_result.user_id)
+              str when is_binary(str) -> str
+            end),
+         {:ok, user_id_vo} <- Thalamus.Domain.ValueObjects.UserId.from_string(user_id_string),
+         {:ok, user} <- PostgreSQLUserRepository.find_by_id(user_id_vo),
+         {:ok, user_schema} <- get_user_schema(user_id_vo),
          {:ok, org_id} <- OrganizationId.from_string(user_schema.organization_id),
          {:ok, organization} <- PostgreSQLOrganizationRepository.find_by_id(org_id) do
-      # Return user info with nested organization object
+      # Load all organizations where the user is a member
+      user_id_str = user_id_string
+
+      all_orgs = Repo.all(Thalamus.Infrastructure.Persistence.Schemas.OrganizationSchema)
+
+      user_orgs =
+        Enum.filter(all_orgs, fn org ->
+          members = org.members || []
+          Enum.any?(members, fn m -> m["user_id"] == user_id_str end)
+        end)
+
+      orgs_json =
+        Enum.map(user_orgs, fn org ->
+          %{
+            id: org.id,
+            name: org.name,
+            slug: generate_slug(org.name)
+          }
+        end)
+
+      # Return user info with nested organization object and all memberships
       conn
       |> put_resp_header("cache-control", "no-store")
       |> put_resp_header("pragma", "no-cache")
@@ -46,9 +74,15 @@ defmodule ThalamusWeb.OAuth2.UserinfoController do
           id: OrganizationId.to_string(organization.id),
           name: organization.name,
           slug: generate_slug(organization.name)
-        }
+        },
+        organizations: orgs_json
       })
     else
+      false ->
+        conn
+        |> put_status(:unauthorized)
+        |> json(%{error: "invalid_token", error_description: "Invalid or expired token"})
+
       {:error, :no_token} ->
         conn
         |> put_status(:unauthorized)

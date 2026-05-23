@@ -44,7 +44,11 @@ defmodule ThalamusWeb.Plugs.APIAuth do
   def call(conn, _opts) do
     case get_req_header(conn, "authorization") do
       ["Bearer " <> token] ->
-        validate_jwt(conn, token)
+        if String.starts_with?(token, "th_pat_") do
+          validate_pat(conn, token)
+        else
+          validate_jwt(conn, token)
+        end
 
       ["ApiKey " <> api_key] ->
         validate_api_key(conn, api_key)
@@ -52,8 +56,44 @@ defmodule ThalamusWeb.Plugs.APIAuth do
       _ ->
         unauthorized(
           conn,
-          "Missing or invalid Authorization header. Use 'Bearer <jwt>' or 'ApiKey <key>'"
+          "Missing or invalid Authorization header. Use 'Bearer <jwt>', 'Bearer <th_pat_...>' or 'ApiKey <key>'"
         )
+    end
+  end
+
+  # Personal Access Token validation
+  defp validate_pat(conn, token) do
+    alias Thalamus.Infrastructure.Repositories.PostgreSQLPersonalAccessTokenRepository
+    alias Thalamus.Domain.Services.PersonalAccessTokenGenerator
+    alias Thalamus.Infrastructure.Persistence.Schemas.UserSchema
+    alias Thalamus.Repo
+
+    with {:ok, prefix} <- PersonalAccessTokenGenerator.extract_prefix(token),
+         {:ok, pat} <- PostgreSQLPersonalAccessTokenRepository.find_by_prefix(prefix),
+         true <- PersonalAccessTokenGenerator.verify_token(token, pat.token_hash) do
+      now = DateTime.utc_now()
+
+      is_expired =
+        if pat.expires_at, do: DateTime.compare(now, pat.expires_at) == :gt, else: false
+
+      if pat.is_active and not is_expired do
+        # Mark used asynchronously
+        Task.start(fn -> PostgreSQLPersonalAccessTokenRepository.mark_as_used(pat) end)
+
+        user = Repo.get(UserSchema, pat.user_id)
+
+        conn
+        |> assign(:auth_type, :pat)
+        |> assign(:current_user, user)
+        |> assign(:user_id, pat.user_id)
+        |> assign(:organization_id, pat.organization_id)
+        |> assign(:token_scope, pat.scopes)
+      else
+        unauthorized(conn, "Personal Access Token has expired or been deactivated")
+      end
+    else
+      _ ->
+        unauthorized(conn, "Invalid Personal Access Token")
     end
   end
 
