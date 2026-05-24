@@ -293,7 +293,7 @@ defmodule Thalamus.Domain.ValueObjects.Scope do
       String.length(value) > 100 ->
         {:error, :scope_too_long}
 
-      not String.match?(value, ~r/^[a-zA-Z0-9_:-]+$/) ->
+      not String.match?(value, ~r/^[a-zA-Z0-9_.:-]+$/) ->
         {:error, :invalid_scope_format}
 
       not Enum.member?(get_all_valid_scopes(), value) ->

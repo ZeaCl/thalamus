@@ -184,6 +184,7 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLAgentTokenRepositoryTes
       client_id = create_client(org_id)
 
       revoked_at = DateTime.utc_now()
+
       access_token =
         "at_revoked_" <> (:crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false))
 
@@ -303,7 +304,8 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLAgentTokenRepositoryTes
 
     test "handles revoke delegation chain with invalid UUID gracefully" do
       # The repository expects a binary UUID, invalid formats should work with 0 results
-      assert {:ok, 0} = PostgreSQLAgentTokenRepository.revoke_delegation_chain(Ecto.UUID.generate())
+      assert {:ok, 0} =
+               PostgreSQLAgentTokenRepository.revoke_delegation_chain(Ecto.UUID.generate())
     end
   end
 
@@ -330,7 +332,9 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLAgentTokenRepositoryTes
       {:ok, _token3} = create_and_save_token(organization_id: org_id, agent_type: autonomous_type)
 
       assert {:ok, tokens} =
-               PostgreSQLAgentTokenRepository.find_by_organization(org_id, agent_type: :autonomous)
+               PostgreSQLAgentTokenRepository.find_by_organization(org_id,
+                 agent_type: :autonomous
+               )
 
       assert length(tokens) == 2
       assert Enum.all?(tokens, fn t -> t.agent_type.value == :autonomous end)
@@ -346,7 +350,9 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLAgentTokenRepositoryTes
       {:ok, _token3} = create_and_save_token(organization_id: org_id, agent_type: supervisor_type)
 
       assert {:ok, tokens} =
-               PostgreSQLAgentTokenRepository.find_by_organization(org_id, agent_type: :supervisor)
+               PostgreSQLAgentTokenRepository.find_by_organization(org_id,
+                 agent_type: :supervisor
+               )
 
       assert length(tokens) == 2
       assert Enum.all?(tokens, fn t -> t.agent_type.value == :supervisor end)
@@ -711,7 +717,6 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLAgentTokenRepositoryTes
 
       assert {:error, :not_found} = PostgreSQLAgentTokenRepository.revoke(long_token)
     end
-
   end
 
   describe "base_agent_tokens_query filtering" do
@@ -732,7 +737,8 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLAgentTokenRepositoryTes
         type: :access_token,
         client_id: client_id,
         scopes: ["read:data"],
-        expires_at: DateTime.utc_now() |> DateTime.add(3600, :second) |> DateTime.truncate(:second),
+        expires_at:
+          DateTime.utc_now() |> DateTime.add(3600, :second) |> DateTime.truncate(:second),
         agent_type: nil,
         revoked: false
       }

@@ -7,6 +7,7 @@ defmodule ThalamusWeb.API.UserRoleControllerTest do
     OrganizationSchema,
     UserSchema
   }
+
   alias Thalamus.Repo
 
   setup %{conn: conn} do
@@ -144,7 +145,9 @@ defmodule ThalamusWeb.API.UserRoleControllerTest do
 
       conn = get(conn, ~p"/api/users/#{target_user.id}/effective-scopes")
 
-      assert %{"data" => %{"user_id" => user_id, "effective_scopes" => scopes}} = json_response(conn, 200)
+      assert %{"data" => %{"user_id" => user_id, "effective_scopes" => scopes}} =
+               json_response(conn, 200)
+
       assert user_id == target_user.id
 
       # Should have union of all scopes (deduplicated)
@@ -185,7 +188,9 @@ defmodule ThalamusWeb.API.UserRoleControllerTest do
       assert %{"data" => %{"effective_scopes" => scopes1}} = json_response(conn1, 200)
 
       # Second request - should use cache
-      conn2 = get(build_conn() |> recycle_conn(conn), ~p"/api/users/#{target_user.id}/effective-scopes")
+      conn2 =
+        get(build_conn() |> recycle_conn(conn), ~p"/api/users/#{target_user.id}/effective-scopes")
+
       assert %{"data" => %{"effective_scopes" => scopes2}} = json_response(conn2, 200)
 
       assert scopes1 == scopes2

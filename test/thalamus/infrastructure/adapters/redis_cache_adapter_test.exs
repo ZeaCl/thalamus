@@ -614,7 +614,7 @@ defmodule Thalamus.Infrastructure.Adapters.RedisCacheAdapterTest do
 
     test "get returns cache_unavailable when Redix not connected" do
       # Use a unique key that doesn't exist
-      unique_key = "nonexistent_key_#{:rand.uniform(999999)}"
+      unique_key = "nonexistent_key_#{:rand.uniform(999_999)}"
       result = RedisCacheAdapter.get(unique_key)
       # Will return either :not_found or :cache_unavailable depending on Redis availability
       assert match?({:error, :not_found}, result) or match?({:error, :cache_unavailable}, result) or
@@ -686,6 +686,7 @@ defmodule Thalamus.Infrastructure.Adapters.RedisCacheAdapterTest do
     test "expire returns cache_unavailable on error" do
       # Test the cache_unavailable error path in expire/2
       result = RedisCacheAdapter.expire("error_key_#{:rand.uniform(1000)}", 60)
+
       assert result == :ok or match?({:error, :cache_unavailable}, result) or
                match?({:error, :connection_failed}, result) or
                match?({:error, :not_found}, result)
@@ -1099,7 +1100,7 @@ defmodule Thalamus.Infrastructure.Adapters.RedisCacheAdapterTest do
         ],
         metadata: %{
           count: 2,
-          timestamp: 1234567890
+          timestamp: 1_234_567_890
         },
         tags: ["important", "urgent"]
       }

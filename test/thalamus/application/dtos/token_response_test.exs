@@ -31,7 +31,13 @@ defmodule Thalamus.Application.DTOs.TokenResponseTest do
 
     test "creates a token response with id_token" do
       response =
-        TokenResponse.success("access_token_123", 3600, nil, nil, "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9")
+        TokenResponse.success(
+          "access_token_123",
+          3600,
+          nil,
+          nil,
+          "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
+        )
 
       assert response.access_token == "access_token_123"
       assert response.id_token == "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"

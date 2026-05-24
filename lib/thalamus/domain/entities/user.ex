@@ -470,7 +470,8 @@ defmodule Thalamus.Domain.Entities.User do
       iex> User.set_avatar(user, "")
       {:error, :invalid_avatar_url}
   """
-  def set_avatar(%__MODULE__{} = user, avatar_url) when is_binary(avatar_url) and avatar_url != "" do
+  def set_avatar(%__MODULE__{} = user, avatar_url)
+      when is_binary(avatar_url) and avatar_url != "" do
     {:ok,
      %{user | avatar_url: avatar_url, updated_at: DateTime.truncate(DateTime.utc_now(), :second)}}
   end

@@ -3,6 +3,7 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepositoryT
 
   alias Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository
   alias Thalamus.Domain.Entities.OAuth2Client
+
   alias Thalamus.Domain.ValueObjects.{
     ClientId,
     OrganizationId,
@@ -11,6 +12,7 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepositoryT
     RedirectUri,
     ClientSecret
   }
+
   alias Thalamus.Infrastructure.Persistence.Schemas.{OAuth2ClientSchema, OrganizationSchema}
 
   describe "save/1" do
@@ -74,8 +76,16 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepositoryT
 
       assert {:ok, saved_client} = PostgreSQLOAuth2ClientRepository.save(client)
       assert length(saved_client.redirect_uris) == 2
-      assert "https://app.example.com/callback" in Enum.map(saved_client.redirect_uris, &to_string/1)
-      assert "https://app.example.com/callback2" in Enum.map(saved_client.redirect_uris, &to_string/1)
+
+      assert "https://app.example.com/callback" in Enum.map(
+               saved_client.redirect_uris,
+               &to_string/1
+             )
+
+      assert "https://app.example.com/callback2" in Enum.map(
+               saved_client.redirect_uris,
+               &to_string/1
+             )
     end
 
     test "updates existing client when id exists in database" do
@@ -266,7 +276,11 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepositoryT
 
       assert {:ok, found_client} = PostgreSQLOAuth2ClientRepository.find_by_id(saved_client.id)
       assert length(found_client.redirect_uris) == 1
-      assert "https://app.example.com/callback" in Enum.map(found_client.redirect_uris, &to_string/1)
+
+      assert "https://app.example.com/callback" in Enum.map(
+               found_client.redirect_uris,
+               &to_string/1
+             )
     end
 
     test "finds confidential client with hashed secret" do
@@ -441,8 +455,8 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepositoryT
       assert length(org1_clients) >= 1
 
       assert Enum.all?(org1_clients, fn c ->
-        OrganizationId.to_string(c.organization_id) == org_id1
-      end)
+               OrganizationId.to_string(c.organization_id) == org_id1
+             end)
     end
 
     test "supports limit pagination" do
@@ -522,8 +536,8 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepositoryT
 
       if length(clients) > 0 do
         assert Enum.all?(clients, fn c ->
-          c.client_type == :confidential and c.is_active == true
-        end)
+                 c.client_type == :confidential and c.is_active == true
+               end)
       end
     end
   end
@@ -544,8 +558,8 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepositoryT
       assert length(org_clients) >= 2
 
       assert Enum.all?(org_clients, fn c ->
-        OrganizationId.to_string(c.organization_id) == org_id
-      end)
+               OrganizationId.to_string(c.organization_id) == org_id
+             end)
     end
 
     test "returns empty list when organization has no clients" do
@@ -794,8 +808,16 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepositoryT
       assert {:ok, found_client} = PostgreSQLOAuth2ClientRepository.find_by_id(saved_client.id)
 
       assert length(found_client.redirect_uris) == 2
-      assert "https://app.example.com/callback" in Enum.map(found_client.redirect_uris, &to_string/1)
-      assert "https://app.example.com/callback2" in Enum.map(found_client.redirect_uris, &to_string/1)
+
+      assert "https://app.example.com/callback" in Enum.map(
+               found_client.redirect_uris,
+               &to_string/1
+             )
+
+      assert "https://app.example.com/callback2" in Enum.map(
+               found_client.redirect_uris,
+               &to_string/1
+             )
     end
 
     test "converts localhost redirect URIs correctly" do
@@ -806,7 +828,11 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepositoryT
       assert {:ok, found_client} = PostgreSQLOAuth2ClientRepository.find_by_id(saved_client.id)
 
       assert length(found_client.redirect_uris) == 1
-      assert "http://localhost:3000/callback" in Enum.map(found_client.redirect_uris, &to_string/1)
+
+      assert "http://localhost:3000/callback" in Enum.map(
+               found_client.redirect_uris,
+               &to_string/1
+             )
     end
 
     test "handles empty redirect URIs list" do

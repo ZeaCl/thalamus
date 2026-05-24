@@ -12,7 +12,7 @@
 # ============================================================================
 # STAGE 1: Dependencies
 # ============================================================================
-FROM elixir:1.17-alpine AS deps
+FROM elixir:1.19-alpine AS deps
 
 # Install build dependencies
 RUN apk add --no-cache \
@@ -50,11 +50,6 @@ COPY priv ./priv
 # Copy assets
 COPY assets ./assets
 
-# Install asset dependencies and compile assets
-WORKDIR /app/assets
-RUN npm install
-WORKDIR /app
-
 # Compile dependencies
 RUN mix deps.compile
 
@@ -70,7 +65,7 @@ RUN mix release
 # ============================================================================
 # STAGE 3: Runtime
 # ============================================================================
-FROM alpine:3.19 AS runtime
+FROM alpine:3.23 AS runtime
 
 # Install runtime dependencies
 RUN apk add --no-cache \
@@ -103,7 +98,7 @@ ENV SHELL=/bin/bash
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
-    CMD bin/thalamus rpc "HealthCheck.ping()" || exit 1
+    CMD wget --spider -q http://localhost:4000/api/public/health || exit 1
 
 # Start application
 CMD ["bin/thalamus", "start"]
@@ -111,7 +106,7 @@ CMD ["bin/thalamus", "start"]
 # ============================================================================
 # STAGE 4: Development (optional)
 # ============================================================================
-FROM elixir:1.17-alpine AS development
+FROM elixir:1.19-alpine AS development
 
 # Install development dependencies
 RUN apk add --no-cache \

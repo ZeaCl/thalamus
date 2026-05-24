@@ -67,6 +67,7 @@ defmodule ThalamusWeb.ConnCase do
     alias Thalamus.Domain.Entities.{User, Organization}
     alias Thalamus.Domain.ValueObjects.{AccessToken, Scope, UserId}
     alias Thalamus.TestHelpers
+
     alias Thalamus.Infrastructure.Repositories.{
       PostgreSQLUserRepository,
       PostgreSQLOrganizationRepository,
@@ -75,11 +76,13 @@ defmodule ThalamusWeb.ConnCase do
     }
 
     # Create organization
-    {:ok, org} = Organization.new("Test Corp #{:rand.uniform(100000)}", "owner@test.com", :standard)
+    {:ok, org} =
+      Organization.new("Test Corp #{:rand.uniform(100_000)}", "owner@test.com", :standard)
+
     {:ok, org} = PostgreSQLOrganizationRepository.save(org)
 
     # Create and verify user
-    {:ok, user} = User.register("testuser#{:rand.uniform(100000)}@test.com", "TestPassword123!")
+    {:ok, user} = User.register("testuser#{:rand.uniform(100_000)}@test.com", "TestPassword123!")
     {:ok, user} = User.verify_email(user)
     user = %{user | organization_id: org.id}
     {:ok, user} = PostgreSQLUserRepository.save(user)

@@ -14,6 +14,7 @@ defmodule Thalamus.Application.UseCases.CreateRoleTest do
   describe "execute/2" do
     test "successfully creates a new role" do
       org_id = Ecto.UUID.generate()
+
       request = %{
         organization_id: org_id,
         name: "Developer",
@@ -37,6 +38,7 @@ defmodule Thalamus.Application.UseCases.CreateRoleTest do
 
     test "returns error for duplicate role name" do
       org_id = Ecto.UUID.generate()
+
       existing_role = %Role{
         id: Ecto.UUID.generate(),
         organization_id: org_id,
@@ -60,6 +62,7 @@ defmodule Thalamus.Application.UseCases.CreateRoleTest do
 
     test "checks for duplicate case-insensitively" do
       org_id = Ecto.UUID.generate()
+
       existing_role = %Role{
         id: Ecto.UUID.generate(),
         organization_id: org_id,
@@ -102,7 +105,8 @@ defmodule Thalamus.Application.UseCases.CreateRoleTest do
         organization_id: org_id,
         name: "ValidName",
         description: "Test",
-        scopes: ["Invalid!Scope"]  # Invalid: starts with capital, contains special char
+        # Invalid: starts with capital, contains special char
+        scopes: ["Invalid!Scope"]
       }
 
       # Note: find_by_name is NOT called because validation fails first

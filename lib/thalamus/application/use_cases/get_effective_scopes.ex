@@ -14,7 +14,8 @@ defmodule Thalamus.Application.UseCases.GetEffectiveScopes do
           required(:cache_service) => module()
         }
 
-  @cache_ttl 300_000  # 5 minutes in milliseconds
+  # 5 minutes in milliseconds
+  @cache_ttl 300_000
 
   @doc """
   Gets effective scopes for a user.

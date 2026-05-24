@@ -155,7 +155,10 @@ defmodule ThalamusWeb.API.OAuth2ClientController do
       {:error, {:invalid_grant_type, grant_type, reason}} ->
         conn
         |> put_status(:bad_request)
-        |> json(%{error: "Invalid grant type", details: "Grant type '#{grant_type}' is invalid: #{reason}"})
+        |> json(%{
+          error: "Invalid grant type",
+          details: "Grant type '#{grant_type}' is invalid: #{reason}"
+        })
 
       {:error, reason} when is_atom(reason) ->
         conn
@@ -369,7 +372,6 @@ defmodule ThalamusWeb.API.OAuth2ClientController do
   end
 
   defp create_client_with_validated_uris(name, org_id, params, client_type, redirect_uris) do
-
     # Parse grant types
     grant_type_strings = params["grant_types"] || ["authorization_code", "refresh_token"]
 
@@ -398,12 +400,26 @@ defmodule ThalamusWeb.API.OAuth2ClientController do
 
     with {:ok, grant_types_reversed} <- grant_types_result do
       grant_types = Enum.reverse(grant_types_reversed)
-      create_client_with_grant_types(name, org_id, params, client_type, redirect_uris, grant_types)
+
+      create_client_with_grant_types(
+        name,
+        org_id,
+        params,
+        client_type,
+        redirect_uris,
+        grant_types
+      )
     end
   end
 
-  defp create_client_with_grant_types(name, org_id, params, client_type, redirect_uris, grant_types) do
-
+  defp create_client_with_grant_types(
+         name,
+         org_id,
+         params,
+         client_type,
+         redirect_uris,
+         grant_types
+       ) do
     # Convert scope strings to Scope value objects
     scope_strings = params["scopes"] || []
 
@@ -567,6 +583,64 @@ defmodule ThalamusWeb.API.OAuth2ClientController do
         conn
         |> put_status(:internal_server_error)
         |> json(%{error: "Failed to rotate secret", details: inspect(reason)})
+    end
+  end
+
+  @doc """
+  POST /api/clients/:client_id/add-redirect-uri
+
+  Add a redirect URI to an OAuth2 client. Used for dynamic subdomain registration.
+  """
+  def add_redirect_uri(conn, %{"client_id" => id, "redirect_uri" => redirect_uri_string}) do
+    with {:ok, client_id} <- ClientId.from_string(id),
+         {:ok, client} <- PostgreSQLOAuth2ClientRepository.find_by_id(client_id),
+         {:ok, new_redirect_uri} <- RedirectUri.new(redirect_uri_string) do
+      existing_uris = Enum.map(client.redirect_uris, &RedirectUri.to_string/1)
+
+      if redirect_uri_string in existing_uris do
+        conn
+        |> put_status(:ok)
+        |> json(%{
+          data: client_to_json(client),
+          message: "Redirect URI already registered"
+        })
+      else
+        updated_uris = client.redirect_uris ++ [new_redirect_uri]
+        updated_client = %{client | redirect_uris: updated_uris}
+
+        case PostgreSQLOAuth2ClientRepository.save(updated_client) do
+          {:ok, saved_client} ->
+            conn
+            |> put_status(:ok)
+            |> json(%{
+              data: client_to_json(saved_client),
+              message: "Redirect URI added successfully"
+            })
+
+          {:error, changeset} ->
+            conn
+            |> put_status(:bad_request)
+            |> json(%{
+              error: "Failed to update client redirect URIs",
+              details: inspect(changeset)
+            })
+        end
+      end
+    else
+      {:error, :not_found} ->
+        conn
+        |> put_status(:not_found)
+        |> json(%{error: "Client not found"})
+
+      {:error, {:invalid_redirect_uri, _uri, reason}} ->
+        conn
+        |> put_status(:bad_request)
+        |> json(%{error: "Invalid redirect URI: #{reason}"})
+
+      {:error, reason} ->
+        conn
+        |> put_status(:bad_request)
+        |> json(%{error: "Invalid parameter or format", details: inspect(reason)})
     end
   end
 

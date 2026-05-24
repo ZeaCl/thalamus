@@ -122,7 +122,8 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLAdminApiKeyRepositoryTe
       assert {:ok, result} = PostgreSQLAdminApiKeyRepository.save(updated_key)
 
       assert result.id == saved_key.id
-      assert result.name == saved_key.name  # name cannot be updated
+      # name cannot be updated
+      assert result.name == saved_key.name
       assert result.description == "New description"
       assert result.key_hash == saved_key.key_hash
       assert result.key_prefix == saved_key.key_prefix
@@ -516,8 +517,8 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLAdminApiKeyRepositoryTe
 
       if length(keys) > 0 do
         assert Enum.all?(keys, fn k ->
-          k.is_active == true and k.created_by_user_id == user_id
-        end)
+                 k.is_active == true and k.created_by_user_id == user_id
+               end)
       end
     end
 
@@ -538,7 +539,8 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLAdminApiKeyRepositoryTe
       {:ok, key1} = create_admin_api_key_entity(name: "First")
       {:ok, saved1} = PostgreSQLAdminApiKeyRepository.save(key1)
 
-      :timer.sleep(10)  # Small delay to ensure different timestamps
+      # Small delay to ensure different timestamps
+      :timer.sleep(10)
 
       {:ok, key2} = create_admin_api_key_entity(name: "Second")
       {:ok, saved2} = PostgreSQLAdminApiKeyRepository.save(key2)

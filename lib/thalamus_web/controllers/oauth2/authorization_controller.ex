@@ -75,17 +75,30 @@ defmodule ThalamusWeb.OAuth2.AuthorizationController do
          {:ok, pkce_params} <- extract_and_validate_pkce_params(params) do
       # Check if user is authenticated
       case get_authenticated_user(conn) do
-        {:ok, _user_id} ->
-          # User is authenticated - show consent screen
-          render_consent_screen(conn, %{
-            client: client,
-            client_id_string: client_id_string,
-            scopes: final_scopes,
-            redirect_uri: redirect_uri,
-            state: params["state"],
-            response_type: response_type,
-            pkce_params: pkce_params
-          })
+        {:ok, user_id} ->
+          if client_id_string in ["platform_web", "thalamus_cli"] do
+            # First-party client: bypass consent and auto-approve
+            generate_authorization_code(conn, %{
+              client_id: client.id,
+              user_id: user_id,
+              redirect_uri: redirect_uri,
+              scopes: final_scopes,
+              state: params["state"],
+              code_challenge: pkce_params.code_challenge,
+              code_challenge_method: pkce_params.code_challenge_method
+            })
+          else
+            # User is authenticated - show consent screen
+            render_consent_screen(conn, %{
+              client: client,
+              client_id_string: client_id_string,
+              scopes: final_scopes,
+              redirect_uri: redirect_uri,
+              state: params["state"],
+              response_type: response_type,
+              pkce_params: pkce_params
+            })
+          end
 
         {:error, :not_authenticated} ->
           # User not authenticated - redirect to login
@@ -267,7 +280,8 @@ defmodule ThalamusWeb.OAuth2.AuthorizationController do
           {:ok, %{code_challenge: code_challenge, code_challenge_method: method}}
 
         _ ->
-          {:error, "invalid_request", "Invalid code_challenge_method. Only S256 and plain are supported"}
+          {:error, "invalid_request",
+           "Invalid code_challenge_method. Only S256 and plain are supported"}
       end
     else
       # No PKCE provided - that's OK (though not recommended)
@@ -277,7 +291,8 @@ defmodule ThalamusWeb.OAuth2.AuthorizationController do
 
   defp validate_and_finalize_scopes(requested_scopes, client) do
     # Use client's allowed scopes if no scopes were requested
-    final_scopes = if Enum.empty?(requested_scopes), do: client.allowed_scopes, else: requested_scopes
+    final_scopes =
+      if Enum.empty?(requested_scopes), do: client.allowed_scopes, else: requested_scopes
 
     # Validate that all requested scopes are in client's allowed list
     if Enum.empty?(final_scopes) do
@@ -295,7 +310,8 @@ defmodule ThalamusWeb.OAuth2.AuthorizationController do
       if Enum.empty?(unauthorized_scopes) do
         {:ok, final_scopes}
       else
-        {:error, "invalid_scope", "Requested scopes not allowed for this client: #{Enum.join(unauthorized_scopes, ", ")}"}
+        {:error, "invalid_scope",
+         "Requested scopes not allowed for this client: #{Enum.join(unauthorized_scopes, ", ")}"}
       end
     end
   end

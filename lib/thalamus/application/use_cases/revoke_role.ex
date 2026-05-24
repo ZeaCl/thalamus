@@ -62,7 +62,8 @@ defmodule Thalamus.Application.UseCases.RevokeRole do
     deps.cache_service.delete(cache_key)
     :ok
   rescue
-    _ -> :ok  # Cache failure should not block revocation
+    # Cache failure should not block revocation
+    _ -> :ok
   end
 
   defp log_revocation(user_id, role_id, revoked_by, deps) do

@@ -147,16 +147,16 @@ defmodule Thalamus.Domain.Entities.Organization do
       # Truncate to seconds for Ecto :utc_datetime compatibility
       now = DateTime.truncate(DateTime.utc_now(), :second)
 
-      # Convert :unlimited to nil for database storage
+      # Convert :unlimited to large numbers for database storage (NOT NULL constraints)
       max_users =
         case plan.max_users do
-          :unlimited -> nil
+          :unlimited -> 999_999
           count -> count
         end
 
       max_api_calls =
         case plan.max_api_calls_per_month do
-          :unlimited -> nil
+          :unlimited -> 999_999_999
           count -> count
         end
 

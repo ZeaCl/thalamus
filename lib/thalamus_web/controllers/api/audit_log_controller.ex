@@ -51,7 +51,10 @@ defmodule ThalamusWeb.API.AuditLogController do
       {:error, :invalid_date_range} ->
         conn
         |> put_status(:bad_request)
-        |> json(%{error: "invalid_date_range", message: "Invalid date format. Use ISO8601 (e.g., 2024-01-01T00:00:00Z)"})
+        |> json(%{
+          error: "invalid_date_range",
+          message: "Invalid date format. Use ISO8601 (e.g., 2024-01-01T00:00:00Z)"
+        })
 
       {:error, :date_range_too_large} ->
         conn
@@ -177,7 +180,10 @@ defmodule ThalamusWeb.API.AuditLogController do
 
     conn
     |> put_resp_content_type("text/csv")
-    |> put_resp_header("content-disposition", "attachment; filename=\"audit_logs_#{timestamp()}.csv\"")
+    |> put_resp_header(
+      "content-disposition",
+      "attachment; filename=\"audit_logs_#{timestamp()}.csv\""
+    )
     |> send_resp(200, csv_content)
   end
 
@@ -186,7 +192,10 @@ defmodule ThalamusWeb.API.AuditLogController do
 
     conn
     |> put_resp_content_type("application/json")
-    |> put_resp_header("content-disposition", "attachment; filename=\"audit_logs_#{timestamp()}.json\"")
+    |> put_resp_header(
+      "content-disposition",
+      "attachment; filename=\"audit_logs_#{timestamp()}.json\""
+    )
     |> json(%{
       exported_at: DateTime.utc_now(),
       total_records: length(json_data),

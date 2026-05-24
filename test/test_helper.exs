@@ -19,7 +19,10 @@ Mox.defmock(MockCacheService, for: Thalamus.Application.Ports.CacheService)
 
 # Define SAME mocks WITH Thalamus. prefix (used by RBAC tests)
 # This allows both MockUserRepository and Thalamus.MockUserRepository to work
-Mox.defmock(Thalamus.MockOAuth2ClientRepository, for: Thalamus.Application.Ports.OAuth2ClientRepository)
+Mox.defmock(Thalamus.MockOAuth2ClientRepository,
+  for: Thalamus.Application.Ports.OAuth2ClientRepository
+)
+
 Mox.defmock(Thalamus.MockUserRepository, for: Thalamus.Application.Ports.UserRepository)
 Mox.defmock(Thalamus.MockTokenRepository, for: Thalamus.Application.Ports.TokenRepository)
 Mox.defmock(Thalamus.MockRoleRepository, for: Thalamus.Application.Ports.RoleRepository)

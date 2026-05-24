@@ -36,7 +36,8 @@ defmodule Thalamus.Application.Ports.RoleRepository do
   Deletes a role by ID.
   Returns the number of user_role assignments that were deleted.
   """
-  @callback delete(binary()) :: {:ok, deleted_user_roles_count :: non_neg_integer()} | {:error, term()}
+  @callback delete(binary()) ::
+              {:ok, deleted_user_roles_count :: non_neg_integer()} | {:error, term()}
 
   @doc """
   Assigns a role to a user.

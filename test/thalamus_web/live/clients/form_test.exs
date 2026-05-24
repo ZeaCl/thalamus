@@ -4,7 +4,12 @@ defmodule ThalamusWeb.Clients.FormTest do
   import Phoenix.LiveViewTest
 
   alias Thalamus.Repo
-  alias Thalamus.Infrastructure.Persistence.Schemas.{OAuth2ClientSchema, OrganizationSchema, UserSchema}
+
+  alias Thalamus.Infrastructure.Persistence.Schemas.{
+    OAuth2ClientSchema,
+    OrganizationSchema,
+    UserSchema
+  }
 
   setup %{conn: conn} do
     # Create test organization using the changeset to set defaults

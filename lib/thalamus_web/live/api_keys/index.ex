@@ -179,7 +179,7 @@ defmodule ThalamusWeb.ApiKeys.Index do
         <div class="sm:flex-auto">
           <h1 class="text-2xl font-semibold text-base-content">API Keys</h1>
           <p class="mt-2 text-sm text-base-content/70">
-            Manage API keys for programmatic access to Thalamus
+            Manage API keys for programmatic access to ZEA
           </p>
         </div>
         <div class="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">

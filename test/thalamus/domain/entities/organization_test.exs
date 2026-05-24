@@ -25,35 +25,36 @@ defmodule Thalamus.Domain.Entities.OrganizationTest do
       ip_whitelist: []
     }
 
-    {:ok, %Organization{
-      id: org_id,
-      name: name,
-      owner_email: owner_email,
-      plan: plan,
-      plan_type: plan_type,
-      members: [owner_member],
-      settings: default_settings,
-      api_calls_this_month: 0,
-      api_calls_current_month: 0,
-      is_active: true,
-      status: :active,
-      verified_at: nil,
-      max_users: plan_max_users(plan_type),
-      max_api_calls_per_month: plan_max_api_calls(plan_type),
-      created_at: now,
-      updated_at: now
-    }}
+    {:ok,
+     %Organization{
+       id: org_id,
+       name: name,
+       owner_email: owner_email,
+       plan: plan,
+       plan_type: plan_type,
+       members: [owner_member],
+       settings: default_settings,
+       api_calls_this_month: 0,
+       api_calls_current_month: 0,
+       is_active: true,
+       status: :active,
+       verified_at: nil,
+       max_users: plan_max_users(plan_type),
+       max_api_calls_per_month: plan_max_api_calls(plan_type),
+       created_at: now,
+       updated_at: now
+     }}
   end
 
   defp plan_max_users(:free), do: 5
   defp plan_max_users(:basic), do: 25
   defp plan_max_users(:standard), do: 100
-  defp plan_max_users(:enterprise), do: nil
+  defp plan_max_users(:enterprise), do: 999_999
 
   defp plan_max_api_calls(:free), do: 10_000
   defp plan_max_api_calls(:basic), do: 100_000
   defp plan_max_api_calls(:standard), do: 1_000_000
-  defp plan_max_api_calls(:enterprise), do: nil
+  defp plan_max_api_calls(:enterprise), do: 999_999_999
 
   describe "new/2 (with email string)" do
     test "creates valid organization with required fields" do
@@ -70,11 +71,12 @@ defmodule Thalamus.Domain.Entities.OrganizationTest do
     end
 
     test "creates organization with specified plan type" do
-      assert {:ok, %Organization{} = org} = Organization.new("Acme Corp", "owner@acme.com", :enterprise)
+      assert {:ok, %Organization{} = org} =
+               Organization.new("Acme Corp", "owner@acme.com", :enterprise)
 
       assert org.plan_type == :enterprise
-      assert org.max_users == nil
-      assert org.max_api_calls_per_month == nil
+      assert org.max_users == 999_999
+      assert org.max_api_calls_per_month == 999_999_999
     end
 
     test "fails with invalid email" do
@@ -159,7 +161,9 @@ defmodule Thalamus.Domain.Entities.OrganizationTest do
 
     test "creates organization with specified plan" do
       {:ok, user_id} = UserId.generate()
-      assert {:ok, %Organization{} = org} = create_org_with_owner("Acme Corp", user_id, :enterprise)
+
+      assert {:ok, %Organization{} = org} =
+               create_org_with_owner("Acme Corp", user_id, :enterprise)
 
       assert org.plan.type == :enterprise
     end
@@ -231,8 +235,11 @@ defmodule Thalamus.Domain.Entities.OrganizationTest do
       {:ok, user_id} = UserId.generate()
       {:ok, org} = create_org_with_owner("Acme", user_id)
 
-      assert {:error, :invalid_member_data} = Organization.add_member(org, "not-a-user-id", :member)
-      assert {:error, :invalid_member_data} = Organization.add_member("not-an-org", user_id, :member)
+      assert {:error, :invalid_member_data} =
+               Organization.add_member(org, "not-a-user-id", :member)
+
+      assert {:error, :invalid_member_data} =
+               Organization.add_member("not-an-org", user_id, :member)
     end
   end
 
@@ -528,8 +535,8 @@ defmodule Thalamus.Domain.Entities.OrganizationTest do
 
       assert {:ok, upgraded_org} = Organization.upgrade_plan(org, :enterprise)
       assert upgraded_org.plan_type == :enterprise
-      assert upgraded_org.max_users == nil
-      assert upgraded_org.max_api_calls_per_month == nil
+      assert upgraded_org.max_users == 999_999
+      assert upgraded_org.max_api_calls_per_month == 999_999_999
     end
 
     test "allows downgrade using this function" do

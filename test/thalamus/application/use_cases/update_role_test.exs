@@ -28,7 +28,8 @@ defmodule Thalamus.Application.UseCases.UpdateRoleTest do
       }
 
       updated_role = %Role{
-        existing_role | scopes: ["read:code", "write:code", "deploy:staging"]
+        existing_role
+        | scopes: ["read:code", "write:code", "deploy:staging"]
       }
 
       request = %{
@@ -83,7 +84,8 @@ defmodule Thalamus.Application.UseCases.UpdateRoleTest do
 
       request = %{
         role_id: role_id,
-        scopes: ["Invalid!Scope", "UPPERCASE"]  # Invalid: special char and uppercase
+        # Invalid: special char and uppercase
+        scopes: ["Invalid!Scope", "UPPERCASE"]
       }
 
       Thalamus.MockRoleRepository

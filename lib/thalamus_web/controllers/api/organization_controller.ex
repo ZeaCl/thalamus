@@ -18,6 +18,7 @@ defmodule ThalamusWeb.API.OrganizationController do
   use ThalamusWeb, :controller
 
   alias Thalamus.Infrastructure.Repositories.PostgreSQLOrganizationRepository
+  alias Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository
   alias Thalamus.Domain.Entities.Organization
   alias Thalamus.Domain.ValueObjects.{OrganizationId, UserId, Email}
 
@@ -378,6 +379,135 @@ defmodule ThalamusWeb.API.OrganizationController do
       end
 
     {:ok, organization}
+  end
+
+  @doc """
+  POST /api/organizations/:id/members
+
+  Add a member to an organization by email.
+
+  ## Request Body (JSON)
+  {
+    "email": "user@example.com",
+    "role": "admin|member|billing"
+  }
+
+  ## Response
+  - 200 OK: Member added
+  - 404 Not Found: Organization or user not found
+  - 400 Bad Request: Invalid input or member already exists
+  """
+  def add_member(conn, %{"id" => id, "email" => email_string, "role" => role_string}) do
+    with {:ok, org_id} <- OrganizationId.from_string(id),
+         {:ok, organization} <- PostgreSQLOrganizationRepository.find_by_id(org_id),
+         {:ok, email} <- Email.new(email_string),
+         {:ok, user} <- PostgreSQLUserRepository.find_by_email(email),
+         role <- String.to_existing_atom(role_string),
+         {:ok, updated_org} <- Organization.add_member(organization, user.id, role),
+         {:ok, _saved_org} <- PostgreSQLOrganizationRepository.save(updated_org) do
+      conn
+      |> put_status(:ok)
+      |> json(%{
+        data: organization_to_json(updated_org),
+        message: "Member added successfully"
+      })
+    else
+      {:error, :not_found} ->
+        conn
+        |> put_status(:not_found)
+        |> json(%{error: "Organization or user not found"})
+
+      {:error, :member_already_exists} ->
+        conn
+        |> put_status(:conflict)
+        |> json(%{error: "Member already exists in this organization"})
+
+      {:error, :cannot_add_owner} ->
+        conn
+        |> put_status(:bad_request)
+        |> json(%{error: "Cannot add a member with owner role"})
+
+      {:error, :member_limit_reached} ->
+        conn
+        |> put_status(:bad_request)
+        |> json(%{error: "Organization member limit reached"})
+
+      {:error, reason} when is_atom(reason) ->
+        conn
+        |> put_status(:bad_request)
+        |> json(%{error: "Invalid input", details: to_string(reason)})
+
+      {:error, reason} ->
+        conn
+        |> put_status(:internal_server_error)
+        |> json(%{error: "Failed to add member", details: inspect(reason)})
+    end
+  end
+
+  def add_member(conn, _params) do
+    conn
+    |> put_status(:bad_request)
+    |> json(%{error: "Missing required parameters: email and role"})
+  end
+
+  @doc """
+  DELETE /api/organizations/:id/members/:user_id
+
+  Remove a member from an organization.
+
+  ## Path Parameters
+  - id: Organization UUID
+  - user_id: User UUID to remove
+
+  ## Response
+  - 200 OK: Member removed
+  - 404 Not Found: Organization or member not found
+  - 400 Bad Request: Cannot remove owner
+  """
+  def remove_member(conn, %{"id" => id, "user_id" => user_id_string}) do
+    with {:ok, org_id} <- OrganizationId.from_string(id),
+         {:ok, user_id} <- UserId.from_string(user_id_string),
+         {:ok, organization} <- PostgreSQLOrganizationRepository.find_by_id(org_id),
+         {:ok, updated_org} <- Organization.remove_member(organization, user_id),
+         {:ok, _saved_org} <- PostgreSQLOrganizationRepository.save(updated_org) do
+      conn
+      |> put_status(:ok)
+      |> json(%{
+        data: organization_to_json(updated_org),
+        message: "Member removed successfully"
+      })
+    else
+      {:error, :not_found} ->
+        conn
+        |> put_status(:not_found)
+        |> json(%{error: "Organization not found"})
+
+      {:error, :member_not_found} ->
+        conn
+        |> put_status(:not_found)
+        |> json(%{error: "Member not found in this organization"})
+
+      {:error, :cannot_remove_owner} ->
+        conn
+        |> put_status(:bad_request)
+        |> json(%{error: "Cannot remove the organization owner"})
+
+      {:error, reason} when is_atom(reason) ->
+        conn
+        |> put_status(:bad_request)
+        |> json(%{error: "Invalid input", details: to_string(reason)})
+
+      {:error, reason} ->
+        conn
+        |> put_status(:internal_server_error)
+        |> json(%{error: "Failed to remove member", details: inspect(reason)})
+    end
+  end
+
+  def remove_member(conn, _params) do
+    conn
+    |> put_status(:bad_request)
+    |> json(%{error: "Missing required parameter: user_id"})
   end
 
   defp format_changeset_errors(changeset) do

@@ -46,6 +46,9 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.OrganizationSchema do
     # Each member: %{user_id: uuid, role: atom, joined_at: datetime}
     field :members, {:array, :map}, default: []
 
+    # Domain access
+    field :domains, {:array, :string}, default: []
+
     # Relationships
     has_many :users, UserSchema, foreign_key: :organization_id
     has_many :oauth2_clients, OAuth2ClientSchema, foreign_key: :organization_id

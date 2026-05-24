@@ -42,7 +42,10 @@ defmodule ThalamusWeb.API.UserRoleController do
       {:error, :organization_mismatch} ->
         conn
         |> put_status(:forbidden)
-        |> json(%{error: "organization_mismatch", message: "User and role must be in same organization"})
+        |> json(%{
+          error: "organization_mismatch",
+          message: "User and role must be in same organization"
+        })
 
       {:error, :not_found} ->
         conn

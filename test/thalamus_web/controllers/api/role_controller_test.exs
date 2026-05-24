@@ -226,8 +226,11 @@ defmodule ThalamusWeb.API.RoleControllerTest do
 
       # Verify cascade deletion
       refute Repo.get(RoleSchema, role.id)
+
       refute Repo.get_by(Thalamus.Infrastructure.Persistence.Schemas.UserRoleSchema,
-                         user_id: user_role.user_id, role_id: role.id)
+               user_id: user_role.user_id,
+               role_id: role.id
+             )
     end
 
     test "returns invalidated cache count", %{conn: conn, organization: org} do

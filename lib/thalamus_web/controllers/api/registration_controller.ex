@@ -96,7 +96,8 @@ defmodule ThalamusWeb.API.RegistrationController do
           status: "pending_verification",
           verified: false
         },
-        message: "Registration successful. Please check your email for verification instructions.",
+        message:
+          "Registration successful. Please check your email for verification instructions.",
         # DEVELOPMENT ONLY - remove in production
         verification_token: verification_token
       })
@@ -259,7 +260,8 @@ defmodule ThalamusWeb.API.RegistrationController do
                   conn
                   |> put_status(:ok)
                   |> json(%{
-                    message: "If this email is registered and unverified, a verification email will be sent.",
+                    message:
+                      "If this email is registered and unverified, a verification email will be sent.",
                     # DEVELOPMENT ONLY - remove in production
                     verification_token: verification_token
                   })
@@ -269,7 +271,8 @@ defmodule ThalamusWeb.API.RegistrationController do
                   conn
                   |> put_status(:ok)
                   |> json(%{
-                    message: "If this email is registered and unverified, a verification email will be sent."
+                    message:
+                      "If this email is registered and unverified, a verification email will be sent."
                   })
               end
 
@@ -278,7 +281,8 @@ defmodule ThalamusWeb.API.RegistrationController do
               conn
               |> put_status(:ok)
               |> json(%{
-                message: "If this email is registered and unverified, a verification email will be sent."
+                message:
+                  "If this email is registered and unverified, a verification email will be sent."
               })
 
             {:error, _} ->
@@ -286,7 +290,8 @@ defmodule ThalamusWeb.API.RegistrationController do
               conn
               |> put_status(:ok)
               |> json(%{
-                message: "If this email is registered and unverified, a verification email will be sent."
+                message:
+                  "If this email is registered and unverified, a verification email will be sent."
               })
           end
       end

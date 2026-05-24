@@ -5,6 +5,7 @@ defmodule Thalamus.Repo.Migrations.AddRbacTables do
     # Create roles table
     create table(:roles, primary_key: false) do
       add :id, :uuid, primary_key: true, default: fragment("gen_random_uuid()")
+
       add :organization_id, references(:organizations, type: :uuid, on_delete: :delete_all),
         null: false
 

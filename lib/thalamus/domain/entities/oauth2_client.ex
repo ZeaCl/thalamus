@@ -312,10 +312,11 @@ defmodule Thalamus.Domain.Entities.OAuth2Client do
   def add_redirect_uri(%__MODULE__{redirect_uris: uris} = client, new_uri)
       when is_binary(new_uri) do
     # Normalize URIs to strings for comparison (handles both strings and RedirectUri structs)
-    existing_uris = Enum.map(uris, fn
-      %RedirectUri{} = uri -> RedirectUri.to_string(uri)
-      uri when is_binary(uri) -> uri
-    end)
+    existing_uris =
+      Enum.map(uris, fn
+        %RedirectUri{} = uri -> RedirectUri.to_string(uri)
+        uri when is_binary(uri) -> uri
+      end)
 
     if new_uri in existing_uris do
       {:error, :redirect_uri_already_exists}
@@ -335,10 +336,11 @@ defmodule Thalamus.Domain.Entities.OAuth2Client do
   def remove_redirect_uri(%__MODULE__{redirect_uris: uris} = client, uri_string)
       when is_binary(uri_string) do
     # Handle both strings and RedirectUri structs
-    new_uris = Enum.reject(uris, fn
-      %RedirectUri{} = uri -> RedirectUri.to_string(uri) == uri_string
-      uri when is_binary(uri) -> uri == uri_string
-    end)
+    new_uris =
+      Enum.reject(uris, fn
+        %RedirectUri{} = uri -> RedirectUri.to_string(uri) == uri_string
+        uri when is_binary(uri) -> uri == uri_string
+      end)
 
     {:ok, %{client | redirect_uris: new_uris, updated_at: DateTime.utc_now()}}
   end
@@ -371,10 +373,11 @@ defmodule Thalamus.Domain.Entities.OAuth2Client do
   def add_scope(%__MODULE__{allowed_scopes: scopes} = client, new_scope)
       when is_binary(new_scope) do
     # Normalize scopes to strings for comparison (handles both strings and Scope structs)
-    existing_scopes = Enum.map(scopes, fn
-      scope when is_binary(scope) -> scope
-      scope -> Scope.to_string(scope)
-    end)
+    existing_scopes =
+      Enum.map(scopes, fn
+        scope when is_binary(scope) -> scope
+        scope -> Scope.to_string(scope)
+      end)
 
     if new_scope in existing_scopes do
       {:error, :scope_already_exists}
@@ -394,10 +397,11 @@ defmodule Thalamus.Domain.Entities.OAuth2Client do
   def remove_scope(%__MODULE__{allowed_scopes: scopes} = client, scope_string)
       when is_binary(scope_string) do
     # Handle both strings and Scope structs
-    new_scopes = Enum.reject(scopes, fn
-      scope when is_binary(scope) -> scope == scope_string
-      scope -> Scope.to_string(scope) == scope_string
-    end)
+    new_scopes =
+      Enum.reject(scopes, fn
+        scope when is_binary(scope) -> scope == scope_string
+        scope -> Scope.to_string(scope) == scope_string
+      end)
 
     if length(new_scopes) == 0 do
       {:error, :cannot_remove_last_scope}

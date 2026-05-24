@@ -135,6 +135,7 @@ defmodule Thalamus.Domain.Entities.Role do
   @spec remove_scope(t(), String.t()) :: {:ok, t()}
   def remove_scope(%__MODULE__{scopes: scopes} = role, scope_to_remove) do
     new_scopes = Enum.reject(scopes, fn s -> s == scope_to_remove end)
+
     updated_role = %{
       role
       | scopes: new_scopes,

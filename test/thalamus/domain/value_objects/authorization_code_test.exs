@@ -453,7 +453,11 @@ defmodule Thalamus.Domain.ValueObjects.AuthorizationCodeTest do
           params.scopes
         )
 
-      assert :ok = AuthorizationCode.validate_redirect_uri(auth_code, "https://app.example.com/callback")
+      assert :ok =
+               AuthorizationCode.validate_redirect_uri(
+                 auth_code,
+                 "https://app.example.com/callback"
+               )
     end
 
     test "returns error for mismatched redirect URI" do

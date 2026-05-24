@@ -16,7 +16,8 @@ defmodule ThalamusWeb.API.AvatarController do
   alias Thalamus.Domain.Entities.User
   alias Thalamus.Domain.ValueObjects.UserId
 
-  @max_file_size 5 * 1024 * 1024  # 5MB
+  # 5MB
+  @max_file_size 5 * 1024 * 1024
   @allowed_content_types ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"]
 
   @doc """
@@ -41,7 +42,8 @@ defmodule ThalamusWeb.API.AvatarController do
          :ok <- validate_content_type(upload),
          {:ok, file_content} <- read_file_content(upload),
          file_data <- build_file_data(upload, file_content),
-         {:ok, avatar_url} <- LocalFileUploadService.upload_avatar(file_data, UserId.to_string(user_id)),
+         {:ok, avatar_url} <-
+           LocalFileUploadService.upload_avatar(file_data, UserId.to_string(user_id)),
          {:ok, user} <- PostgreSQLUserRepository.find_by_id(user_id),
          {:ok, old_avatar_url} <- get_old_avatar_url(user),
          {:ok, updated_user} <- User.set_avatar(user, avatar_url),

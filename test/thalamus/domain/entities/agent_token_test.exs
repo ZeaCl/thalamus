@@ -5,9 +5,12 @@ defmodule Thalamus.Domain.Entities.AgentTokenTest do
   alias Thalamus.Domain.ValueObjects.{AgentType, TaskId, DelegationChain}
 
   # Valid access token (minimum 32 bytes as per validation)
-  @valid_access_token "at_" <> String.duplicate("a", 29) # "at_" + 29 chars = 32 bytes
-  @valid_access_token_supervisor "at_supervisor_" <> String.duplicate("b", 18) # 32 bytes
-  @valid_access_token_tool "at_tool_" <> String.duplicate("c", 24) # 32 bytes
+  # "at_" + 29 chars = 32 bytes
+  @valid_access_token "at_" <> String.duplicate("a", 29)
+  # 32 bytes
+  @valid_access_token_supervisor "at_supervisor_" <> String.duplicate("b", 18)
+  # 32 bytes
+  @valid_access_token_tool "at_tool_" <> String.duplicate("c", 24)
 
   describe "create/1 - happy path" do
     test "creates autonomous agent token with minimal attributes" do
@@ -217,7 +220,8 @@ defmodule Thalamus.Domain.Entities.AgentTokenTest do
     test "returns error when agent_type is not AgentType value object" do
       attrs = %{
         access_token: @valid_access_token,
-        agent_type: "autonomous",  # String instead of AgentType
+        # String instead of AgentType
+        agent_type: "autonomous",
         organization_id: Ecto.UUID.generate(),
         client_id: Ecto.UUID.generate(),
         scopes: ["read:data"],

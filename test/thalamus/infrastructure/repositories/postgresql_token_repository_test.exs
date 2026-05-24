@@ -109,7 +109,8 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLTokenRepositoryTest do
         client_id: client_id,
         user_id: user_id,
         scopes: [],
-        expires_at: nil  # Invalid - nil value for required field
+        # Invalid - nil value for required field
+        expires_at: nil
       }
 
       assert {:error, changeset} = PostgreSQLTokenRepository.store(invalid_data)
@@ -291,9 +292,14 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLTokenRepositoryTest do
     end
 
     test "can revoke different token types" do
-      access_token = build_token_data(type: :access_token, token: "at_test_#{:rand.uniform(1_000_000)}")
-      refresh_token = build_token_data(type: :refresh_token, token: "rt_test_#{:rand.uniform(1_000_000)}")
-      auth_code = build_token_data(type: :authorization_code, token: "ac_test_#{:rand.uniform(1_000_000)}")
+      access_token =
+        build_token_data(type: :access_token, token: "at_test_#{:rand.uniform(1_000_000)}")
+
+      refresh_token =
+        build_token_data(type: :refresh_token, token: "rt_test_#{:rand.uniform(1_000_000)}")
+
+      auth_code =
+        build_token_data(type: :authorization_code, token: "ac_test_#{:rand.uniform(1_000_000)}")
 
       :ok = PostgreSQLTokenRepository.store(access_token)
       :ok = PostgreSQLTokenRepository.store(refresh_token)
@@ -450,21 +456,24 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLTokenRepositoryTest do
   describe "cleanup_expired/0" do
     test "deletes expired tokens" do
       # Create expired tokens (bypass validation by inserting directly)
-      expired1 = insert_expired_token(
-        token: "expired_1",
-        expires_at: DateTime.utc_now() |> DateTime.add(-3600, :second)
-      )
+      expired1 =
+        insert_expired_token(
+          token: "expired_1",
+          expires_at: DateTime.utc_now() |> DateTime.add(-3600, :second)
+        )
 
-      expired2 = insert_expired_token(
-        token: "expired_2",
-        expires_at: DateTime.utc_now() |> DateTime.add(-7200, :second)
-      )
+      expired2 =
+        insert_expired_token(
+          token: "expired_2",
+          expires_at: DateTime.utc_now() |> DateTime.add(-7200, :second)
+        )
 
       # Create active token
-      active = build_token_data(
-        token: "active_1",
-        expires_at: DateTime.utc_now() |> DateTime.add(3600, :second)
-      )
+      active =
+        build_token_data(
+          token: "active_1",
+          expires_at: DateTime.utc_now() |> DateTime.add(3600, :second)
+        )
 
       :ok = PostgreSQLTokenRepository.store(active)
 
@@ -480,10 +489,11 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLTokenRepositoryTest do
     end
 
     test "returns 0 when no expired tokens exist" do
-      active = build_token_data(
-        token: "active_only",
-        expires_at: DateTime.utc_now() |> DateTime.add(3600, :second)
-      )
+      active =
+        build_token_data(
+          token: "active_only",
+          expires_at: DateTime.utc_now() |> DateTime.add(3600, :second)
+        )
 
       :ok = PostgreSQLTokenRepository.store(active)
 
@@ -497,9 +507,14 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLTokenRepositoryTest do
       now = DateTime.utc_now()
       past = DateTime.add(now, -3600, :second)
 
-      expired_access = insert_expired_token(type: :access_token, token: "at_exp", expires_at: past)
-      expired_refresh = insert_expired_token(type: :refresh_token, token: "rt_exp", expires_at: past)
-      expired_code = insert_expired_token(type: :authorization_code, token: "ac_exp", expires_at: past)
+      expired_access =
+        insert_expired_token(type: :access_token, token: "at_exp", expires_at: past)
+
+      expired_refresh =
+        insert_expired_token(type: :refresh_token, token: "rt_exp", expires_at: past)
+
+      expired_code =
+        insert_expired_token(type: :authorization_code, token: "ac_exp", expires_at: past)
 
       assert {:ok, 3} = PostgreSQLTokenRepository.cleanup_expired()
 
@@ -510,10 +525,11 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLTokenRepositoryTest do
     end
 
     test "does not delete revoked but not expired tokens" do
-      revoked_not_expired = build_token_data(
-        token: "revoked_active",
-        expires_at: DateTime.utc_now() |> DateTime.add(3600, :second)
-      )
+      revoked_not_expired =
+        build_token_data(
+          token: "revoked_active",
+          expires_at: DateTime.utc_now() |> DateTime.add(3600, :second)
+        )
 
       :ok = PostgreSQLTokenRepository.store(revoked_not_expired)
       :ok = PostgreSQLTokenRepository.revoke(revoked_not_expired.token)
@@ -647,21 +663,29 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLTokenRepositoryTest do
   defp build_token_data(overrides \\ []) do
     # Create database records for foreign key constraints if not provided
     # Check if user_id is explicitly set to nil
-    user_id = case Keyword.fetch(overrides, :user_id) do
-      {:ok, nil} -> nil
-      {:ok, value} -> value
-      :error ->
-        user_uuid = create_test_user()
-        build_user_id(user_uuid)
-    end
+    user_id =
+      case Keyword.fetch(overrides, :user_id) do
+        {:ok, nil} ->
+          nil
+
+        {:ok, value} ->
+          value
+
+        :error ->
+          user_uuid = create_test_user()
+          build_user_id(user_uuid)
+      end
 
     # Check if client_id is explicitly provided
-    client_id = case Keyword.fetch(overrides, :client_id) do
-      {:ok, value} -> value
-      :error ->
-        client_uuid = create_test_client()
-        build_client_id(client_uuid)
-    end
+    client_id =
+      case Keyword.fetch(overrides, :client_id) do
+        {:ok, value} ->
+          value
+
+        :error ->
+          client_uuid = create_test_client()
+          build_client_id(client_uuid)
+      end
 
     base_data = %{
       token: Keyword.get(overrides, :token, "token_#{:rand.uniform(1_000_000)}"),
@@ -669,7 +693,8 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLTokenRepositoryTest do
       user_id: user_id,
       client_id: client_id,
       scopes: Keyword.get(overrides, :scopes, ["openid", "profile"]),
-      expires_at: Keyword.get(overrides, :expires_at, DateTime.utc_now() |> DateTime.add(3600, :second))
+      expires_at:
+        Keyword.get(overrides, :expires_at, DateTime.utc_now() |> DateTime.add(3600, :second))
     }
 
     # Add optional fields if present in overrides

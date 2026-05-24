@@ -44,6 +44,51 @@ defmodule ThalamusWeb.SessionController do
     |> redirect(to: ~p"/")
   end
 
+  def mock_oauth(conn, %{"provider" => provider}) do
+    email_string =
+      case provider do
+        "google" -> "google-dev@zea.cl"
+        "github" -> "github-dev@zea.cl"
+        _ -> "dev@zea.cl"
+      end
+
+    name =
+      case provider do
+        "google" -> "Google Developer"
+        "github" -> "GitHub Developer"
+        _ -> "ZEA Developer"
+      end
+
+    user =
+      case Repo.get_by(UserSchema, email: email_string) do
+        nil ->
+          password_hash = Bcrypt.hash_pwd_salt(:crypto.strong_rand_bytes(16) |> Base.encode64())
+
+          user_params = %{
+            email: email_string,
+            name: name,
+            password_hash: password_hash,
+            status: :active,
+            verified_at: DateTime.truncate(DateTime.utc_now(), :second)
+          }
+
+          {:ok, new_user} = Repo.insert(UserSchema.create_changeset(user_params))
+          new_user
+
+        existing_user ->
+          existing_user
+      end
+
+    authorization_request = get_session(conn, :authorization_request)
+
+    conn
+    |> put_flash(:info, "Successfully authenticated with #{String.capitalize(provider)}!")
+    |> put_session(:user_id, user.id)
+    |> delete_session(:return_to)
+    |> delete_session(:authorization_request)
+    |> redirect_after_login(authorization_request)
+  end
+
   defp authenticate_user(email, password) do
     user = Repo.get_by(UserSchema, email: email)
 
@@ -56,7 +101,8 @@ defmodule ThalamusWeb.SessionController do
   end
 
   defp get_return_to(conn) do
-    get_session(conn, :return_to) || conn.params["return_to"] || ~p"/dashboard"
+    get_session(conn, :return_to) || conn.params["return_to"] ||
+      System.get_env("DEFAULT_REDIRECT_URL") || ~p"/dashboard"
   end
 
   defp redirect_after_login(conn, nil) do

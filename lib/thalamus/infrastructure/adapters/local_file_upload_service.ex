@@ -12,7 +12,8 @@ defmodule Thalamus.Infrastructure.Adapters.LocalFileUploadService do
   @behaviour Thalamus.Application.Ports.FileUploadService
 
   @upload_dir "priv/static/uploads/avatars"
-  @max_file_size 5 * 1024 * 1024  # 5MB
+  # 5MB
+  @max_file_size 5 * 1024 * 1024
   @allowed_content_types ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"]
 
   @impl true
@@ -100,7 +101,8 @@ defmodule Thalamus.Infrastructure.Adapters.LocalFileUploadService do
 
     case File.rm(file_path) do
       :ok -> :ok
-      {:error, :enoent} -> :ok  # File already deleted, consider it success
+      # File already deleted, consider it success
+      {:error, :enoent} -> :ok
       {:error, _reason} -> {:error, :file_delete_failed}
     end
   end

@@ -2,6 +2,7 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
   use ThalamusWeb.ConnCase, async: true
 
   alias Thalamus.Domain.Entities.{User, Organization, OAuth2Client}
+
   alias Thalamus.Domain.ValueObjects.{
     AuthorizationCode,
     ClientId,
@@ -125,7 +126,7 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
         })
 
       assert %{
-               "error" => "invalid_request",
+               "error" => "invalid_grant",
                "error_description" => _
              } = json_response(conn, 400)
     end
@@ -360,7 +361,7 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
         })
 
       assert %{
-               "error" => "invalid_request",
+               "error" => "unsupported_grant_type",
                "error_description" => _
              } = json_response(conn, 400)
     end

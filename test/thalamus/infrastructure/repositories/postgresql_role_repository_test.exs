@@ -2,7 +2,14 @@ defmodule Thalamus.Infrastructure.Repositories.PostgresqlRoleRepositoryTest do
   use Thalamus.DataCase, async: true
 
   alias Thalamus.Infrastructure.Repositories.PostgresqlRoleRepository
-  alias Thalamus.Infrastructure.Persistence.Schemas.{RoleSchema, UserRoleSchema, UserSchema, OrganizationSchema}
+
+  alias Thalamus.Infrastructure.Persistence.Schemas.{
+    RoleSchema,
+    UserRoleSchema,
+    UserSchema,
+    OrganizationSchema
+  }
+
   alias Thalamus.Domain.Entities.Role
   alias Thalamus.Repo
 
@@ -10,12 +17,13 @@ defmodule Thalamus.Infrastructure.Repositories.PostgresqlRoleRepositoryTest do
     test "creates a new role when id is nil" do
       org = insert_organization()
 
-      {:ok, role} = Role.new(%{
-        organization_id: org.id,
-        name: "Developer",
-        description: "Development team role",
-        scopes: ["read:code", "write:code"]
-      })
+      {:ok, role} =
+        Role.new(%{
+          organization_id: org.id,
+          name: "Developer",
+          description: "Development team role",
+          scopes: ["read:code", "write:code"]
+        })
 
       assert {:ok, saved_role} = PostgresqlRoleRepository.save(role)
       assert saved_role.id != nil
@@ -29,13 +37,14 @@ defmodule Thalamus.Infrastructure.Repositories.PostgresqlRoleRepositoryTest do
       org = insert_organization()
       existing = insert_role(org, "Admin", ["read:all"])
 
-      {:ok, role} = Role.new(%{
-        id: existing.id,
-        organization_id: org.id,
-        name: "Admin",
-        description: "Updated description",
-        scopes: ["read:all", "write:all"]
-      })
+      {:ok, role} =
+        Role.new(%{
+          id: existing.id,
+          organization_id: org.id,
+          name: "Admin",
+          description: "Updated description",
+          scopes: ["read:all", "write:all"]
+        })
 
       assert {:ok, updated_role} = PostgresqlRoleRepository.save(role)
       assert updated_role.id == existing.id
@@ -48,19 +57,23 @@ defmodule Thalamus.Infrastructure.Repositories.PostgresqlRoleRepositoryTest do
       role_name = "DuplicateTest"
 
       # Insert first role
-      {:ok, role1} = Role.new(%{
-        organization_id: org.id,
-        name: role_name,
-        scopes: ["scope:one"]
-      })
+      {:ok, role1} =
+        Role.new(%{
+          organization_id: org.id,
+          name: role_name,
+          scopes: ["scope:one"]
+        })
+
       assert {:ok, _saved1} = PostgresqlRoleRepository.save(role1)
 
       # Try to insert second role with same name
-      {:ok, role2} = Role.new(%{
-        organization_id: org.id,
-        name: role_name,
-        scopes: ["scope:two"]
-      })
+      {:ok, role2} =
+        Role.new(%{
+          organization_id: org.id,
+          name: role_name,
+          scopes: ["scope:two"]
+        })
+
       assert {:error, changeset} = PostgresqlRoleRepository.save(role2)
       assert %Ecto.Changeset{} = changeset
     end
@@ -220,7 +233,9 @@ defmodule Thalamus.Infrastructure.Repositories.PostgresqlRoleRepositoryTest do
       admin_user = insert_user(org)
       assigned_by = admin_user.id
 
-      assert {:ok, user_role} = PostgresqlRoleRepository.assign_to_user(user.id, role.id, assigned_by)
+      assert {:ok, user_role} =
+               PostgresqlRoleRepository.assign_to_user(user.id, role.id, assigned_by)
+
       assert user_role.user_id == user.id
       assert user_role.role_id == role.id
       assert user_role.assigned_at != nil

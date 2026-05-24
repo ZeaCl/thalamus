@@ -199,13 +199,13 @@ defmodule Thalamus.Domain.ValueObjects.PKCEChallenge do
   defp valid_challenge_format?(value) do
     # PKCE challenge should contain only base64url characters (RFC 7636)
     # Hyphen must be last in character class to avoid range interpretation
-    String.match?(value, ~r/^[a-zA-Z0-9_-]+$/)
+    String.match?(value, ~r/^[a-zA-Z0-9_.~-]+$/)
   end
 
   defp valid_verifier_format?(value) do
     # PKCE verifier should contain only base64url characters (RFC 7636)
     # Hyphen must be last in character class to avoid range interpretation
-    String.match?(value, ~r/^[a-zA-Z0-9_-]+$/)
+    String.match?(value, ~r/^[a-zA-Z0-9_.~-]+$/)
   end
 
   defp valid_base64_url?(value) do

@@ -117,6 +117,14 @@ defmodule ThalamusWeb.OAuth2.TokenController do
               :bad_request
             )
 
+          {:error, :invalid_grant} ->
+            oauth2_error(
+              conn,
+              "invalid_grant",
+              "The provided authorization grant or refresh token is invalid, expired, or revoked",
+              :bad_request
+            )
+
           {:error, :token_client_mismatch} ->
             oauth2_error(
               conn,
@@ -141,6 +149,14 @@ defmodule ThalamusWeb.OAuth2.TokenController do
               :bad_request
             )
         end
+
+      {:error, :unsupported_grant_type} ->
+        oauth2_error(
+          conn,
+          "unsupported_grant_type",
+          "The authorization grant type is not supported",
+          :bad_request
+        )
 
       {:error, reason} ->
         oauth2_error(

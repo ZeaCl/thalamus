@@ -64,7 +64,11 @@ defmodule ThalamusWeb.API.AvatarControllerTest do
   end
 
   describe "POST /api/avatar - upload avatar" do
-    test "uploads avatar successfully with valid image", %{conn: conn, user: user, access_token: token} do
+    test "uploads avatar successfully with valid image", %{
+      conn: conn,
+      user: user,
+      access_token: token
+    } do
       # Create a small test image (1x1 PNG)
       image_data = create_test_png()
 
@@ -99,7 +103,11 @@ defmodule ThalamusWeb.API.AvatarControllerTest do
       File.rm(upload.path)
     end
 
-    test "replaces existing avatar when uploading new one", %{conn: conn, user: user, access_token: token} do
+    test "replaces existing avatar when uploading new one", %{
+      conn: conn,
+      user: user,
+      access_token: token
+    } do
       # Upload first avatar
       image_data = create_test_png()
 
@@ -160,7 +168,8 @@ defmodule ThalamusWeb.API.AvatarControllerTest do
       temp_file = write_temp_file(image_data)
 
       # Mock a large file by creating it with many bytes
-      large_data = :binary.copy(<<0>>, 6 * 1024 * 1024)  # 6MB
+      # 6MB
+      large_data = :binary.copy(<<0>>, 6 * 1024 * 1024)
       File.write!(temp_file, large_data)
 
       upload = %Plug.Upload{
@@ -227,7 +236,8 @@ defmodule ThalamusWeb.API.AvatarControllerTest do
     end
 
     test "accepts JPEG images", %{conn: conn, access_token: token} do
-      image_data = create_test_png()  # Using PNG data but marking as JPEG for test
+      # Using PNG data but marking as JPEG for test
+      image_data = create_test_png()
 
       upload = %Plug.Upload{
         path: write_temp_file(image_data),
@@ -340,7 +350,7 @@ defmodule ThalamusWeb.API.AvatarControllerTest do
   end
 
   defp write_temp_file(data) do
-    temp_file = Path.join(System.tmp_dir!(), "test_upload_#{:rand.uniform(999999)}.png")
+    temp_file = Path.join(System.tmp_dir!(), "test_upload_#{:rand.uniform(999_999)}.png")
     File.write!(temp_file, data)
     temp_file
   end

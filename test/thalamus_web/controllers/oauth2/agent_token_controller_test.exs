@@ -264,7 +264,12 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
           scope: "api:read"
         })
 
-      assert_stripe_error(conn, 400, "invalid_request", "agent_type must be autonomous, supervisor, or tool")
+      assert_stripe_error(
+        conn,
+        400,
+        "invalid_request",
+        "agent_type must be autonomous, supervisor, or tool"
+      )
     end
 
     test "returns error with empty scope", %{conn: conn, delegator: delegator, client: client} do

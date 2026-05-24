@@ -81,6 +81,32 @@ config :thalamus,
   password_reset_secret: "change_me_in_production_password_reset",
   session_secret: "change_me_in_production_session"
 
+# JWT Signing Configuration (RS256 asymmetric)
+config :thalamus, :jwt,
+  issuer: "https://auth.zea.cl",
+  private_key_path: Path.join(File.cwd!(), "priv/jwt_private_key.pem"),
+  public_key_path: Path.join(File.cwd!(), "priv/jwt_public_key.pem")
+
+# OAuth2 scope configuration (extensible per domain)
+config :thalamus, :oauth2_scopes, %{
+  standard_scopes: ["openid", "profile", "email", "address", "phone", "offline_access"],
+  custom_scopes: [
+    "api:read", "api:write", "api:admin",
+    "data:read", "data:write",
+    "webhooks:manage",
+    "billing:read", "billing:write",
+    "zea:read", "zea:write",
+    "venture:fund.read", "venture:fund.write",
+    "venture:capital_call.read", "venture:capital_call.write",
+    "venture:investor.read", "venture:investor.write",
+    "venture:distribution.read", "venture:distribution.write",
+    "venture:dashboard",
+    "venture:transaction.read", "venture:transaction.write",
+    "sport:read", "sport:write"
+  ],
+  restricted_scopes: ["api:admin", "billing:write", "offline_access"]
+}
+
 # CORS configuration
 config :thalamus, ThalamusWeb.Plugs.CORS,
   origins: ["http://localhost:3000", "http://localhost:4000"],

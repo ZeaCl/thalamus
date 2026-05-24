@@ -129,7 +129,8 @@ defmodule Thalamus.Infrastructure.Repositories.PostgresqlRoleRepository do
     case Repo.delete_all(query) do
       {1, _} -> :ok
       {0, _} -> {:error, :not_found}
-      {_, _} -> :ok  # Multiple deleted (shouldn't happen due to unique constraint)
+      # Multiple deleted (shouldn't happen due to unique constraint)
+      {_, _} -> :ok
     end
   end
 

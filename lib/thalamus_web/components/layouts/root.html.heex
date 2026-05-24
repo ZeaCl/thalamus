@@ -1,14 +1,23 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="h-full bg-[#0B0D13]" data-theme="dark">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="csrf-token" content={get_csrf_token()} />
-    <.live_title default="Thalamus" suffix=" · Phoenix Framework">
+    <.live_title default="ZEA" suffix=" · ZEA">
       {assigns[:page_title]}
     </.live_title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
     <link phx-track-static rel="stylesheet" href={~p"/assets/css/app.css"} />
     <script defer phx-track-static type="text/javascript" src={~p"/assets/js/app.js"}>
+    </script>
+    <!-- Alpine.js for dropdown & sidebar functionality -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js">
     </script>
     <script>
       (() => {
@@ -21,16 +30,80 @@
             document.documentElement.setAttribute("data-theme", theme);
           }
         };
-        if (!document.documentElement.hasAttribute("data-theme")) {
-          setTheme(localStorage.getItem("phx:theme") || "system");
+        // Always force dark theme for ZEA
+        setTheme("dark");
+
+        // Set initial sidebar class to prevent layout shifts
+        const collapsed = localStorage.getItem('sidebarCollapsed') === null ? true : localStorage.getItem('sidebarCollapsed') === 'true';
+        if (collapsed) {
+          document.documentElement.classList.add('sidebar-collapsed');
+        } else {
+          document.documentElement.classList.add('sidebar-expanded');
         }
-        window.addEventListener("storage", (e) => e.key === "phx:theme" && setTheme(e.newValue || "system"));
-        
-        window.addEventListener("phx:set-theme", (e) => setTheme(e.target.dataset.phxTheme));
       })();
     </script>
+    <style>
+      /* Pre-Alpine initial states to prevent layout shift */
+      html.sidebar-collapsed .sidebar-expanded-only {
+        display: none !important;
+      }
+      html.sidebar-expanded .sidebar-collapsed-only {
+        display: none !important;
+      }
+      html.sidebar-collapsed #sidebar-container {
+        width: 5rem !important; /* w-20 */
+      }
+      html.sidebar-expanded #sidebar-container {
+        width: 16rem !important; /* w-64 */
+      }
+      html.sidebar-collapsed #sidebar-logo-header {
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+        justify-content: center !important;
+      }
+      html.sidebar-expanded #sidebar-logo-header {
+        padding-left: 1.5rem !important;
+        padding-right: 1.5rem !important;
+        justify-content: space-between !important;
+        width: 100% !important;
+      }
+      html.sidebar-collapsed #sidebar-nav {
+        padding-left: 0.5rem !important;
+        padding-right: 0.5rem !important;
+      }
+      html.sidebar-expanded #sidebar-nav {
+        padding-left: 0.75rem !important;
+        padding-right: 0.75rem !important;
+      }
+      html.sidebar-collapsed .sidebar-link-item {
+        justify-content: center !important;
+        padding-left: 0.5rem !important;
+        padding-right: 0.5rem !important;
+      }
+      html.sidebar-expanded .sidebar-link-item {
+        padding-left: 0.75rem !important;
+        padding-right: 0.75rem !important;
+      }
+      html.sidebar-collapsed #sidebar-user-container {
+        flex-direction: column !important;
+      }
+      html.sidebar-expanded #sidebar-user-button {
+        margin-left: 0.75rem !important;
+      }
+    </style>
   </head>
-  <body>
+  <body
+    class="h-full antialiased bg-[#0B0D13]"
+    x-data="{
+      sidebarOpen: false,
+      sidebarCollapsed: localStorage.getItem('sidebarCollapsed') === null ? true : localStorage.getItem('sidebarCollapsed') === 'true',
+      toggleSidebar() {
+        this.sidebarCollapsed = !this.sidebarCollapsed;
+        localStorage.setItem('sidebarCollapsed', this.sidebarCollapsed);
+      }
+    }"
+    x-init="document.documentElement.classList.remove('sidebar-collapsed', 'sidebar-expanded')"
+  >
     {@inner_content}
   </body>
 </html>

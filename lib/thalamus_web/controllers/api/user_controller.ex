@@ -139,7 +139,8 @@ defmodule ThalamusWeb.API.UserController do
         errors = format_changeset_errors(changeset)
 
         # Check if it's a unique constraint violation (email already exists)
-        status = if has_unique_constraint_error?(changeset, :email), do: :conflict, else: :bad_request
+        status =
+          if has_unique_constraint_error?(changeset, :email), do: :conflict, else: :bad_request
 
         conn
         |> put_status(status)

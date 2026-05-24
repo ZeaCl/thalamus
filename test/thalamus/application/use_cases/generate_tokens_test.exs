@@ -329,6 +329,10 @@ defmodule Thalamus.Application.UseCases.GenerateTokensTest do
         :ok
       end)
 
+      expect(MockTokenRepository, :revoke, 1, fn "auth_code_123" ->
+        :ok
+      end)
+
       expect(MockAuditLogger, :log_token_generated, fn ^user_id, _client_id, _context ->
         :ok
       end)

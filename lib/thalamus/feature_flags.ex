@@ -71,17 +71,31 @@ defmodule Thalamus.FeatureFlags do
     env_var = feature_to_env_var(feature_name)
 
     case System.get_env(env_var) do
-      "true" -> true
-      "1" -> true
-      "yes" -> true
-      "false" -> false
-      "0" -> false
-      "no" -> false
+      "true" ->
+        true
+
+      "1" ->
+        true
+
+      "yes" ->
+        true
+
+      "false" ->
+        false
+
+      "0" ->
+        false
+
+      "no" ->
+        false
+
       nil ->
         # Fall back to config
         flags = Application.get_env(:thalamus, :feature_flags, %{})
         Map.get(flags, feature_name, false)
-      _ -> false
+
+      _ ->
+        false
     end
   end
 
@@ -102,14 +116,17 @@ defmodule Thalamus.FeatureFlags do
     case fetch_org_setting(organization_id, feature_name) do
       {:ok, true} -> true
       {:ok, false} -> false
-      {:ok, nil} -> true  # Inherit global setting (already checked)
-      {:error, _} -> true  # On error, inherit global setting
+      # Inherit global setting (already checked)
+      {:ok, nil} -> true
+      # On error, inherit global setting
+      {:error, _} -> true
     end
   end
 
   # Private functions
 
   defp feature_to_env_var(:agent_tokens), do: "ENABLE_AGENT_TOKENS"
+
   defp feature_to_env_var(feature) do
     "ENABLE_#{feature |> Atom.to_string() |> String.upcase()}"
   end

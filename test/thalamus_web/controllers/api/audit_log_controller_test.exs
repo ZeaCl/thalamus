@@ -4,7 +4,13 @@ defmodule ThalamusWeb.API.AuditLogControllerTest do
   alias Thalamus.Domain.Entities.{User, Organization}
   alias Thalamus.Domain.ValueObjects.{AccessToken, Scope}
   alias Thalamus.TestHelpers
-  alias Thalamus.Infrastructure.Persistence.Schemas.{AuditLogSchema, UserSchema, OrganizationSchema}
+
+  alias Thalamus.Infrastructure.Persistence.Schemas.{
+    AuditLogSchema,
+    UserSchema,
+    OrganizationSchema
+  }
+
   alias Thalamus.Repo
 
   alias Thalamus.Infrastructure.Repositories.{
@@ -16,7 +22,9 @@ defmodule ThalamusWeb.API.AuditLogControllerTest do
 
   setup %{conn: conn} do
     # Create organization
-    {:ok, org} = Organization.new("Test Corp #{:rand.uniform(10000)}", "owner@test.com", :standard)
+    {:ok, org} =
+      Organization.new("Test Corp #{:rand.uniform(10000)}", "owner@test.com", :standard)
+
     {:ok, org} = PostgreSQLOrganizationRepository.save(org)
 
     # Create and verify user
@@ -58,18 +66,26 @@ defmodule ThalamusWeb.API.AuditLogControllerTest do
   end
 
   describe "GET /api/audit-logs/export - CSV format" do
-    test "exports audit logs in CSV format with default parameters", %{conn: conn, organization: org, user: user, access_token: token} do
+    test "exports audit logs in CSV format with default parameters", %{
+      conn: conn,
+      organization: org,
+      user: user,
+      access_token: token
+    } do
       # Create some audit logs
       log1 = insert_audit_log(org, user, "user_created", %{action: "created user"})
       log2 = insert_audit_log(org, user, "user_updated", %{action: "updated user"})
 
-      conn = conn
+      conn =
+        conn
         |> put_req_header("authorization", "Bearer #{token}")
         |> get(~p"/api/audit-logs/export?format=csv")
 
       assert response = response(conn, 200)
       assert get_resp_header(conn, "content-type") == ["text/csv; charset=utf-8"]
-      assert get_resp_header(conn, "content-disposition") |> hd() =~ "attachment; filename=\"audit_logs_"
+
+      assert get_resp_header(conn, "content-disposition") |> hd() =~
+               "attachment; filename=\"audit_logs_"
 
       # Verify CSV contains headers
       assert response =~ "ID,Timestamp,Event Type,User ID"
@@ -80,12 +96,18 @@ defmodule ThalamusWeb.API.AuditLogControllerTest do
       assert response =~ "user_updated"
     end
 
-    test "filters audit logs by event type", %{conn: conn, organization: org, user: user, access_token: token} do
+    test "filters audit logs by event type", %{
+      conn: conn,
+      organization: org,
+      user: user,
+      access_token: token
+    } do
       insert_audit_log(org, user, "user_created", %{})
       insert_audit_log(org, user, "user_updated", %{})
       login_log = insert_audit_log(org, user, "authentication_success", %{})
 
-      conn = conn
+      conn =
+        conn
         |> put_req_header("authorization", "Bearer #{token}")
         |> get(~p"/api/audit-logs/export?format=csv&event_type=authentication_success")
 
@@ -96,7 +118,12 @@ defmodule ThalamusWeb.API.AuditLogControllerTest do
       refute response =~ "user_updated"
     end
 
-    test "filters audit logs by date range", %{conn: conn, organization: org, user: user, access_token: token} do
+    test "filters audit logs by date range", %{
+      conn: conn,
+      organization: org,
+      user: user,
+      access_token: token
+    } do
       # Create log in the past
       yesterday = DateTime.utc_now() |> DateTime.add(-1, :day) |> DateTime.truncate(:second)
       past_log = insert_audit_log_at(org, user, "user_created", yesterday)
@@ -108,7 +135,8 @@ defmodule ThalamusWeb.API.AuditLogControllerTest do
       from_date = DateTime.utc_now() |> DateTime.add(-1, :hour) |> DateTime.to_iso8601()
       to_date = DateTime.utc_now() |> DateTime.to_iso8601()
 
-      conn = conn
+      conn =
+        conn
         |> put_req_header("authorization", "Bearer #{token}")
         |> get(~p"/api/audit-logs/export?format=csv&from=#{from_date}&to=#{to_date}")
 
@@ -117,20 +145,27 @@ defmodule ThalamusWeb.API.AuditLogControllerTest do
       refute response =~ past_log.id
     end
 
-    test "respects limit parameter", %{conn: conn, organization: org, user: user, access_token: token} do
+    test "respects limit parameter", %{
+      conn: conn,
+      organization: org,
+      user: user,
+      access_token: token
+    } do
       # Create 5 logs
       for i <- 1..5 do
         insert_audit_log(org, user, "user_updated", %{index: i})
       end
 
-      conn = conn
+      conn =
+        conn
         |> put_req_header("authorization", "Bearer #{token}")
         |> get(~p"/api/audit-logs/export?format=csv&limit=3")
 
       assert response = response(conn, 200)
       # Count data rows (excluding header and empty last line)
       lines = response |> String.split("\n") |> Enum.reject(&(&1 == ""))
-      row_count = length(lines) - 1  # Exclude header
+      # Exclude header
+      row_count = length(lines) - 1
       assert row_count <= 3
     end
 
@@ -141,7 +176,8 @@ defmodule ThalamusWeb.API.AuditLogControllerTest do
       log1 = insert_audit_log(org, user1, "user_created", %{})
       _log2 = insert_audit_log(org, user2, "user_updated", %{})
 
-      conn = conn
+      conn =
+        conn
         |> put_req_header("authorization", "Bearer #{token}")
         |> get(~p"/api/audit-logs/export?format=csv&user_id=#{user1.id}")
 
@@ -152,11 +188,17 @@ defmodule ThalamusWeb.API.AuditLogControllerTest do
   end
 
   describe "GET /api/audit-logs/export - JSON format" do
-    test "exports audit logs in JSON format", %{conn: conn, organization: org, user: user, access_token: token} do
+    test "exports audit logs in JSON format", %{
+      conn: conn,
+      organization: org,
+      user: user,
+      access_token: token
+    } do
       log1 = insert_audit_log(org, user, "user_created", %{action: "created"})
       log2 = insert_audit_log(org, user, "token_generated", %{token_type: "access"})
 
-      conn = conn
+      conn =
+        conn
         |> put_req_header("authorization", "Bearer #{token}")
         |> get(~p"/api/audit-logs/export?format=json")
 
@@ -179,10 +221,16 @@ defmodule ThalamusWeb.API.AuditLogControllerTest do
       assert Map.has_key?(first_log, "metadata")
     end
 
-    test "includes user information in JSON export", %{conn: conn, organization: org, user: user, access_token: token} do
+    test "includes user information in JSON export", %{
+      conn: conn,
+      organization: org,
+      user: user,
+      access_token: token
+    } do
       insert_audit_log(org, user, "user_created", %{})
 
-      conn = conn
+      conn =
+        conn
         |> put_req_header("authorization", "Bearer #{token}")
         |> get(~p"/api/audit-logs/export?format=json")
 
@@ -191,10 +239,16 @@ defmodule ThalamusWeb.API.AuditLogControllerTest do
       assert log["user"]["email"] == to_string(user.email)
     end
 
-    test "includes organization information in JSON export", %{conn: conn, organization: org, user: user, access_token: token} do
+    test "includes organization information in JSON export", %{
+      conn: conn,
+      organization: org,
+      user: user,
+      access_token: token
+    } do
       insert_audit_log(org, user, "organization_updated", %{})
 
-      conn = conn
+      conn =
+        conn
         |> put_req_header("authorization", "Bearer #{token}")
         |> get(~p"/api/audit-logs/export?format=json")
 
@@ -203,10 +257,15 @@ defmodule ThalamusWeb.API.AuditLogControllerTest do
       assert log["organization"]["name"] == org.name
     end
 
-    test "handles logs without user gracefully", %{conn: conn, organization: org, access_token: token} do
+    test "handles logs without user gracefully", %{
+      conn: conn,
+      organization: org,
+      access_token: token
+    } do
       log = insert_audit_log(org, nil, "system_event", %{})
 
-      conn = conn
+      conn =
+        conn
         |> put_req_header("authorization", "Bearer #{token}")
         |> get(~p"/api/audit-logs/export?format=json")
 
@@ -218,7 +277,8 @@ defmodule ThalamusWeb.API.AuditLogControllerTest do
 
   describe "GET /api/audit-logs/export - Validation" do
     test "returns error for invalid format", %{conn: conn, access_token: token} do
-      conn = conn
+      conn =
+        conn
         |> put_req_header("authorization", "Bearer #{token}")
         |> get(~p"/api/audit-logs/export?format=xml")
 
@@ -228,7 +288,8 @@ defmodule ThalamusWeb.API.AuditLogControllerTest do
     end
 
     test "returns error for invalid date format", %{conn: conn, access_token: token} do
-      conn = conn
+      conn =
+        conn
         |> put_req_header("authorization", "Bearer #{token}")
         |> get(~p"/api/audit-logs/export?from=invalid-date")
 
@@ -239,7 +300,8 @@ defmodule ThalamusWeb.API.AuditLogControllerTest do
       from_date = DateTime.utc_now() |> DateTime.add(-400, :day) |> DateTime.to_iso8601()
       to_date = DateTime.utc_now() |> DateTime.to_iso8601()
 
-      conn = conn
+      conn =
+        conn
         |> put_req_header("authorization", "Bearer #{token}")
         |> get(~p"/api/audit-logs/export?from=#{from_date}&to=#{to_date}")
 
@@ -247,7 +309,8 @@ defmodule ThalamusWeb.API.AuditLogControllerTest do
     end
 
     test "returns error for limit > 50000", %{conn: conn, access_token: token} do
-      conn = conn
+      conn =
+        conn
         |> put_req_header("authorization", "Bearer #{token}")
         |> get(~p"/api/audit-logs/export?limit=100000")
 
@@ -258,7 +321,8 @@ defmodule ThalamusWeb.API.AuditLogControllerTest do
       from_date = DateTime.utc_now() |> DateTime.to_iso8601()
       to_date = DateTime.utc_now() |> DateTime.add(-1, :day) |> DateTime.to_iso8601()
 
-      conn = conn
+      conn =
+        conn
         |> put_req_header("authorization", "Bearer #{token}")
         |> get(~p"/api/audit-logs/export?from=#{from_date}&to=#{to_date}")
 
@@ -267,7 +331,12 @@ defmodule ThalamusWeb.API.AuditLogControllerTest do
   end
 
   describe "GET /api/audit-logs/export - Organization Isolation" do
-    test "only exports logs from user's organization", %{conn: conn, organization: org, user: user, access_token: token} do
+    test "only exports logs from user's organization", %{
+      conn: conn,
+      organization: org,
+      user: user,
+      access_token: token
+    } do
       # Create log in user's org
       my_log = insert_audit_log(org, user, "user_created", %{})
 
@@ -276,7 +345,8 @@ defmodule ThalamusWeb.API.AuditLogControllerTest do
       other_user = insert_user(other_org)
       _other_log = insert_audit_log(other_org, other_user, "user_created", %{})
 
-      conn = conn
+      conn =
+        conn
         |> put_req_header("authorization", "Bearer #{token}")
         |> get(~p"/api/audit-logs/export?format=json")
 
@@ -289,7 +359,12 @@ defmodule ThalamusWeb.API.AuditLogControllerTest do
   end
 
   describe "GET /api/audit-logs/export - Default Values" do
-    test "uses default date range of 90 days when not specified", %{conn: conn, organization: org, user: user, access_token: token} do
+    test "uses default date range of 90 days when not specified", %{
+      conn: conn,
+      organization: org,
+      user: user,
+      access_token: token
+    } do
       # Create log 100 days ago (outside default range)
       old_date = DateTime.utc_now() |> DateTime.add(-100, :day) |> DateTime.truncate(:second)
       _old_log = insert_audit_log_at(org, user, "user_created", old_date)
@@ -297,7 +372,8 @@ defmodule ThalamusWeb.API.AuditLogControllerTest do
       # Create recent log
       recent_log = insert_audit_log(org, user, "user_updated", %{})
 
-      conn = conn
+      conn =
+        conn
         |> put_req_header("authorization", "Bearer #{token}")
         |> get(~p"/api/audit-logs/export?format=json")
 
@@ -310,7 +386,8 @@ defmodule ThalamusWeb.API.AuditLogControllerTest do
     end
 
     test "uses default limit of 10000 when not specified", %{conn: conn, access_token: token} do
-      conn = conn
+      conn =
+        conn
         |> put_req_header("authorization", "Bearer #{token}")
         |> get(~p"/api/audit-logs/export?format=json")
 
@@ -318,10 +395,16 @@ defmodule ThalamusWeb.API.AuditLogControllerTest do
       assert %{"audit_logs" => _logs} = json_response(conn, 200)
     end
 
-    test "defaults to CSV format when format not specified", %{conn: conn, organization: org, user: user, access_token: token} do
+    test "defaults to CSV format when format not specified", %{
+      conn: conn,
+      organization: org,
+      user: user,
+      access_token: token
+    } do
       insert_audit_log(org, user, "user_created", %{})
 
-      conn = conn
+      conn =
+        conn
         |> put_req_header("authorization", "Bearer #{token}")
         |> get(~p"/api/audit-logs/export")
 
@@ -330,10 +413,16 @@ defmodule ThalamusWeb.API.AuditLogControllerTest do
   end
 
   describe "GET /api/audit-logs/export - CSV Structure" do
-    test "CSV includes all required fields", %{conn: conn, organization: org, user: user, access_token: token} do
+    test "CSV includes all required fields", %{
+      conn: conn,
+      organization: org,
+      user: user,
+      access_token: token
+    } do
       insert_audit_log(org, user, "user_created", %{custom: "data"})
 
-      conn = conn
+      conn =
+        conn
         |> put_req_header("authorization", "Bearer #{token}")
         |> get(~p"/api/audit-logs/export?format=csv")
 
@@ -352,10 +441,16 @@ defmodule ThalamusWeb.API.AuditLogControllerTest do
       assert response =~ "Metadata"
     end
 
-    test "CSV escapes special characters in metadata", %{conn: conn, organization: org, user: user, access_token: token} do
+    test "CSV escapes special characters in metadata", %{
+      conn: conn,
+      organization: org,
+      user: user,
+      access_token: token
+    } do
       insert_audit_log(org, user, "user_created", %{message: "Test, with \"quotes\" and commas"})
 
-      conn = conn
+      conn =
+        conn
         |> put_req_header("authorization", "Bearer #{token}")
         |> get(~p"/api/audit-logs/export?format=csv")
 

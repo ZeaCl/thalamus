@@ -50,7 +50,10 @@ defmodule ThalamusWeb.API.RoleController do
       {:error, :duplicate_role_name} ->
         conn
         |> put_status(:unprocessable_entity)
-        |> json(%{error: "duplicate_role_name", message: "Role name already exists in organization"})
+        |> json(%{
+          error: "duplicate_role_name",
+          message: "Role name already exists in organization"
+        })
 
       {:error, :invalid_role_name} ->
         conn
@@ -65,7 +68,10 @@ defmodule ThalamusWeb.API.RoleController do
       {:error, :invalid_scope_format} ->
         conn
         |> put_status(:unprocessable_entity)
-        |> json(%{error: "invalid_scope_format", message: "One or more scopes have invalid format"})
+        |> json(%{
+          error: "invalid_scope_format",
+          message: "One or more scopes have invalid format"
+        })
 
       {:error, %Ecto.Changeset{} = changeset} ->
         conn

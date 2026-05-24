@@ -73,7 +73,8 @@ defmodule Thalamus.Application.UseCases.AssignRole do
     deps.cache_service.delete(cache_key)
     :ok
   rescue
-    _ -> :ok  # Cache failure should not block assignment
+    # Cache failure should not block assignment
+    _ -> :ok
   end
 
   defp log_assignment(user_id, role_id, assigned_by, deps) do

@@ -139,7 +139,8 @@ defmodule Thalamus.Domain.Entities.OAuth2ClientTest do
 
       {:ok, client} = OAuth2Client.add_redirect_uri(client, uri.value)
 
-      assert {:error, :redirect_uri_already_exists} = OAuth2Client.add_redirect_uri(client, uri.value)
+      assert {:error, :redirect_uri_already_exists} =
+               OAuth2Client.add_redirect_uri(client, uri.value)
     end
 
     test "removes redirect URI successfully" do

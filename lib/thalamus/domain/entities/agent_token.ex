@@ -291,7 +291,10 @@ defmodule Thalamus.Domain.Entities.AgentToken do
       [a, b, c, d, e] ->
         byte_size(a) == 8 and byte_size(b) == 4 and byte_size(c) == 4 and
           byte_size(d) == 4 and byte_size(e) == 12 and
-          String.match?(string, ~r/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)
+          String.match?(
+            string,
+            ~r/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+          )
 
       _ ->
         false

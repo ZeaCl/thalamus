@@ -269,6 +269,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenController do
   end
 
   defp generate_request_id do
-    "req_" <> (:crypto.strong_rand_bytes(16) |> Base.url_encode64(padding: false) |> binary_part(0, 20))
+    "req_" <>
+      (:crypto.strong_rand_bytes(16) |> Base.url_encode64(padding: false) |> binary_part(0, 20))
   end
 end

@@ -4,7 +4,12 @@ defmodule ThalamusWeb.Clients.IndexTest do
   import Phoenix.LiveViewTest
 
   alias Thalamus.Repo
-  alias Thalamus.Infrastructure.Persistence.Schemas.{OAuth2ClientSchema, OrganizationSchema, UserSchema}
+
+  alias Thalamus.Infrastructure.Persistence.Schemas.{
+    OAuth2ClientSchema,
+    OrganizationSchema,
+    UserSchema
+  }
 
   setup %{conn: conn} do
     # Create test organization using the changeset to set defaults
@@ -28,8 +33,8 @@ defmodule ThalamusWeb.Clients.IndexTest do
     test "mounts successfully and displays page title", %{conn: conn} do
       {:ok, view, html} = live(conn, ~p"/dashboard/clients")
 
-      assert html =~ "OAuth2 Clients"
-      assert has_element?(view, "h1", "OAuth2 Clients")
+      assert html =~ "Multi-Agent Clients"
+      assert has_element?(view, "h1", "Multi-Agent Clients")
     end
 
     test "displays empty state when no clients exist", %{conn: conn} do
@@ -128,7 +133,7 @@ defmodule ThalamusWeb.Clients.IndexTest do
 
       # LiveView should handle the error gracefully (client not found)
       # We just verify it doesn't crash
-      assert render(view) =~ "OAuth2 Clients"
+      assert render(view) =~ "Multi-Agent Clients"
     end
 
     test "displays client badges and metadata", %{conn: conn, org: org} do

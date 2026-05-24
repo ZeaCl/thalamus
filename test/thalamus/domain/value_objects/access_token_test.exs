@@ -131,9 +131,15 @@ defmodule Thalamus.Domain.ValueObjects.AccessTokenTest do
     test "returns error with invalid parameters" do
       assert {:error, :invalid_parameters} = AccessToken.new(nil, nil, nil)
       assert {:error, :invalid_parameters} = AccessToken.new(123, [], create_user_id())
-      assert {:error, :invalid_parameters} = AccessToken.new(valid_token(), "not_a_list", create_user_id())
-      assert {:error, :invalid_parameters} = AccessToken.new(valid_token(), [], create_user_id(), -100)
-      assert {:error, :invalid_parameters} = AccessToken.new(valid_token(), [], create_user_id(), 0)
+
+      assert {:error, :invalid_parameters} =
+               AccessToken.new(valid_token(), "not_a_list", create_user_id())
+
+      assert {:error, :invalid_parameters} =
+               AccessToken.new(valid_token(), [], create_user_id(), -100)
+
+      assert {:error, :invalid_parameters} =
+               AccessToken.new(valid_token(), [], create_user_id(), 0)
     end
   end
 
@@ -300,7 +306,11 @@ defmodule Thalamus.Domain.ValueObjects.AccessTokenTest do
       {:ok, access_token} = AccessToken.new(token, scopes, user_id, 3600)
 
       # Set expires_at to very close to now (1 second in the future)
-      near_expiry_token = %{access_token | expires_at: DateTime.add(DateTime.utc_now(), 1, :second)}
+      near_expiry_token = %{
+        access_token
+        | expires_at: DateTime.add(DateTime.utc_now(), 1, :second)
+      }
+
       time_left = AccessToken.time_to_expiry(near_expiry_token)
       assert time_left <= 1
     end

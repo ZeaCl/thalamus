@@ -277,11 +277,12 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOrganizationRepository 
     org_uuid = String.replace_prefix(org_id_string, "org_", "")
 
     # If owner_email exists but no owner member, create a synthetic owner member
-    has_owner = Enum.any?(org.members, fn
-      %Organization.Member{role: :owner} -> true
-      %{role: :owner} -> true
-      _ -> false
-    end)
+    has_owner =
+      Enum.any?(org.members, fn
+        %Organization.Member{role: :owner} -> true
+        %{role: :owner} -> true
+        _ -> false
+      end)
 
     members =
       if org.owner_email && !has_owner do
@@ -313,9 +314,9 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOrganizationRepository 
   defp member_to_map(%Organization.Member{} = member) do
     user_id_string =
       if member.user_id do
-        UserId.to_string(member.user_id)
+        raw = UserId.to_string(member.user_id)
+        String.replace_prefix(raw, "user_", "")
       else
-        # Synthetic owner member without actual user_id
         nil
       end
 

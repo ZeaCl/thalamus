@@ -266,7 +266,8 @@ defmodule ThalamusWeb.API.HealthControllerTest do
 
       # Each check should be either "ok" or "error", never nil or other values
       Enum.each(checks, fn {_key, value} ->
-        assert value in ["ok", "error"], "Check status should be 'ok' or 'error', got: #{inspect(value)}"
+        assert value in ["ok", "error"],
+               "Check status should be 'ok' or 'error', got: #{inspect(value)}"
       end)
     end
 
@@ -335,6 +336,7 @@ defmodule ThalamusWeb.API.HealthControllerTest do
         errors = response["errors"]
         # Each error should be a string describing what failed
         assert is_list(errors)
+
         Enum.each(errors, fn error ->
           assert is_binary(error)
           # Errors should mention what failed (database or cache)
@@ -466,14 +468,16 @@ defmodule ThalamusWeb.API.HealthControllerTest do
 
     test "health check does not modify database state", %{conn: conn} do
       # Count users before health check
-      user_count_before = Repo.aggregate(Thalamus.Infrastructure.Persistence.Schemas.UserSchema, :count)
+      user_count_before =
+        Repo.aggregate(Thalamus.Infrastructure.Persistence.Schemas.UserSchema, :count)
 
       # Run health check
       conn = get(conn, ~p"/api/public/health")
       assert conn.status == 200
 
       # Count users after - should be the same
-      user_count_after = Repo.aggregate(Thalamus.Infrastructure.Persistence.Schemas.UserSchema, :count)
+      user_count_after =
+        Repo.aggregate(Thalamus.Infrastructure.Persistence.Schemas.UserSchema, :count)
 
       assert user_count_before == user_count_after
     end
