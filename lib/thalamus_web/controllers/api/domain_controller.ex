@@ -102,6 +102,7 @@ defmodule ThalamusWeb.API.DomainController do
   """
   def grant_role(conn, %{"user_id" => user_id, "organization_id" => org_id, "domain" => domain, "role" => role} = params) do
     scopes = Map.get(params, "scopes", [])
+    entity_id = Map.get(params, "entity_id")
 
     # Check if already exists
     existing =
@@ -115,13 +116,15 @@ defmodule ThalamusWeb.API.DomainController do
       )
 
     if existing do
-      # Update scopes
-      Ecto.Changeset.cast(existing, %{scopes: scopes}, [:scopes])
+      # Update scopes and entity_id
+      update_attrs = %{scopes: scopes}
+      update_attrs = if entity_id, do: Map.put(update_attrs, :entity_id, entity_id), else: update_attrs
+      Ecto.Changeset.cast(existing, update_attrs, [:scopes, :entity_id])
       |> Repo.update!()
 
       conn
       |> put_status(:ok)
-      |> json(%{message: "Role updated", user_id: user_id, domain: domain, role: role, scopes: scopes})
+      |> json(%{message: "Role updated", user_id: user_id, domain: domain, role: role, scopes: scopes, entity_id: entity_id})
     else
       entry = %{
         id: Ecto.UUID.generate(),
@@ -130,6 +133,7 @@ defmodule ThalamusWeb.API.DomainController do
         domain: domain,
         role: role,
         scopes: scopes,
+        entity_id: entity_id,
         inserted_at: DateTime.truncate(DateTime.utc_now(), :second),
         updated_at: DateTime.truncate(DateTime.utc_now(), :second)
       }
@@ -147,7 +151,7 @@ defmodule ThalamusWeb.API.DomainController do
 
       conn
       |> put_status(:created)
-      |> json(%{message: "Role granted", user_id: user_id, domain: domain, role: role, scopes: scopes})
+      |> json(%{message: "Role granted", user_id: user_id, domain: domain, role: role, scopes: scopes, entity_id: entity_id})
     end
   end
 

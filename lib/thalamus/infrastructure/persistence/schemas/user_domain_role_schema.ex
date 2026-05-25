@@ -10,6 +10,7 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.UserDomainRoleSchema do
     field :domain, :string
     field :role, :string
     field :scopes, {:array, :string}, default: []
+    field :entity_id, :string, default: nil
 
     timestamps(type: :utc_datetime)
   end
