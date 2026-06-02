@@ -46,10 +46,8 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
   def execute(%TokenRequest{} = request, deps) do
     with {:ok, client} <- authenticate_client(request, deps),
          :ok <- validate_grant_type(client, request.grant_type),
-         {:ok, token_data} <- generate_for_grant_type(request, client, deps) do
-      # Store tokens
-      store_tokens(token_data, deps)
-
+         {:ok, token_data} <- generate_for_grant_type(request, client, deps),
+         :ok <- store_tokens(token_data, deps) do
       # Audit log
       log_token_generation(client, token_data, deps)
 
@@ -333,29 +331,36 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
       end
 
     # Store access token
-    repo.store(%{
-      token: token_data.access_token,
-      type: :access_token,
-      user_id: token_data.user_id,
-      client_id: client_uuid,
-      scopes: parse_scopes(token_data.scope),
-      expires_at: DateTime.add(DateTime.utc_now(), token_data.expires_in),
-      revoked: false,
-      created_at: DateTime.utc_now()
-    })
+    with :ok <- repo.store(%{
+           token: token_data.access_token,
+           type: :access_token,
+           user_id: token_data.user_id,
+           client_id: client_uuid,
+           scopes: parse_scopes(token_data.scope),
+           expires_at: DateTime.add(DateTime.utc_now(), token_data.expires_in),
+           revoked: false,
+           created_at: DateTime.utc_now()
+         }) do
+      # Store refresh token if present
+      if token_data.refresh_token do
+        repo.store(%{
+          token: token_data.refresh_token,
+          type: :refresh_token,
+          user_id: token_data.user_id,
+          client_id: client_uuid,
+          scopes: parse_scopes(token_data.scope),
+          expires_at: DateTime.add(DateTime.utc_now(), @refresh_token_ttl),
+          revoked: false,
+          created_at: DateTime.utc_now()
+        })
+      end
 
-    # Store refresh token if present
-    if token_data.refresh_token do
-      repo.store(%{
-        token: token_data.refresh_token,
-        type: :refresh_token,
-        user_id: token_data.user_id,
-        client_id: client_uuid,
-        scopes: parse_scopes(token_data.scope),
-        expires_at: DateTime.add(DateTime.utc_now(), @refresh_token_ttl),
-        revoked: false,
-        created_at: DateTime.utc_now()
-      })
+      :ok
+    else
+      {:error, reason} ->
+        require Logger
+        Logger.error("Failed to store access token: #{inspect(reason)}")
+        {:error, :token_storage_failed}
     end
   end
 

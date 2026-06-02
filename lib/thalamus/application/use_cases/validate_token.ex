@@ -7,6 +7,8 @@ defmodule Thalamus.Application.UseCases.ValidateToken do
   - Dependency Inversion: Depends on ports (interfaces)
   """
 
+  require Logger
+
   # Ports are referenced via deps parameter
 
   @type deps :: %{
@@ -68,12 +70,16 @@ defmodule Thalamus.Application.UseCases.ValidateToken do
           {:ok, result}
 
         {:error, :not_found} ->
+          Logger.warning("ValidateToken: token not found in DB")
           {:ok, invalid_token_result()}
       end
     end
   end
 
-  def execute(_, _), do: {:error, :invalid_token_format}
+  def execute(token, _) do
+    Logger.warning("ValidateToken: invalid token format, type=#{inspect(token)}")
+    {:error, :invalid_token_format}
+  end
 
   @doc """
   Validates a token for a specific scope.

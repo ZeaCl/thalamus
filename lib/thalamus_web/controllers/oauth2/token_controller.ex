@@ -141,6 +141,14 @@ defmodule ThalamusWeb.OAuth2.TokenController do
               :bad_request
             )
 
+          {:error, :token_storage_failed} ->
+            oauth2_error(
+              conn,
+              "server_error",
+              "Failed to store generated token",
+              :internal_server_error
+            )
+
           {:error, reason} ->
             oauth2_error(
               conn,

@@ -8,6 +8,8 @@ defmodule ThalamusWeb.OAuth2.UserinfoController do
 
   use ThalamusWeb, :controller
 
+  require Logger
+
   alias Thalamus.Infrastructure.Repositories.{
     PostgreSQLTokenRepository,
     PostgreSQLUserRepository,
@@ -38,9 +40,7 @@ defmodule ThalamusWeb.OAuth2.UserinfoController do
             end),
          {:ok, user_id_vo} <- Thalamus.Domain.ValueObjects.UserId.from_string(user_id_string),
          {:ok, user} <- PostgreSQLUserRepository.find_by_id(user_id_vo),
-         {:ok, user_schema} <- get_user_schema(user_id_vo),
-         {:ok, org_id} <- OrganizationId.from_string(user_schema.organization_id),
-         {:ok, organization} <- PostgreSQLOrganizationRepository.find_by_id(org_id) do
+         {:ok, user_schema} <- get_user_schema(user_id_vo) do
       # Load all organizations where the user is a member
       user_id_str = user_id_string
 
@@ -51,6 +51,21 @@ defmodule ThalamusWeb.OAuth2.UserinfoController do
           members = org.members || []
           Enum.any?(members, fn m -> m["user_id"] == user_id_str end)
         end)
+
+      # Primary organization (may be nil)
+      primary_org =
+        case user_schema.organization_id do
+          nil -> nil
+          org_id_str ->
+            case OrganizationId.from_string(org_id_str) do
+              {:ok, org_id} ->
+                case PostgreSQLOrganizationRepository.find_by_id(org_id) do
+                  {:ok, org} -> org
+                  _ -> nil
+                end
+              _ -> nil
+            end
+        end
 
       orgs_json =
         Enum.map(user_orgs, fn org ->
@@ -70,40 +85,43 @@ defmodule ThalamusWeb.OAuth2.UserinfoController do
         email: user.email,
         email_verified: user.verified_at != nil,
         updated_at: DateTime.to_unix(user.updated_at),
-        organization: %{
-          id: OrganizationId.to_string(organization.id),
-          name: organization.name,
-          slug: generate_slug(organization.name)
-        },
+        organization:
+          if primary_org do
+            %{
+              id: OrganizationId.to_string(primary_org.id),
+              name: primary_org.name,
+              slug: generate_slug(primary_org.name)
+            }
+          else
+            # Fallback: use first member organization as primary
+            case user_orgs do
+              [first | _] ->
+                %{
+                  id: first.id,
+                  name: first.name,
+                  slug: generate_slug(first.name)
+                }
+              [] ->
+                %{}
+            end
+          end,
         organizations: orgs_json
       })
     else
       false ->
+        Logger.warning("UserInfo validation_result: valid=#{inspect(false)}")
         conn
         |> put_status(:unauthorized)
         |> json(%{error: "invalid_token", error_description: "Invalid or expired token"})
 
-      {:error, :no_token} ->
+      {:error, reason} ->
+        Logger.error("UserInfo validation error: #{inspect(reason)}")
         conn
         |> put_status(:unauthorized)
-        |> json(%{error: "invalid_token", error_description: "No access token provided"})
+        |> json(%{error: "invalid_token", error_description: "Could not validate access token"})
 
-      {:error, :not_found} ->
-        conn
-        |> put_status(:unauthorized)
-        |> json(%{error: "invalid_token", error_description: "Invalid or revoked access token"})
-
-      {:error, :wrong_token_type} ->
-        conn
-        |> put_status(:unauthorized)
-        |> json(%{error: "invalid_token", error_description: "Token is not an access token"})
-
-      {:error, :expired} ->
-        conn
-        |> put_status(:unauthorized)
-        |> json(%{error: "invalid_token", error_description: "Access token has expired"})
-
-      {:error, _reason} ->
+      error ->
+        Logger.error("UserInfo unexpected error: #{inspect(error)}")
         conn
         |> put_status(:unauthorized)
         |> json(%{error: "invalid_token", error_description: "Could not validate access token"})

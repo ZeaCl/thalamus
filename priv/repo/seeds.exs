@@ -197,8 +197,10 @@ platform_web_client_id = "59991e63-852c-44e5-aee1-a761ec76eaea"
 thalamus_cli_client_id = "c1111111-852c-44e5-aee1-a761ec76eaea"
 
 platform_web_uris = [
+  "http://localhost:4000/auth/callback",
   "http://localhost:4001/auth/callback",
   "http://zea.localhost/auth/callback",
+  "http://zea.localhost:3000/auth/callback",
   "http://sudlich.zea.localhost/auth/callback",
   "http://zea.localhost:4001/auth/callback",
   "http://sudlich.zea.localhost:4001/auth/callback",
@@ -209,12 +211,13 @@ platform_web_uris = [
 case Repo.get(OAuth2ClientSchema, platform_web_client_id) ||
        Repo.get_by(OAuth2ClientSchema, client_id_string: "platform_web") do
   nil ->
+    hashed_secret = Bcrypt.hash_pwd_salt("sq3Wafxd70wpqqVNrecK6zAYOYXggwb_kFgpuEWi4lE")
     client_attrs = %{
       id: platform_web_client_id,
       client_id_string: "platform_web",
       name: "ZEA Platform",
       client_type: :confidential,
-      client_secret: "sq3Wafxd70wpqqVNrecK6zAYOYXggwb_kFgpuEWi4lE",
+      client_secret: hashed_secret,
       organization_id: zea_org_id,
       redirect_uris: platform_web_uris,
       allowed_grant_types: ["authorization_code", "refresh_token"],
