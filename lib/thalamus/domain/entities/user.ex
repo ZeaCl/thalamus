@@ -29,7 +29,9 @@ defmodule Thalamus.Domain.Entities.User do
           created_at: DateTime.t(),
           verified_at: DateTime.t() | nil,
           last_login_at: DateTime.t() | nil,
-          updated_at: DateTime.t()
+          updated_at: DateTime.t(),
+          is_agent: boolean(),
+          agent_config: map()
         }
 
   defstruct [
@@ -47,7 +49,9 @@ defmodule Thalamus.Domain.Entities.User do
     :created_at,
     :verified_at,
     :last_login_at,
-    :updated_at
+    :updated_at,
+    :is_agent,
+    :agent_config
   ]
 
   @max_failed_login_attempts 5
@@ -88,7 +92,9 @@ defmodule Thalamus.Domain.Entities.User do
       created_at: Map.get(attrs, :created_at, now),
       verified_at: Map.get(attrs, :verified_at),
       last_login_at: Map.get(attrs, :last_login_at),
-      updated_at: now
+      updated_at: now,
+      is_agent: Map.get(attrs, :is_agent, false),
+      agent_config: Map.get(attrs, :agent_config, nil)
     }
 
     case validate_user(user) do
@@ -119,6 +125,25 @@ defmodule Thalamus.Domain.Entities.User do
         id: user_id,
         email: email,
         password_hash: password_hash
+      })
+    else
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  def register_agent(name, email_string, password, agent_config) do
+    with {:ok, user_id} <- UserId.generate(),
+         {:ok, email} <- Email.new(email_string),
+         {:ok, password_hash} <- PasswordHash.from_password(password) do
+      new(%{
+        id: user_id,
+        name: name,
+        email: email,
+        password_hash: password_hash,
+        is_agent: true,
+        agent_config: agent_config,
+        status: :active,
+        verified_at: DateTime.truncate(DateTime.utc_now(), :second) # Agents are auto-verified
       })
     else
       {:error, reason} -> {:error, reason}

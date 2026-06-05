@@ -32,6 +32,9 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.UserSchema do
     # MFA methods stored as JSONB array
     field :mfa_methods, {:array, :map}, default: []
 
+    field :is_agent, :boolean, default: false
+    field :agent_config, :map, default: %{}
+
     # Relationships
     belongs_to :organization, OrganizationSchema
 
@@ -58,7 +61,9 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.UserSchema do
       :last_login_at,
       :failed_login_attempts,
       :locked_until,
-      :mfa_methods
+      :mfa_methods,
+      :is_agent,
+      :agent_config
     ])
     |> validate_required([:email, :password_hash])
     |> validate_email()
@@ -82,7 +87,9 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.UserSchema do
       :failed_login_attempts,
       :locked_until,
       :mfa_methods,
-      :organization_id
+      :organization_id,
+      :is_agent,
+      :agent_config
     ])
     |> validate_email()
     |> unique_constraint(:email)
@@ -206,6 +213,8 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.UserSchema do
     changeset
     |> put_default_if_missing(:status, :pending_verification)
     |> put_default_if_missing(:failed_login_attempts, 0)
+    |> put_default_if_missing(:is_agent, false)
+    |> put_default_if_missing(:agent_config, %{})
   end
 
   defp put_default_if_missing(changeset, field, default_value) do

@@ -12,6 +12,7 @@ defmodule Thalamus.Application do
     children = [
       ThalamusWeb.Telemetry,
       Thalamus.Repo,
+      Thalamus.Vault,
       {Oban, Application.fetch_env!(:thalamus, Oban)},
       {DNSCluster, query: Application.get_env(:thalamus, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Thalamus.PubSub},

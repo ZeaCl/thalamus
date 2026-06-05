@@ -66,16 +66,14 @@ defmodule ThalamusWeb.Router do
     plug ThalamusWeb.Plugs.RateLimiter, limit: 1000, window: 60_000, key: :user_id
   end
 
-  # Dashboard pipeline - authenticated browser access
-  pipeline :dashboard do
-    plug :browser
-    plug :fetch_session
-    plug :fetch_live_flash
-    plug :put_root_layout, html: {ThalamusWeb.Layouts, :root}
-    plug :protect_from_forgery
-    plug :put_secure_browser_headers
-    plug ThalamusWeb.Plugs.RequireAuth
+  # Internal API for Microservices (e.g., Glia)
+  pipeline :internal_api do
+    plug :accepts, ["json"]
+    # In production, this would be protected by mTLS or a static internal token.
+    # For now, we allow it internally.
   end
+
+
 
   scope "/", ThalamusWeb do
     pipe_through :browser
@@ -85,6 +83,7 @@ defmodule ThalamusWeb.Router do
     # Session management
     get "/login", SessionController, :new
     post "/login", SessionController, :create
+    get "/logout", SessionController, :delete
     post "/logout", SessionController, :delete
 
     # Registration (Sign Up)
@@ -95,53 +94,7 @@ defmodule ThalamusWeb.Router do
     get "/auth/mock/:provider", SessionController, :mock_oauth
   end
 
-  # Dashboard (Admin Panel)
-  scope "/dashboard", ThalamusWeb do
-    pipe_through :dashboard
 
-    live_session :dashboard_session, layout: {ThalamusWeb.Layouts, :app} do
-      live "/", Dashboard.Index, :index
-      live "/workflows", Dashboard.PlaceholderLive, :workflows
-      live "/identity", Dashboard.PlaceholderLive, :identity
-      live "/billing", Dashboard.PlaceholderLive, :billing
-      live "/pricing", Dashboard.PlaceholderLive, :pricing
-      live "/integration", Dashboard.PlaceholderLive, :integration
-      live "/docs", Dashboard.PlaceholderLive, :docs
-
-      # OAuth2 Clients Management
-      live "/clients", Clients.Index, :index
-      live "/clients/new", Clients.Form, :new
-      live "/clients/:id", Clients.Show, :show
-      live "/clients/:id/edit", Clients.Form, :edit
-
-      # Users Management
-      live "/users", Users.Index, :index
-      live "/users/new", Users.Form, :new
-      live "/users/:id", Users.Show, :show
-      live "/users/:id/edit", Users.Form, :edit
-
-      # Organizations Management
-      live "/organizations", Organizations.Index, :index
-      live "/organizations/new", Organizations.Form, :new
-      live "/organizations/:id", Organizations.Show, :show
-      live "/organizations/:id/edit", Organizations.Form, :edit
-
-      # Token Management
-      live "/tokens", Tokens.Index, :index
-      live "/tokens/:id", Tokens.Show, :show
-
-      # Audit Logs
-      live "/audit-logs", AuditLogs.Index, :index
-
-      # API Keys Management
-      live "/api-keys", ApiKeys.Index, :index
-      live "/api-keys/new", ApiKeys.Form, :new
-      live "/api-keys/:id", ApiKeys.Show, :show
-
-      # Settings
-      live "/settings", Settings.Index, :index
-    end
-  end
 
   # OAuth2 Authorization Endpoints (Browser-based, needs CSRF protection)
   scope "/oauth", ThalamusWeb.OAuth2 do
@@ -217,6 +170,9 @@ defmodule ThalamusWeb.Router do
     # Organization management
     resources "/organizations", OrganizationController, except: [:new, :edit]
 
+    # Secrets management (UI)
+    resources "/secrets", SecretController, only: [:index, :create, :delete]
+
     # Organization member management
     post "/organizations/:id/members", OrganizationController, :add_member
     delete "/organizations/:id/members/:user_id", OrganizationController, :remove_member
@@ -276,6 +232,13 @@ defmodule ThalamusWeb.Router do
     # Admin API Key management
     resources "/api-keys", AdminApiKeyController, only: [:index, :create, :show, :delete]
     post "/api-keys/:id/rotate", AdminApiKeyController, :rotate
+  end
+
+  # Internal Microservices API
+  scope "/api/internal", ThalamusWeb.API do
+    pipe_through :internal_api
+
+    get "/secrets/resolve", SecretController, :resolve
   end
 
   # Enable LiveDashboard in development
