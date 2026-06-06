@@ -138,6 +138,56 @@ defmodule ThalamusWeb.API.UserControllerTest do
       assert is_map(meta)
     end
 
+    test "filters by username (partial match on name or email)", %{conn: conn, access_token: token} do
+      # Create a user with specific name for search
+      {:ok, named_user} = User.register("carlos@test.com", "Pass123!")
+      named_user = %{named_user | name: "FullStack Developer"}
+      {:ok, _} = PostgreSQLUserRepository.save(named_user)
+
+      conn =
+        conn
+        |> put_req_header("authorization", "Bearer #{token}")
+        |> get(~p"/api/users?username=fullstack")
+
+      assert %{
+               "data" => users
+             } = json_response(conn, 200)
+
+      assert length(users) >= 1
+      # Should find user by name partial match
+      assert Enum.any?(users, fn u -> u["name"] == "FullStack Developer" end)
+    end
+
+    test "username filter returns empty array for no match", %{conn: conn, access_token: token} do
+      conn =
+        conn
+        |> put_req_header("authorization", "Bearer #{token}")
+        |> get(~p"/api/users?username=nonexistent_xyz123")
+
+      assert %{
+               "data" => users
+             } = json_response(conn, 200)
+
+      assert users == []
+    end
+
+    test "username filter matches by email partial", %{conn: conn, access_token: token} do
+      {:ok, email_user} = User.register("unique_search_target@example.com", "Pass123!")
+      {:ok, _} = PostgreSQLUserRepository.save(email_user)
+
+      conn =
+        conn
+        |> put_req_header("authorization", "Bearer #{token}")
+        |> get(~p"/api/users?username=unique_search")
+
+      assert %{
+               "data" => users
+             } = json_response(conn, 200)
+
+      assert length(users) >= 1
+      assert Enum.any?(users, fn u -> u["email"] == "unique_search_target@example.com" end)
+    end
+
     test "requires authentication", %{conn: conn} do
       conn = get(conn, ~p"/api/users")
 

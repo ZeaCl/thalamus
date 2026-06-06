@@ -373,6 +373,29 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLUserRepositoryTest do
       assert {:ok, _users} = PostgreSQLUserRepository.list(%{order_by: :last_login})
     end
 
+    test "filters by username (ILIKE on name or email)" do
+      {:ok, user1} = create_user_entity(email: "search_target@example.com", name: "Carlos Dev")
+      {:ok, user2} = create_user_entity(email: "other@example.com", name: "Other User")
+      {:ok, _saved1} = PostgreSQLUserRepository.save(user1)
+      {:ok, _saved2} = PostgreSQLUserRepository.save(user2)
+
+      # Search by name partial
+      assert {:ok, users_by_name} = PostgreSQLUserRepository.list(%{username: "carlos"})
+      assert length(users_by_name) >= 1
+      assert Enum.any?(users_by_name, fn u -> u.name == "Carlos Dev" end)
+
+      # Search by email partial
+      assert {:ok, users_by_email} = PostgreSQLUserRepository.list(%{username: "search_target"})
+      assert length(users_by_email) >= 1
+      assert Enum.any?(users_by_email, fn u ->
+        Thalamus.Domain.ValueObjects.Email.to_string(u.email) == "search_target@example.com"
+      end)
+
+      # No match
+      assert {:ok, empty} = PostgreSQLUserRepository.list(%{username: "nonexistent_xyz"})
+      assert empty == []
+    end
+
     test "returns empty list when no users match filters" do
       assert {:ok, users} = PostgreSQLUserRepository.list(%{status: :deactivated})
       # May or may not be empty depending on other tests

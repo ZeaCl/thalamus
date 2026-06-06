@@ -62,7 +62,7 @@ defmodule Thalamus.Application.UseCases.GenerateTokensTest do
 
       expect(MockTokenRepository, :store, 1, fn token_data ->
         assert token_data.type == :access_token
-        assert String.starts_with?(token_data.token, "at_")
+        assert String.starts_with?(token_data.token, "eyJ")
         assert token_data.scopes == ["api:read"]
         assert is_nil(token_data.user_id)
         :ok
@@ -77,9 +77,9 @@ defmodule Thalamus.Application.UseCases.GenerateTokensTest do
 
       # Assert
       assert %TokenResponse{} = response
-      assert String.starts_with?(response.access_token, "at_")
+      assert String.starts_with?(response.access_token, "eyJ")
       assert response.token_type == "Bearer"
-      assert response.expires_in == 3600
+      assert response.expires_in == 604_800
       assert is_nil(response.refresh_token)
       assert response.scope == "api:read"
     end
@@ -280,8 +280,10 @@ defmodule Thalamus.Application.UseCases.GenerateTokensTest do
       user = %User{
         id: user_id,
         email: email,
+        name: "Test User",
         password_hash: nil,
         status: :active,
+        is_agent: true,
         failed_login_attempts: 0,
         mfa_methods: [],
         created_at: DateTime.utc_now(),
@@ -340,10 +342,17 @@ defmodule Thalamus.Application.UseCases.GenerateTokensTest do
       {:ok, response} = GenerateTokens.execute(request, deps)
 
       assert %TokenResponse{} = response
-      assert String.starts_with?(response.access_token, "at_")
+      assert String.starts_with?(response.access_token, "eyJ")
       assert String.starts_with?(response.refresh_token, "rt_")
       assert response.token_type == "Bearer"
       assert response.expires_in == 3600
+
+      # Verify JWT claims contain user info
+      jwt_claims = decode_jwt_payload(response.access_token)
+      assert jwt_claims["sub"] == Thalamus.Domain.ValueObjects.UserId.to_string(user_id)
+      assert jwt_claims["name"] == "Test User"
+      assert jwt_claims["email"] == "user@example.com"
+      assert jwt_claims["is_agent"] == true
     end
 
     test "returns error for invalid redirect_uri" do
@@ -424,6 +433,21 @@ defmodule Thalamus.Application.UseCases.GenerateTokensTest do
         created_at: DateTime.utc_now()
       }
 
+      {:ok, email} = Email.new("refresh_user@example.com")
+
+      refresh_user = %User{
+        id: user_id,
+        email: email,
+        name: "Refresh User",
+        password_hash: nil,
+        status: :active,
+        is_agent: false,
+        failed_login_attempts: 0,
+        mfa_methods: [],
+        created_at: DateTime.utc_now(),
+        updated_at: DateTime.utc_now()
+      }
+
       {:ok, request} =
         TokenRequest.new(%{
           grant_type: "refresh_token",
@@ -447,6 +471,10 @@ defmodule Thalamus.Application.UseCases.GenerateTokensTest do
         {:ok, stored_token}
       end)
 
+      expect(MockUserRepository, :find_by_id, fn ^user_id ->
+        {:ok, refresh_user}
+      end)
+
       expect(MockTokenRepository, :revoke, fn "rt_old_token" ->
         :ok
       end)
@@ -462,9 +490,16 @@ defmodule Thalamus.Application.UseCases.GenerateTokensTest do
       {:ok, response} = GenerateTokens.execute(request, deps)
 
       assert %TokenResponse{} = response
-      assert String.starts_with?(response.access_token, "at_")
+      assert String.starts_with?(response.access_token, "eyJ")
       assert String.starts_with?(response.refresh_token, "rt_")
       assert response.refresh_token != "rt_old_token"
+
+      # Verify JWT claims contain user info
+      jwt_claims = decode_jwt_payload(response.access_token)
+      assert jwt_claims["sub"] == Thalamus.Domain.ValueObjects.UserId.to_string(user_id)
+      assert jwt_claims["name"] == "Refresh User"
+      assert jwt_claims["email"] == "refresh_user@example.com"
+      assert jwt_claims["is_agent"] == false
     end
 
     test "returns error for token/client mismatch" do
@@ -622,7 +657,7 @@ defmodule Thalamus.Application.UseCases.GenerateTokensTest do
       {:ok, response} = GenerateTokens.execute(request, deps)
 
       assert %TokenResponse{} = response
-      assert String.starts_with?(response.access_token, "at_")
+      assert String.starts_with?(response.access_token, "eyJ")
     end
   end
 
@@ -1176,5 +1211,13 @@ defmodule Thalamus.Application.UseCases.GenerateTokensTest do
 
       assert {:error, :database_error} = GenerateTokens.execute(request, deps)
     end
+  end
+
+  # --- Helpers ---
+
+  defp decode_jwt_payload(token) do
+    [_header, payload, _signature] = String.split(token, ".")
+    {:ok, decoded} = Base.url_decode64(payload, padding: false)
+    Jason.decode!(decoded)
   end
 end

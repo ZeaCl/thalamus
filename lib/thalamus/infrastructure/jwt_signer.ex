@@ -53,6 +53,24 @@ defmodule Thalamus.Infrastructure.JwtSigner do
         cid -> Map.put(extra, "client_id", cid)
       end
 
+    extra =
+      case Map.get(claims_map, :name) do
+        nil -> extra
+        name -> Map.put(extra, "name", name)
+      end
+
+    extra =
+      case Map.get(claims_map, :email) do
+        nil -> extra
+        email -> Map.put(extra, "email", email)
+      end
+
+    extra =
+      case Map.get(claims_map, :is_agent) do
+        nil -> extra
+        is_agent -> Map.put(extra, "is_agent", is_agent)
+      end
+
     claims = Map.merge(base_claims, extra)
 
     user_id = Map.get(claims_map, :user_id)
