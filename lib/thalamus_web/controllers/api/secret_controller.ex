@@ -36,6 +36,7 @@ defmodule ThalamusWeb.API.SecretController do
     case ManageSecrets.delete_secret(id) do
       {:ok, _secret} ->
         send_resp(conn, :no_content, "")
+
       {:error, _} ->
         {:error, :not_found}
     end
@@ -45,16 +46,20 @@ defmodule ThalamusWeb.API.SecretController do
   Resolves a secret for an agent given provider, org_id, and user_id.
   """
   def resolve(conn, %{"provider" => provider} = params) do
-    org_id = case Map.get(params, "org_id") do
-      "" -> nil
-      id -> id
-    end
-    user_id = case Map.get(params, "user_id") do
-      "" -> nil
-      id -> id
-    end
+    org_id =
+      case Map.get(params, "org_id") do
+        "" -> nil
+        id -> id
+      end
+
+    user_id =
+      case Map.get(params, "user_id") do
+        "" -> nil
+        id -> id
+      end
+
     prefer_user = Map.get(params, "prefer_user", "false") == "true"
-    
+
     case ResolveAgentSecret.execute(provider, org_id, user_id, prefer_user: prefer_user) do
       {:ok, secret} ->
         # We render the secret AND its decrypted value here because it's requested by an internal service (Glia)
@@ -66,7 +71,8 @@ defmodule ThalamusWeb.API.SecretController do
           owner_type: secret.owner_type,
           owner_id: secret.owner_id,
           name: secret.name,
-          value: secret.encrypted_value # decrypted thanks to cloak!
+          # decrypted thanks to cloak!
+          value: secret.encrypted_value
         })
 
       {:error, :not_found} ->

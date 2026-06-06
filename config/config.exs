@@ -81,10 +81,25 @@ config :thalamus,
   password_reset_secret: "change_me_in_production_password_reset",
   session_secret: "change_me_in_production_session"
 
+# SAML SSO Configuration
+config :thalamus, :saml,
+  sp_entity_id: "https://auth.zea.cl",
+  sp_private_key_path: "priv/saml/sp_private_key.pem",
+  sp_certificate_path: "priv/saml/sp_certificate.pem",
+  acs_url: "https://auth.zea.cl/auth/saml/acs",
+  slo_url: "https://auth.zea.cl/auth/saml/slo",
+  metadata_url: "https://auth.zea.cl/auth/saml/metadata"
+
+# SAML Certificate configuration for samly
+config :samly,
+  idle_timeout_ms: 15_000
+
 # Cloak Vault Configuration
 config :thalamus, Thalamus.Vault,
   ciphers: [
-    default: {Cloak.Ciphers.AES.GCM, tag: "AES.GCM.V1", key: Base.decode64!("x09jB24+l8J45jM83H+g/sT4uI0Hh88aA+1/c/J9gQk=")}
+    default:
+      {Cloak.Ciphers.AES.GCM,
+       tag: "AES.GCM.V1", key: Base.decode64!("x09jB24+l8J45jM83H+g/sT4uI0Hh88aA+1/c/J9gQk=")}
   ]
 
 # JWT Signing Configuration (RS256 asymmetric)
@@ -97,18 +112,29 @@ config :thalamus, :jwt,
 config :thalamus, :oauth2_scopes, %{
   standard_scopes: ["openid", "profile", "email", "address", "phone", "offline_access"],
   custom_scopes: [
-    "api:read", "api:write", "api:admin",
-    "data:read", "data:write",
+    "api:read",
+    "api:write",
+    "api:admin",
+    "data:read",
+    "data:write",
     "webhooks:manage",
-    "billing:read", "billing:write",
-    "zea:read", "zea:write",
-    "venture:fund.read", "venture:fund.write",
-    "venture:capital_call.read", "venture:capital_call.write",
-    "venture:investor.read", "venture:investor.write",
-    "venture:distribution.read", "venture:distribution.write",
+    "billing:read",
+    "billing:write",
+    "zea:read",
+    "zea:write",
+    "venture:fund.read",
+    "venture:fund.write",
+    "venture:capital_call.read",
+    "venture:capital_call.write",
+    "venture:investor.read",
+    "venture:investor.write",
+    "venture:distribution.read",
+    "venture:distribution.write",
     "venture:dashboard",
-    "venture:transaction.read", "venture:transaction.write",
-    "sport:read", "sport:write"
+    "venture:transaction.read",
+    "venture:transaction.write",
+    "sport:read",
+    "sport:write"
   ],
   restricted_scopes: ["api:admin", "billing:write", "offline_access"]
 }

@@ -215,6 +215,7 @@ case Repo.get(OAuth2ClientSchema, platform_web_client_id) ||
        Repo.get_by(OAuth2ClientSchema, client_id_string: "platform_web") do
   nil ->
     hashed_secret = Bcrypt.hash_pwd_salt("sq3Wafxd70wpqqVNrecK6zAYOYXggwb_kFgpuEWi4lE")
+
     client_attrs = %{
       id: platform_web_client_id,
       client_id_string: "platform_web",
@@ -344,7 +345,22 @@ case Repo.get(OAuth2ClientSchema, cerebelum_service_id) ||
       organization_id: zea_org_id,
       redirect_uris: [],
       allowed_grant_types: ["client_credentials"],
-      allowed_scopes: ["openid", "venture:fund.read", "venture:fund.write", "venture:capital_call.read", "venture:capital_call.write", "venture:investor.read", "venture:investor.write", "venture:distribution.read", "venture:distribution.write", "venture:dashboard", "venture:transaction.read", "venture:transaction.write", "sport:read", "sport:write"],
+      allowed_scopes: [
+        "openid",
+        "venture:fund.read",
+        "venture:fund.write",
+        "venture:capital_call.read",
+        "venture:capital_call.write",
+        "venture:investor.read",
+        "venture:investor.write",
+        "venture:distribution.read",
+        "venture:distribution.write",
+        "venture:dashboard",
+        "venture:transaction.read",
+        "venture:transaction.write",
+        "sport:read",
+        "sport:write"
+      ],
       pkce_required: false
     }
 

@@ -143,7 +143,8 @@ defmodule Thalamus.Domain.Entities.User do
         is_agent: true,
         agent_config: agent_config,
         status: :active,
-        verified_at: DateTime.truncate(DateTime.utc_now(), :second) # Agents are auto-verified
+        # Agents are auto-verified
+        verified_at: DateTime.truncate(DateTime.utc_now(), :second)
       })
     else
       {:error, reason} -> {:error, reason}

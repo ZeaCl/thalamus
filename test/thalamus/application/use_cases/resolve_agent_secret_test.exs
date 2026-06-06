@@ -9,8 +9,23 @@ defmodule Thalamus.Application.UseCases.ResolveAgentSecretTest do
       org_id = Ecto.UUID.generate()
       user_id = Ecto.UUID.generate()
 
-      {:ok, _} = ManageSecrets.create_secret(%{owner_type: "organization", owner_id: org_id, provider: "stitch", name: "Org Key", value: "org-123"})
-      {:ok, _} = ManageSecrets.create_secret(%{owner_type: "user", owner_id: user_id, provider: "stitch", name: "User Key", value: "user-123"})
+      {:ok, _} =
+        ManageSecrets.create_secret(%{
+          owner_type: "organization",
+          owner_id: org_id,
+          provider: "stitch",
+          name: "Org Key",
+          value: "org-123"
+        })
+
+      {:ok, _} =
+        ManageSecrets.create_secret(%{
+          owner_type: "user",
+          owner_id: user_id,
+          provider: "stitch",
+          name: "User Key",
+          value: "user-123"
+        })
 
       assert {:ok, secret} = ResolveAgentSecret.execute("stitch", org_id, user_id)
       assert secret.encrypted_value == "org-123"
@@ -21,10 +36,27 @@ defmodule Thalamus.Application.UseCases.ResolveAgentSecretTest do
       org_id = Ecto.UUID.generate()
       user_id = Ecto.UUID.generate()
 
-      {:ok, _} = ManageSecrets.create_secret(%{owner_type: "organization", owner_id: org_id, provider: "stitch", name: "Org Key", value: "org-123"})
-      {:ok, _} = ManageSecrets.create_secret(%{owner_type: "user", owner_id: user_id, provider: "stitch", name: "User Key", value: "user-123"})
+      {:ok, _} =
+        ManageSecrets.create_secret(%{
+          owner_type: "organization",
+          owner_id: org_id,
+          provider: "stitch",
+          name: "Org Key",
+          value: "org-123"
+        })
 
-      assert {:ok, secret} = ResolveAgentSecret.execute("stitch", org_id, user_id, prefer_user: true)
+      {:ok, _} =
+        ManageSecrets.create_secret(%{
+          owner_type: "user",
+          owner_id: user_id,
+          provider: "stitch",
+          name: "User Key",
+          value: "user-123"
+        })
+
+      assert {:ok, secret} =
+               ResolveAgentSecret.execute("stitch", org_id, user_id, prefer_user: true)
+
       assert secret.encrypted_value == "user-123"
       assert secret.owner_type == "user"
     end
@@ -33,7 +65,14 @@ defmodule Thalamus.Application.UseCases.ResolveAgentSecretTest do
       org_id = Ecto.UUID.generate()
       user_id = Ecto.UUID.generate()
 
-      {:ok, _} = ManageSecrets.create_secret(%{owner_type: "user", owner_id: user_id, provider: "stitch", name: "User Key", value: "user-123"})
+      {:ok, _} =
+        ManageSecrets.create_secret(%{
+          owner_type: "user",
+          owner_id: user_id,
+          provider: "stitch",
+          name: "User Key",
+          value: "user-123"
+        })
 
       assert {:ok, secret} = ResolveAgentSecret.execute("stitch", org_id, user_id)
       assert secret.encrypted_value == "user-123"

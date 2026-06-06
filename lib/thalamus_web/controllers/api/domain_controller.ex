@@ -10,7 +10,12 @@ defmodule ThalamusWeb.API.DomainController do
   use ThalamusWeb, :controller
 
   alias Thalamus.Repo
-  alias Thalamus.Infrastructure.Persistence.Schemas.{DomainScopeSchema, UserDomainRoleSchema, OrganizationSchema}
+
+  alias Thalamus.Infrastructure.Persistence.Schemas.{
+    DomainScopeSchema,
+    UserDomainRoleSchema,
+    OrganizationSchema
+  }
 
   import Ecto.Query
 
@@ -100,7 +105,11 @@ defmodule ThalamusWeb.API.DomainController do
     "scopes": ["venture:fund.*", "venture:capital_call.*"]
   }
   """
-  def grant_role(conn, %{"user_id" => user_id, "organization_id" => org_id, "domain" => domain, "role" => role} = params) do
+  def grant_role(
+        conn,
+        %{"user_id" => user_id, "organization_id" => org_id, "domain" => domain, "role" => role} =
+          params
+      ) do
     scopes = Map.get(params, "scopes", [])
     entity_id = Map.get(params, "entity_id")
 
@@ -118,13 +127,23 @@ defmodule ThalamusWeb.API.DomainController do
     if existing do
       # Update scopes and entity_id
       update_attrs = %{scopes: scopes}
-      update_attrs = if entity_id, do: Map.put(update_attrs, :entity_id, entity_id), else: update_attrs
+
+      update_attrs =
+        if entity_id, do: Map.put(update_attrs, :entity_id, entity_id), else: update_attrs
+
       Ecto.Changeset.cast(existing, update_attrs, [:scopes, :entity_id])
       |> Repo.update!()
 
       conn
       |> put_status(:ok)
-      |> json(%{message: "Role updated", user_id: user_id, domain: domain, role: role, scopes: scopes, entity_id: entity_id})
+      |> json(%{
+        message: "Role updated",
+        user_id: user_id,
+        domain: domain,
+        role: role,
+        scopes: scopes,
+        entity_id: entity_id
+      })
     else
       entry = %{
         id: Ecto.UUID.generate(),
@@ -151,7 +170,14 @@ defmodule ThalamusWeb.API.DomainController do
 
       conn
       |> put_status(:created)
-      |> json(%{message: "Role granted", user_id: user_id, domain: domain, role: role, scopes: scopes, entity_id: entity_id})
+      |> json(%{
+        message: "Role granted",
+        user_id: user_id,
+        domain: domain,
+        role: role,
+        scopes: scopes,
+        entity_id: entity_id
+      })
     end
   end
 
@@ -174,7 +200,12 @@ defmodule ThalamusWeb.API.DomainController do
     "role": "fund_manager"
   }
   """
-  def revoke_role(conn, %{"user_id" => user_id, "organization_id" => org_id, "domain" => domain, "role" => role}) do
+  def revoke_role(conn, %{
+        "user_id" => user_id,
+        "organization_id" => org_id,
+        "domain" => domain,
+        "role" => role
+      }) do
     Repo.delete_all(
       from r in UserDomainRoleSchema,
         where:
@@ -196,6 +227,7 @@ defmodule ThalamusWeb.API.DomainController do
       org = Repo.get!(OrganizationSchema, org_id)
       current = org.domains || []
       new_domains = List.delete(current, domain)
+
       Ecto.Changeset.cast(org, %{domains: new_domains}, [:domains])
       |> Repo.update!()
     end
@@ -227,11 +259,14 @@ defmodule ThalamusWeb.API.DomainController do
     domain_filter = params["domain"]
 
     dynamic_filters =
-      Enum.reject([
-        (if uid, do: dynamic([r], r.user_id == ^uid)),
-        (if oid, do: dynamic([r], r.organization_id == ^oid)),
-        (if domain_filter, do: dynamic([r], r.domain == ^domain_filter))
-      ], &is_nil/1)
+      Enum.reject(
+        [
+          if(uid, do: dynamic([r], r.user_id == ^uid)),
+          if(oid, do: dynamic([r], r.organization_id == ^oid)),
+          if(domain_filter, do: dynamic([r], r.domain == ^domain_filter))
+        ],
+        &is_nil/1
+      )
 
     query =
       Enum.reduce(dynamic_filters, from(r in UserDomainRoleSchema), fn filter, q ->

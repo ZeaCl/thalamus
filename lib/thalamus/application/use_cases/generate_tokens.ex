@@ -116,6 +116,7 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
           expires_in: ttl,
           aud: client_id_string(client)
         })
+
       {:ok,
        %{
          access_token: access_token,
@@ -148,6 +149,7 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
          {:ok, user} <- get_user(auth_code_data.user_id, deps) do
       scopes = auth_code_data.scopes
       refresh_token = generate_refresh_token()
+
       access_token =
         generate_jwt_access_token(%{
           user_id: user.id,
@@ -183,6 +185,7 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
       # Generate new tokens
       scopes_list = stored_token.scopes || []
       new_refresh_token = generate_refresh_token()
+
       access_token =
         generate_jwt_access_token(%{
           user_id: stored_token.user_id,
@@ -331,16 +334,17 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
       end
 
     # Store access token
-    with :ok <- repo.store(%{
-           token: token_data.access_token,
-           type: :access_token,
-           user_id: token_data.user_id,
-           client_id: client_uuid,
-           scopes: parse_scopes(token_data.scope),
-           expires_at: DateTime.add(DateTime.utc_now(), token_data.expires_in),
-           revoked: false,
-           created_at: DateTime.utc_now()
-         }) do
+    with :ok <-
+           repo.store(%{
+             token: token_data.access_token,
+             type: :access_token,
+             user_id: token_data.user_id,
+             client_id: client_uuid,
+             scopes: parse_scopes(token_data.scope),
+             expires_at: DateTime.add(DateTime.utc_now(), token_data.expires_in),
+             revoked: false,
+             created_at: DateTime.utc_now()
+           }) do
       # Store refresh token if present
       if token_data.refresh_token do
         repo.store(%{

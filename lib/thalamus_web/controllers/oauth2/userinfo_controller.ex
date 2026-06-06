@@ -55,7 +55,9 @@ defmodule ThalamusWeb.OAuth2.UserinfoController do
       # Primary organization (may be nil)
       primary_org =
         case user_schema.organization_id do
-          nil -> nil
+          nil ->
+            nil
+
           org_id_str ->
             case OrganizationId.from_string(org_id_str) do
               {:ok, org_id} ->
@@ -63,7 +65,9 @@ defmodule ThalamusWeb.OAuth2.UserinfoController do
                   {:ok, org} -> org
                   _ -> nil
                 end
-              _ -> nil
+
+              _ ->
+                nil
             end
         end
 
@@ -101,6 +105,7 @@ defmodule ThalamusWeb.OAuth2.UserinfoController do
                   name: first.name,
                   slug: generate_slug(first.name)
                 }
+
               [] ->
                 %{}
             end
@@ -110,18 +115,21 @@ defmodule ThalamusWeb.OAuth2.UserinfoController do
     else
       false ->
         Logger.warning("UserInfo validation_result: valid=#{inspect(false)}")
+
         conn
         |> put_status(:unauthorized)
         |> json(%{error: "invalid_token", error_description: "Invalid or expired token"})
 
       {:error, reason} ->
         Logger.error("UserInfo validation error: #{inspect(reason)}")
+
         conn
         |> put_status(:unauthorized)
         |> json(%{error: "invalid_token", error_description: "Could not validate access token"})
 
       error ->
         Logger.error("UserInfo unexpected error: #{inspect(error)}")
+
         conn
         |> put_status(:unauthorized)
         |> json(%{error: "invalid_token", error_description: "Could not validate access token"})

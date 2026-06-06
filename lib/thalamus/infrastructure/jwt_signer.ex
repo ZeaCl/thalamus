@@ -39,6 +39,7 @@ defmodule Thalamus.Infrastructure.JwtSigner do
     }
 
     extra = %{}
+
     extra =
       case Map.get(claims_map, :scope) do
         nil -> extra
@@ -96,15 +97,19 @@ defmodule Thalamus.Infrastructure.JwtSigner do
 
         claims
         |> Map.put("scopes", all_scopes)
-        |> Map.put("domain_roles", Enum.map(roles, fn r ->
-          role_data = %{
-            "org_id" => r.organization_id,
-            "domain" => r.domain,
-            "role" => r.role,
-            "scopes" => r.scopes
-          }
-          if r.entity_id, do: Map.put(role_data, "entity_id", r.entity_id), else: role_data
-        end))
+        |> Map.put(
+          "domain_roles",
+          Enum.map(roles, fn r ->
+            role_data = %{
+              "org_id" => r.organization_id,
+              "domain" => r.domain,
+              "role" => r.role,
+              "scopes" => r.scopes
+            }
+
+            if r.entity_id, do: Map.put(role_data, "entity_id", r.entity_id), else: role_data
+          end)
+        )
       end
     else
       claims
@@ -157,6 +162,7 @@ defmodule Thalamus.Infrastructure.JwtSigner do
 
   defp key_id do
     pem = read_key_file("jwt_public_key.pem")
+
     key_hash =
       :crypto.hash(:sha256, pem)
       |> Base.url_encode64(padding: false)

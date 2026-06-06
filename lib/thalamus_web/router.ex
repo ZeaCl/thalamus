@@ -73,8 +73,6 @@ defmodule ThalamusWeb.Router do
     # For now, we allow it internally.
   end
 
-
-
   scope "/", ThalamusWeb do
     pipe_through :browser
 
@@ -93,8 +91,6 @@ defmodule ThalamusWeb.Router do
     # Mock OAuth2 Social Login
     get "/auth/mock/:provider", SessionController, :mock_oauth
   end
-
-
 
   # OAuth2 Authorization Endpoints (Browser-based, needs CSRF protection)
   scope "/oauth", ThalamusWeb.OAuth2 do
@@ -134,6 +130,15 @@ defmodule ThalamusWeb.Router do
 
     # Token revocation endpoint (RFC 7009)
     post "/revoke", RevocationController, :create
+  end
+
+  # SAML SSO Authentication — public endpoints
+  scope "/auth/saml", ThalamusWeb do
+    pipe_through :oauth2_api
+
+    get "/init", SamlController, :init
+    post "/acs", SamlController, :acs
+    get "/metadata/:id", SamlController, :metadata
   end
 
   # Public API - no authentication required
@@ -223,6 +228,15 @@ defmodule ThalamusWeb.Router do
 
     # Add dynamic redirect URI for subdomains
     post "/clients/:client_id/add-redirect-uri", OAuth2ClientController, :add_redirect_uri
+  end
+
+  # SAML Configuration Management — admin, JWT + API Key auth
+  scope "/api", ThalamusWeb.API do
+    pipe_through :api_auth
+
+    get "/organizations/:id/saml-config", OrganizationController, :show_saml_config
+    put "/organizations/:id/saml-config", OrganizationController, :update_saml_config
+    delete "/organizations/:id/saml-config", OrganizationController, :delete_saml_config
   end
 
   # Admin API - requires super_admin role

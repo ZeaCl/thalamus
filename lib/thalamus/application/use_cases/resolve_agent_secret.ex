@@ -19,7 +19,9 @@ defmodule Thalamus.Application.UseCases.ResolveAgentSecret do
 
   defp resolve_preferring_user(provider, org_id, user_id, deps) do
     case deps.secret_repo.get_by_owner_and_provider("user", user_id, provider) do
-      {:ok, secret} -> {:ok, secret}
+      {:ok, secret} ->
+        {:ok, secret}
+
       {:error, :not_found} ->
         # Fallback to org
         deps.secret_repo.get_by_owner_and_provider("organization", org_id, provider)
@@ -28,7 +30,9 @@ defmodule Thalamus.Application.UseCases.ResolveAgentSecret do
 
   defp resolve_preferring_org(provider, org_id, user_id, deps) do
     case deps.secret_repo.get_by_owner_and_provider("organization", org_id, provider) do
-      {:ok, secret} -> {:ok, secret}
+      {:ok, secret} ->
+        {:ok, secret}
+
       {:error, :not_found} ->
         # Fallback to user
         deps.secret_repo.get_by_owner_and_provider("user", user_id, provider)
