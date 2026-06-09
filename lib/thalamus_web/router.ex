@@ -253,6 +253,8 @@ defmodule ThalamusWeb.Router do
     pipe_through :internal_api
 
     get "/secrets/resolve", SecretController, :resolve
+    post "/agent-token", AgentTokenController, :create
+    get "/users/:id/agent-config", InternalAgentConfigController, :show
   end
 
   # Enable LiveDashboard in development
