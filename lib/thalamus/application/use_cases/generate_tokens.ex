@@ -13,7 +13,7 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
   # Ports are referenced via deps parameter, not direct aliases
 
   alias Thalamus.Domain.Entities.OAuth2Client
-  alias Thalamus.Domain.ValueObjects.{UserId, Email}
+  alias Thalamus.Domain.ValueObjects.{UserId, Email, PasswordHash}
 
   @type deps :: %{
           oauth2_client_repository: module(),
@@ -221,10 +221,67 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
     end
   end
 
-  defp generate_for_grant_type(%TokenRequest{grant_type: :password}, _client, _deps) do
-    # Password grant is deprecated and should not be used
-    {:error, :deprecated_grant_type}
+  defp generate_for_grant_type(%TokenRequest{grant_type: :password} = request, _client, deps) do
+    # Resource Owner Password Credentials grant (RFC 6749 Section 4.3)
+    %{username: email, password: password, scope: scope} = request
+
+    with {:ok, user} <- authenticate_user(email, password, deps),
+         :ok <- validate_user_active(user) do
+      scopes = parse_scopes(scope)
+      # If no scopes requested, default to openid profile email
+      scopes = if scopes == [], do: ["openid", "profile", "email"], else: scopes
+      refresh_token = generate_refresh_token()
+
+      access_token =
+        generate_jwt_access_token(%{
+          user_id: user.id,
+          client_id: client_id_string(_client),
+          scope: Enum.join(scopes, " "),
+          expires_in: @access_token_ttl,
+          aud: client_id_string(_client),
+          sub: UserId.to_string(user.id),
+          name: user.name,
+          email: Email.to_string(user.email),
+          is_agent: user.is_agent
+        })
+
+      {:ok,
+       %{
+         access_token: access_token,
+         token_type: "Bearer",
+         expires_in: @access_token_ttl,
+         refresh_token: refresh_token,
+         scope: Enum.join(scopes, " "),
+         user_id: user.id,
+         client_id: client_id_string(_client)
+       }}
+    end
   end
+
+  defp authenticate_user(nil, _password, _deps), do: {:error, :invalid_grant}
+  defp authenticate_user(email, nil, _deps), do: {:error, :invalid_grant}
+  defp authenticate_user(email, password, %{user_repository: repo}) when is_binary(email) do
+    case Email.new(email) do
+      {:ok, email_vo} ->
+        case repo.find_by_email(email_vo) do
+          {:ok, user} ->
+            case PasswordHash.verify(user.password_hash, password) do
+              :ok -> {:ok, user}
+              {:error, _} -> {:error, :invalid_grant}
+            end
+
+          {:error, :not_found} ->
+            Bcrypt.no_user_verify()
+            {:error, :invalid_grant}
+        end
+
+      {:error, _} ->
+        {:error, :invalid_grant}
+    end
+  end
+
+  defp validate_user_active(%{status: :active}), do: :ok
+  defp validate_user_active(_), do: {:error, :invalid_grant}
 
   defp validate_redirect_uri(_client, nil), do: :ok
 

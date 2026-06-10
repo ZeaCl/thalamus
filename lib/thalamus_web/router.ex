@@ -8,6 +8,7 @@ defmodule ThalamusWeb.Router do
     plug :put_root_layout, html: {ThalamusWeb.Layouts, :root}
     plug :protect_from_forgery
     plug :put_secure_browser_headers
+    plug ThalamusWeb.Plugs.SecurityHeaders
   end
 
   pipeline :api do

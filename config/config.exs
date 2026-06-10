@@ -148,8 +148,9 @@ config :thalamus, ThalamusWeb.Plugs.CORS,
 
 # Security headers configuration
 config :thalamus, ThalamusWeb.Plugs.SecurityHeaders,
-  frame_options: "DENY",
-  hsts_max_age: 31_536_000
+  frame_options: "SAMEORIGIN",
+  hsts_max_age: 31_536_000,
+  csp_policy: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' ws://localhost:* wss://localhost:*; frame-src 'self'; frame-ancestors 'self' https://sudlich.zea.localhost; base-uri 'self'; form-action 'self' http://localhost:*"
 
 # Hammer rate limiting configuration
 config :hammer,
