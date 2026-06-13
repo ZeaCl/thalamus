@@ -249,3 +249,51 @@ curl -X POST http://auth.zea.localhost/oauth/token \
 | 302 redirect pero no navega | Token exchange falla por CORS | Verificar `Access-Control-Allow-Origin` |
 | `client_secret_post` con SPA | Cliente confidential sin secret | Cambiar a `public` + `auth_method: "none"` |
 | Formulario authorize no redirige | `authorization_code` no en `allowed_grant_types` | Agregar grant type al cliente |
+| CSP bloquea form-action | `url: [scheme: "https"]` hardcodeado pero se accede por HTTP | Usar `FORCE_SSL` env var → scheme dinámico. El `~p` genera URLs que deben matchear el `'self'` del CSP |
+
+---
+
+## 🧠 Lecciones Aprendidas (debugging real)
+
+### 1. El CSP se configura en DOS lugares
+El `Content-Security-Policy` se puede definir en:
+- `lib/.../security_headers.ex` → `@default_csp_policy` (default del módulo)
+- `config/config.exs` → `csp_policy:` (SOBRESCRIBE el default)
+
+**⚠️ Si cambiás el módulo pero no el config, el cambio no se ve.** Revisá ambos.
+
+### 2. `scheme: "https"` hardcodeado rompe en local
+En `config/runtime.exs`, el `url: [scheme: "https", port: 443]` genera URLs con `https://` aunque accedas por `http://`. El CSP `form-action 'self'` no matchea porque `'self'` = `http://auth.zea.localhost` ≠ `https://auth.zea.localhost`.
+
+**Fix**: usar `FORCE_SSL` env var para scheme dinámico.
+
+### 3. `delete_session(:return_to)` antes de leerlo
+En `session_controller.ex`, el `return_to` se borra de la sesión ANTES de que `redirect_after_login` lo lea. El comentario dice "Clear after reading" pero el código hace lo opuesto.
+
+**Fix**: leer `return_to` antes de `delete_session`, pasar como parámetro.
+
+### 4. `redirect(conn, to: "http://...")` falla en Phoenix 1.8
+Phoenix 1.8 espera paths para `:to`. URLs externas requieren `redirect(conn, external: "http://...")`.
+
+### 5. Cliente SPA ≠ Cliente Backend
+| | SPA (Soma, Südlich) | Backend (Cerebelum) |
+|---|---|---|
+| `client_type` | `:public` | `:confidential` |
+| `token_endpoint_auth_method` | `"none"` | `"client_secret_post"` |
+| `pkce_required` | `true` | `false` |
+| `allowed_grant_types` | `["authorization_code", "refresh_token"]` | `["client_credentials"]` |
+
+### 6. CORS para SPAs
+El `oauth/token` requiere CORS si la SPA está en otro dominio. Agregar el dominio a `CORS_ORIGINS` en docker-compose y verificar con:
+```bash
+curl -s -X OPTIONS 'http://auth.zea.localhost/oauth/token' \
+  -H 'Origin: http://soma.zea.localhost' \
+  -H 'Access-Control-Request-Method: POST' -I | grep Access-Control
+```
+
+### 7. Agent ID del JWT, no hardcodeado
+El `sub` del JWT de Thalamus contiene el user/agent ID. Extraer con:
+```typescript
+const payload = JSON.parse(atob(token.split('.')[1]))
+const agentId = (payload.sub || '').replace(/^user_/, '')
+```
