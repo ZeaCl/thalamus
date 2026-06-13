@@ -45,6 +45,7 @@ ZEA Thalamus is a production-ready OAuth2 server built with **Clean Architecture
 - 🔧 **Makefile** with common commands
 - 🧪 **Comprehensive Test Suite** (189 tests passing)
 - 📖 **Complete Documentation**
+- 🤖 **Agent Skill** — [skill/SKILL.md](skill/SKILL.md) for AI agents setting up OAuth2 clients
 
 ### Admin Dashboard (NEW ✨)
 - 🎨 **Modern Web UI** built with Phoenix LiveView
