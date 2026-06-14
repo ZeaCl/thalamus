@@ -11,7 +11,12 @@ defmodule ThalamusWeb.Router do
     plug ThalamusWeb.Plugs.SecurityHeaders
   end
 
-  pipeline :api do
+  # Registration pipeline — rate limited to prevent abuse
+  pipeline :registration do
+    plug ThalamusWeb.Plugs.RateLimiter, limit: 5, window: 60_000, key: :ip_address
+  end
+
+  # API pipeline
     plug :accepts, ["json"]
     plug ThalamusWeb.Plugs.CORS
     plug ThalamusWeb.Plugs.SecurityHeaders
@@ -85,9 +90,12 @@ defmodule ThalamusWeb.Router do
     get "/logout", SessionController, :delete
     post "/logout", SessionController, :delete
 
-    # Registration (Sign Up)
-    get "/register", RegisterController, :new
-    post "/register", RegisterController, :create
+    # Registration (Sign Up) — rate limited
+    scope "/register", ThalamusWeb do
+      pipe_through [:browser, :registration]
+      get "/", RegisterController, :new
+      post "/", RegisterController, :create
+    end
 
     # Mock OAuth2 Social Login
     get "/auth/mock/:provider", SessionController, :mock_oauth

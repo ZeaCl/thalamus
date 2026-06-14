@@ -146,6 +146,40 @@
               />
             </div>
 
+            <%= if assigns[:org_name] do %>
+            <div class="form-control w-full">
+              <label class="label py-0.5">
+                <span class="label-text text-[10px] font-medium text-base-content/60 tracking-wide uppercase">
+                  {gettext("Organization Name")}
+                </span>
+              </label>
+              <input
+                type="text"
+                name="user[org_name]"
+                value={assigns[:org_name]}
+                class="input bg-base-300/40 border border-white/5 rounded-xl w-full text-sm text-white placeholder-base-content/25 focus:border-primary/50 focus:bg-base-300/60 focus:ring-1 focus:ring-primary/20 transition-all duration-200"
+                placeholder="My Startup"
+              />
+            </div>
+            <% end %>
+
+            <%= if assigns[:app_origin] do %>
+            <div class="form-control w-full">
+              <label class="label py-0.5">
+                <span class="label-text text-[10px] font-medium text-base-content/60 tracking-wide uppercase">
+                  {gettext("App Origin")}
+                </span>
+              </label>
+              <input
+                type="text"
+                name="user[app_origin]"
+                value={assigns[:app_origin]}
+                class="input bg-base-300/40 border border-white/5 rounded-xl w-full text-sm text-white placeholder-base-content/25 focus:border-primary/50 focus:bg-base-300/60 focus:ring-1 focus:ring-primary/20 transition-all duration-200"
+                placeholder="http://localhost:5173"
+              />
+            </div>
+            <% end %>
+
             <div class="form-control pt-3">
               <button
                 type="submit"

@@ -1,0 +1,60 @@
+/* ZEA Thalamus SDK — Base Styles */
+/* Override these CSS variables on your parent container to customize */
+
+:root {
+  --th-bg: #0d1117;
+  --th-text: #e6edf3;
+  --th-text-muted: #8b949e;
+  --th-primary: #238636;
+  --th-primary-text: #fff;
+  --th-border: #30363d;
+  --th-radius: 8px;
+  --th-font: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.th-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 20px;
+  border: none;
+  border-radius: var(--th-radius);
+  cursor: pointer;
+  font-family: var(--th-font);
+  font-size: 14px;
+  font-weight: 600;
+  transition: opacity 0.15s;
+}
+.th-btn:hover { opacity: 0.85; }
+.th-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.th-btn--primary {
+  background: var(--th-primary);
+  color: var(--th-primary-text);
+}
+
+.th-btn--ghost {
+  background: transparent;
+  border: 1px solid var(--th-border);
+  color: var(--th-text-muted);
+}
+
+.th-input {
+  padding: 10px 14px;
+  border: 1px solid var(--th-border);
+  border-radius: var(--th-radius);
+  background: #161b22;
+  color: var(--th-text);
+  font-family: var(--th-font);
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.th-input:focus { border-color: var(--th-primary); }
+
+.th-card {
+  background: #161b22;
+  border: 1px solid var(--th-border);
+  border-radius: var(--th-radius);
+  padding: 16px;
+}
