@@ -19,6 +19,8 @@ export { OrgSwitcher } from './components/OrgSwitcher'
 export type { OrgSwitcherProps } from './components/OrgSwitcher'
 export { OrgManager } from './components/OrgManager'
 export type { OrgManagerProps } from './components/OrgManager'
+export { ThalamusPanel } from './components/ThalamusPanel'
+export type { ThalamusPanelProps } from './components/ThalamusPanel'
 
 // Client (low-level)
 export { ThalamusClient } from './client/ThalamusClient'

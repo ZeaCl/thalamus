@@ -646,7 +646,46 @@ function OrgManager({ config, className }) {
     ] })
   ] }, org.id)) });
 }
+var Z = {
+  mu: "#8b949e",
+  pr: "#58a6ff"};
+function ThalamusPanel({ config, onNavigate }) {
+  const [view, setView] = useState("users");
+  const handleNav = (v) => {
+    setView(v);
+    onNavigate?.(v);
+  };
+  const navItem = (v, label, icon) => /* @__PURE__ */ jsxs(
+    "button",
+    {
+      onClick: () => handleNav(v),
+      style: {
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        width: "100%",
+        padding: "6px 16px",
+        border: "none",
+        cursor: "pointer",
+        background: view === v ? `${Z.pr}15` : "transparent",
+        color: view === v ? Z.pr : Z.mu,
+        fontSize: 13,
+        fontFamily: "system-ui, sans-serif",
+        textAlign: "left"
+      },
+      children: [
+        /* @__PURE__ */ jsx("span", { style: { fontSize: 14, width: 20, textAlign: "center" }, children: icon }),
+        label
+      ]
+    }
+  );
+  return /* @__PURE__ */ jsxs("div", { children: [
+    navItem("users", "Users & Agents", "\u{1F464}"),
+    navItem("orgs", "Organizations", "\u{1F3E2}"),
+    navItem("apikeys", "API Keys", "\u{1F511}")
+  ] });
+}
 
-export { APIKeyManager, AdminAPI, LoginButton, OAuth2, OrgManager, OrgSwitcher, RegisterButton, StatusBadge, ThalamusClient, TokenManager, UserCreateForm, UserMenu, UserTable, useAdmin, useThalamus };
+export { APIKeyManager, AdminAPI, LoginButton, OAuth2, OrgManager, OrgSwitcher, RegisterButton, StatusBadge, ThalamusClient, ThalamusPanel, TokenManager, UserCreateForm, UserMenu, UserTable, useAdmin, useThalamus };
 //# sourceMappingURL=index.mjs.map
 //# sourceMappingURL=index.mjs.map

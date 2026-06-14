@@ -16,6 +16,7 @@ import { writeFileSync } from 'fs'
 
 const THALAMUS_URL = process.env.THALAMUS_URL || 'http://auth.zea.localhost'
 const ORG_NAME = process.env.ZEA_ORG_NAME || 'My Organization'
+const PORT = parseInt(process.env.PORT || '5399', 10)
 // Generate a unique client_id for this app
 const CLIENT_ID = 'app_' + base64url(randomBytes(8))
 
@@ -39,7 +40,6 @@ async function main() {
   console.log('')
 
   const server = http.createServer()
-  const PORT = 5399
 
   await new Promise((resolve, reject) => {
     server.listen(PORT, () => {
@@ -49,7 +49,7 @@ async function main() {
   })
 
   const addr = server.address()
-  const actualPort = typeof addr === 'object' ? addr.port : 0
+  const actualPort = typeof addr === 'object' ? addr.port : PORT
   const actualRedirect = `http://localhost:${actualPort}/callback`
 
   // Don't pass client_id — Thalamus creates a new one during registration
@@ -103,6 +103,8 @@ async function main() {
 
         if (data.access_token) {
           const config = {
+            clientId: CLIENT_ID,
+            redirectUri: actualRedirect,
             accessToken: data.access_token,
             refreshToken: data.refresh_token || null,
             expiresAt: Date.now() + (data.expires_in || 3600) * 1000,
