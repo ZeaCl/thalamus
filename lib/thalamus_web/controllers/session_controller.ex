@@ -28,17 +28,15 @@ defmodule ThalamusWeb.SessionController do
       true ->
         case authenticate_user(email, password) do
           {:ok, user} ->
-            # Check if there's an OAuth2 authorization request in session
             authorization_request = get_session(conn, :authorization_request)
+            return_to = get_session(conn, :return_to)
 
             conn
             |> put_flash(:info, "Welcome back!")
             |> put_session(:user_id, user.id)
-            # Clear return_to after reading it
             |> delete_session(:return_to)
-            # Clear authorization request
             |> delete_session(:authorization_request)
-            |> redirect_after_login(authorization_request)
+            |> redirect_after_login(authorization_request, return_to)
 
           {:error, _reason} ->
             # NEW: check if this email might have SAML available
@@ -101,13 +99,14 @@ defmodule ThalamusWeb.SessionController do
       end
 
     authorization_request = get_session(conn, :authorization_request)
+    return_to = get_session(conn, :return_to)
 
     conn
     |> put_flash(:info, "Successfully authenticated with #{String.capitalize(provider)}!")
     |> put_session(:user_id, user.id)
     |> delete_session(:return_to)
     |> delete_session(:authorization_request)
-    |> redirect_after_login(authorization_request)
+    |> redirect_after_login(authorization_request, return_to)
   end
 
   defp authenticate_user(email, password) do
@@ -150,15 +149,19 @@ defmodule ThalamusWeb.SessionController do
 
   defp get_return_to(conn) do
     get_session(conn, :return_to) || conn.params["return_to"] ||
-      System.get_env("DEFAULT_REDIRECT_URL") || "http://zea.localhost/dashboard"
+      System.get_env("DEFAULT_REDIRECT_URL") || "http://zea.localhost"
   end
 
-  defp redirect_after_login(conn, nil) do
-    # No authorization request - use normal return_to logic
-    redirect(conn, to: get_return_to(conn))
+  defp redirect_after_login(conn, nil, return_to) do
+    target = return_to || get_return_to(conn)
+    if String.starts_with?(target, "http://") or String.starts_with?(target, "https://") do
+      redirect(conn, external: target)
+    else
+      redirect(conn, to: target)
+    end
   end
 
-  defp redirect_after_login(conn, authorization_request) when is_map(authorization_request) do
+  defp redirect_after_login(conn, authorization_request, _return_to) when is_map(authorization_request) do
     # Rebuild authorization URL with original OAuth2 parameters
     query_string = URI.encode_query(authorization_request)
     redirect(conn, to: "/oauth/authorize?" <> query_string)

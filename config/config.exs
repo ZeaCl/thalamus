@@ -150,7 +150,7 @@ config :thalamus, ThalamusWeb.Plugs.CORS,
 config :thalamus, ThalamusWeb.Plugs.SecurityHeaders,
   frame_options: "SAMEORIGIN",
   hsts_max_age: 31_536_000,
-  csp_policy: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' ws://localhost:* wss://localhost:*; frame-src 'self'; frame-ancestors 'self' https://sudlich.zea.localhost; base-uri 'self'; form-action 'self' http://localhost:*"
+  csp_policy: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' ws://localhost:* wss://localhost:*; frame-src 'self'; frame-ancestors 'self' https://sudlich.zea.localhost; base-uri 'self'; form-action 'self' http://localhost:* http://auth.zea.localhost:* http://soma.zea.localhost:* http://cranium.zea.localhost:* http://sudlich.zea.localhost:* http://*.zea.localhost:*"
 
 # Hammer rate limiting configuration
 config :hammer,

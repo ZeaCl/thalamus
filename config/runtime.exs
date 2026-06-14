@@ -66,11 +66,13 @@ if config_env() == :prod do
 
   host = System.get_env("PHX_HOST") || "example.com"
   port = String.to_integer(System.get_env("PORT") || "4000")
+  public_port = if System.get_env("FORCE_SSL") == "true", do: 443, else: 80
+  scheme = if System.get_env("FORCE_SSL") == "true", do: "https", else: "http"
 
   config :thalamus, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
   config :thalamus, ThalamusWeb.Endpoint,
-    url: [host: host, port: 443, scheme: "https"],
+    url: [host: host, port: public_port, scheme: scheme],
     http: [
       # Enable IPv6 and bind on all interfaces.
       # Set it to  {0, 0, 0, 0, 0, 0, 0, 1} for local network only access.
