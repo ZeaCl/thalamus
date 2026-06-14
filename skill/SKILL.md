@@ -297,3 +297,32 @@ El `sub` del JWT de Thalamus contiene el user/agent ID. Extraer con:
 const payload = JSON.parse(atob(token.split('.')[1]))
 const agentId = (payload.sub || '').replace(/^user_/, '')
 ```
+
+---
+
+## 🚀 Producción (zea.cl)
+
+### Checklist pre-deploy
+
+```bash
+# 1. CSP en config/config.exs DEBE incluir dominios de prod
+form-action 'self' https://*.zea.cl:* https://*.zea.localhost:*
+
+# 2. CORS origins en docker-compose
+CORS_ORIGINS: "https://app.zea.cl,https://sudlich.zea.cl,https://soma.zea.cl,..."
+
+# 3. FORCE_SSL=true para que scheme sea https
+FORCE_SSL: "true"
+
+# 4. Redirect URIs del OAuth2 client deben usar https
+redirect_uris: ["https://soma.zea.cl/callback"]
+
+# 5. JWKS endpoint accesible vía https
+curl https://auth.zea.cl/.well-known/jwks.json
+```
+
+### Error común en prod: "form-action blocked"
+Si al hacer login en prod sale CSP bloqueando:
+1. Verificar que `config.exs` tiene los dominios de prod en `form-action`
+2. Verificar que `FORCE_SSL=true` → scheme es `https` → `~p` genera URLs con `https://`
+3. Verificar que `'self'` en CSP matchea `https://auth.zea.cl` (mismo scheme)
