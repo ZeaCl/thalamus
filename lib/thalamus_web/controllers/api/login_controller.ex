@@ -245,6 +245,8 @@ defmodule ThalamusWeb.API.LoginController do
         organization_id: organization_id
       })
 
+    refresh_token = generate_refresh_token()
+
     # Use a fixed UUID for internal client
     internal_client_uuid = "00000000-0000-0000-0000-000000000001"
 
