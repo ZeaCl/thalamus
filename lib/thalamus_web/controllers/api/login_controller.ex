@@ -224,6 +224,13 @@ defmodule ThalamusWeb.API.LoginController do
   end
 
   defp generate_tokens_directly(user) do
+    # Get user's organization
+    organization_id =
+      case get_user_organization(user) do
+        {:ok, org} when not is_nil(org) -> org.id
+        _ -> nil
+      end
+
     # Generate JWT access token
     access_token =
       JwtSigner.sign_access_token(%{
@@ -231,17 +238,12 @@ defmodule ThalamusWeb.API.LoginController do
         client_id: "internal_login",
         scope: Enum.join(get_default_user_scopes(), " "),
         expires_in: 3600,
-        aud: "internal_login"
+        aud: "internal_login",
+        name: user.name,
+        email: Email.to_string(user.email),
+        is_agent: user.is_agent,
+        organization_id: organization_id
       })
-
-    refresh_token = generate_refresh_token()
-
-    # Get user's organization
-    organization_id =
-      case get_user_organization(user) do
-        {:ok, org} when not is_nil(org) -> org.id
-        _ -> nil
-      end
 
     # Use a fixed UUID for internal client
     internal_client_uuid = "00000000-0000-0000-0000-000000000001"

@@ -161,7 +161,8 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
           sub: UserId.to_string(user.id),
           name: user.name,
           email: Email.to_string(user.email),
-          is_agent: user.is_agent
+          is_agent: user.is_agent,
+          organization_id: user.organization_id
         })
 
       # Revoke authorization code
@@ -202,7 +203,8 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
           sub: UserId.to_string(user.id),
           name: user.name,
           email: Email.to_string(user.email),
-          is_agent: user.is_agent
+          is_agent: user.is_agent,
+          organization_id: user.organization_id
         })
 
       # Revoke old refresh token (rotation)
@@ -242,7 +244,8 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
           sub: UserId.to_string(user.id),
           name: user.name,
           email: Email.to_string(user.email),
-          is_agent: user.is_agent
+          is_agent: user.is_agent,
+          organization_id: user.organization_id
         })
 
       {:ok,
