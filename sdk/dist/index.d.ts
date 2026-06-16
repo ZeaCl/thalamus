@@ -1,8 +1,7 @@
-export { A as AdminAPI, O as OAuth2, T as ThalamusClient, a as TokenManager, U as UseAdminOptions, b as UseAdminReturn, c as UseThalamusOptions, d as UseThalamusReturn, u as useAdmin, e as useThalamus } from './index-D1habPPu.js';
+export { A as AdminAPI, a as AgentConfig, D as DomainRole, I as IntrospectionResponse, O as OAuth2, b as Organization, c as Role, T as ThalamusClient, d as ThalamusConfig, e as ThalamusError, f as TokenManager, g as TokenResponse, U as UseAdminOptions, h as UseAdminReturn, i as UseThalamusOptions, j as UseThalamusReturn, k as User, l as UserInfo, u as useAdmin, m as useThalamus } from './index-BEu9oqZn.js';
 export { APIKeyManager, APIKeyManagerProps, LoginButton, LoginButtonProps, OrgManager, OrgManagerProps, OrgSwitcher, OrgSwitcherProps, RegisterButton, RegisterButtonProps, StatusBadge, UserCreateForm, UserCreateFormProps, UserMenu, UserMenuProps, UserTable, UserTableProps } from './components/index.js';
 import React from 'react';
-import { T as ThalamusConfig } from './index-CMe3IpNt.js';
-export { A as AgentConfig, D as DomainRole, I as IntrospectionResponse, O as Organization, R as Role, a as ThalamusError, b as TokenResponse, U as User, c as UserInfo } from './index-CMe3IpNt.js';
+import { T as ThalamusConfig } from './index-BnHWPrKX.js';
 
 interface ThalamusPanelProps {
     config: ThalamusConfig;
@@ -10,4 +9,4 @@ interface ThalamusPanelProps {
 }
 declare function ThalamusPanel({ config, onNavigate }: ThalamusPanelProps): React.JSX.Element;
 
-export { ThalamusConfig, ThalamusPanel, type ThalamusPanelProps };
+export { ThalamusPanel, type ThalamusPanelProps };

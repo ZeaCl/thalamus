@@ -1,5 +1,5 @@
 import React from 'react';
-import { T as ThalamusConfig, c as UserInfo, U as User } from '../index-CMe3IpNt.mjs';
+import { T as ThalamusConfig, U as UserInfo, a as User } from '../index-BnHWPrKX.mjs';
 
 interface LoginButtonProps {
     /** Thalamus config (same as ThalamusClient constructor) */

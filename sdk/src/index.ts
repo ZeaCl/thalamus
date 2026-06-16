@@ -24,13 +24,19 @@ export type { ThalamusPanelProps } from './components/ThalamusPanel'
 
 // Client (low-level)
 export { ThalamusClient } from './client/ThalamusClient'
-export { OAuth2 } from './client/OAuth2'
-export { TokenManager } from './client/TokenManager'
-export { AdminAPI } from './client/AdminAPI'
+export { OAuth2 } from './client/auth/OAuth2'
+export { TokenManager } from './client/tokens/TokenManager'
+export { AdminAPI } from './client/admin/AdminAPI'
 
 // Types
 export type {
   ThalamusConfig, TokenResponse, IntrospectionResponse, UserInfo,
-  User, Organization, Role, DomainRole, AgentConfig,
-  ThalamusError,
-} from './types'
+  AgentConfig, ThalamusError,
+} from './client/types'
+
+export type {
+  User,
+  AdminOrganization as Organization,
+  AdminRole as Role,
+  DomainRole,
+} from './client/admin/AdminAPI'

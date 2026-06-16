@@ -1,7 +1,7 @@
 {
-  "name": "@zea/thalamus-sdk",
+  "name": "@zea/auth",
   "version": "0.1.0",
-  "description": "ZEA Thalamus SDK — OAuth2 PKCE login, user/agent/org management, API keys for React apps",
+  "description": "ZEA Auth SDK — OAuth2 PKCE login, user/org management, API keys for React apps",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
@@ -21,15 +21,25 @@
     },
     "./styles/base.css": "./dist/styles/base.css"
   },
-  "files": ["dist", "bin"],
+  "files": [
+    "dist",
+    "bin"
+  ],
   "bin": {
-    "thalamus-init": "./bin/thalamus-init.mjs"
+    "zea-auth-init": "./bin/zea-auth-init.mjs"
   },
-  "keywords": ["oauth2", "auth", "thalamus", "react", "pkce", "sso"],
+  "keywords": [
+    "oauth2",
+    "auth",
+    "thalamus",
+    "react",
+    "pkce",
+    "sso"
+  ],
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
-    "postinstall": "echo '' && echo '🧠  ZEA Thalamus SDK installed!' && echo '   Run: npx thalamus-init to set up your app' && echo ''",
+    "postinstall": "echo '' && echo '🧠  ZEA Auth SDK installed!' && echo '   Run: npx zea-auth-init to set up your app variables' && echo ''",
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
@@ -37,6 +47,7 @@
     "react-dom": "^18.0.0 || ^19.0.0"
   },
   "devDependencies": {
+    "@types/node": "^25.9.3",
     "@types/react": "^19.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
