@@ -17,6 +17,7 @@ defmodule ThalamusWeb.Router do
   end
 
   # API pipeline
+  pipeline :api do
     plug :accepts, ["json"]
     plug ThalamusWeb.Plugs.CORS
     plug ThalamusWeb.Plugs.SecurityHeaders
@@ -91,8 +92,8 @@ defmodule ThalamusWeb.Router do
     post "/logout", SessionController, :delete
 
     # Registration (Sign Up) — rate limited
-    scope "/register", ThalamusWeb do
-      pipe_through [:browser, :registration]
+    scope "/register" do
+      pipe_through :registration
       get "/", RegisterController, :new
       post "/", RegisterController, :create
     end

@@ -149,7 +149,7 @@ defmodule ThalamusWeb.SessionController do
 
   defp get_return_to(conn) do
     get_session(conn, :return_to) || conn.params["return_to"] ||
-      System.get_env("DEFAULT_REDIRECT_URL") || "http://zea.localhost"
+      System.get_env("DEFAULT_REDIRECT_URL") || "https://zea.cl/studio"
   end
 
   defp redirect_after_login(conn, nil, return_to) do

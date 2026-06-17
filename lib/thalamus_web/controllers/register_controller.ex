@@ -90,16 +90,16 @@ defmodule ThalamusWeb.RegisterController do
                 return_to
               end
 
+            # Log verification link for development
+            require Logger
+            Logger.info("Verification: http://auth.zea.localhost/verify?email=#{URI.encode_www_form(email)}&token=#{verification_token}")
+
             conn
             |> put_flash(:info, "Welcome! Check your email to verify your account.")
             |> put_session(:user_id, user.id)
             |> delete_session(:return_to)
             |> delete_session(:authorization_request)
             |> redirect_after_login(authorization_request, return_to)
-
-            # Log verification link for development
-            require Logger
-            Logger.info("Verification: http://auth.zea.localhost/verify?email=#{URI.encode_www_form(email)}&token=#{verification_token}")
 
           {:error, changeset} ->
             error_message = format_changeset_errors(changeset)
@@ -112,11 +112,17 @@ defmodule ThalamusWeb.RegisterController do
   end
 
   defp get_return_to(conn) do
-    get_session(conn, :return_to) || conn.params["return_to"] || ~p"/dashboard"
+    get_session(conn, :return_to) || conn.params["return_to"] ||
+      System.get_env("DEFAULT_REDIRECT_URL") || "https://zea.cl/studio"
   end
 
   defp redirect_after_login(conn, nil, return_to) do
-    redirect(conn, to: return_to || ~p"/dashboard")
+    target = return_to || get_return_to(conn)
+    if String.starts_with?(target, "http://") or String.starts_with?(target, "https://") do
+      redirect(conn, external: target)
+    else
+      redirect(conn, to: target)
+    end
   end
 
   defp redirect_after_login(conn, authorization_request, _return_to) when is_map(authorization_request) do

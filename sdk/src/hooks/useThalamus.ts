@@ -61,6 +61,9 @@ export function useThalamus(options: UseThalamusOptions): UseThalamusReturn {
     const state = params.get('state')
     if (!code || !state) return
 
+    // Immediately remove code from URL to prevent React 18 Strict Mode double-fetching
+    window.history.replaceState({}, '', window.location.pathname)
+
     const savedState = sessionStorage.getItem(`${storageKey}_state`)
     if (state !== savedState) {
       setError('State mismatch — possible CSRF attack')
@@ -75,7 +78,6 @@ export function useThalamus(options: UseThalamusOptions): UseThalamusReturn {
         persistAuth(data)
         setToken(data.access_token)
         client.tokens.getUserInfo(data.access_token).then(u => setUser(u)).catch(() => {})
-        window.history.replaceState({}, '', window.location.pathname)
       })
       .catch(err => setError(err.message))
   }, [storageKey])

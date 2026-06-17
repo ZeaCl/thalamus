@@ -26,26 +26,16 @@
   </head>
   <body class="h-full antialiased bg-[#0B0D13]">
     <div class="min-h-screen w-full flex flex-col items-center justify-center p-4 relative overflow-hidden">
-      <%!-- Background Ambient Glows --%>
-      <div class="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-primary/10 rounded-full blur-[120px] pointer-events-none">
-      </div>
-      <div class="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-purple-500/10 rounded-full blur-[120px] pointer-events-none">
-      </div>
+      <%!-- Background Ambient Glows removed for infra aesthetic --%>
 
       <div class="w-full max-w-md relative z-10 flex flex-col items-center">
         <%!-- Logo and Header --%>
         <div class="flex flex-col items-center mb-6 w-full text-center">
           <div class="flex items-center justify-center gap-2 mb-4">
             <img
-              src={~p"/images/icono-zea.svg"}
-              alt="ZEA Icon"
-              class="h-6 w-6"
-              style="filter: brightness(0) invert(1) brightness(0.675);"
-            />
-            <img
               src={~p"/images/text-zea.svg"}
               alt="ZEA Text"
-              class="h-4.5 w-auto"
+              class="h-5 w-auto"
               style="filter: brightness(0) invert(1) brightness(0.675);"
             />
           </div>
@@ -117,10 +107,13 @@
             </div>
 
             <div class="form-control w-full">
-              <label class="label py-0.5">
+              <label class="label py-0.5 flex justify-between">
                 <span class="label-text text-[10px] font-medium text-base-content/60 tracking-wide uppercase">
                   {gettext("Password")}
                 </span>
+                <button type="button" class="text-[10px] text-primary hover:text-primary-focus cursor-pointer bg-transparent border-none p-0 uppercase" onclick="generatePassword()">
+                  Generate
+                </button>
               </label>
               <input
                 type="password"
@@ -227,7 +220,7 @@
           <div class="text-center">
             <p class="text-xs text-base-content/50">
               {gettext("Already have an account?")}
-              <a href="/login" class="text-primary hover:underline font-medium ml-1">
+              <a href={"/login" <> if @conn.query_string != "", do: "?#{@conn.query_string}", else: ""} class="text-primary hover:underline font-medium ml-1">
                 {gettext("Sign In")}
               </a>
             </p>
@@ -239,5 +232,22 @@
         </p>
       </div>
     </div>
+    <script>
+      function generatePassword() {
+        const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+";
+        let password = "";
+        for (let i = 0, n = charset.length; i < 16; ++i) {
+          password += charset.charAt(Math.floor(Math.random() * n));
+        }
+        const pwdInputs = document.querySelectorAll('input[type="password"], input[data-generated="true"]');
+        pwdInputs.forEach(input => {
+          input.value = password;
+          input.type = "text"; 
+          input.setAttribute('data-generated', 'true');
+          setTimeout(() => { input.type = "password" }, 5000); 
+        });
+        alert("¡Copia tu contraseña generada!\n\n" + password + "\n\n(Se ocultará en 5 segundos)");
+      }
+    </script>
   </body>
 </html>

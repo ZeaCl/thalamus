@@ -68,7 +68,7 @@ defmodule ThalamusWeb.Plugs.SecurityHeaders do
                       frame-src 'self'; \
                       frame-ancestors 'none'; \
                       base-uri 'self'; \
-                      form-action 'self' http://localhost:* http://auth.zea.localhost:* http://soma.zea.localhost:* http://cranium.zea.localhost:* http://sudlich.zea.localhost:* http://*.zea.localhost:*
+                      form-action 'self' https://zea.cl https://*.zea.cl http://localhost:* http://auth.zea.localhost:* http://soma.zea.localhost:* http://cranium.zea.localhost:* http://sudlich.zea.localhost:* http://*.zea.localhost:*
                       """
                       |> String.replace(~r/\s+/, " ")
                       |> String.trim()
