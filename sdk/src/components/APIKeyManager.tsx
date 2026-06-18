@@ -34,26 +34,33 @@ export function APIKeyManager({ baseUrl, authStorageKey = 'thalamus_auth', label
   const [error, setError] = useState('')
 
   const token = typeof window !== 'undefined' ? (() => {
-    try { const s = localStorage.getItem(authStorageKey); return s ? JSON.parse(s).accessToken : '' } catch { return '' }
-  })() : ''
+    try { const s = localStorage.getItem(authStorageKey); return s ? JSON.parse(s).accessToken : null } catch { return null }
+  })() : null
 
   useEffect(() => {
     if (!token) return
+    const controller = new AbortController()
+    
     fetch(`${baseUrl}/api/personal-access-tokens`, {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: { Authorization: `Bearer ${token}` },
+      signal: controller.signal
     })
       .then(res => res.json())
       .then(data => {
         if (data.data) {
           // Map backend response correctly based on standard Elixir JSON:API or similar
           setKeys(data.data.map((k: any) => ({
-            api_key: k.id, 
+            api_key: k.api_key || k.id, 
             prefix: k.token_prefix || k.prefix || 'zpat_',
             created: k.inserted_at || k.created_at || k.created || new Date().toISOString()
           })))
         }
       })
-      .catch(e => console.error('Failed to load API keys:', e))
+      .catch(e => {
+        if (e.name !== 'AbortError') console.error('Failed to load API keys:', e)
+      })
+
+    return () => controller.abort()
   }, [baseUrl, token])
 
   const createKey = async () => {

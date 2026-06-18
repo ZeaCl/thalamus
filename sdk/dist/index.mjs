@@ -402,7 +402,8 @@ var AdminAPI = class {
   // ── Internal ──────────────────────────────────────────────────────────────
   getAccessToken() {
     if (typeof globalThis !== "undefined" && "localStorage" in globalThis) {
-      const saved = globalThis.localStorage.getItem("auth");
+      const storageKey = this.config.storageKey || "thalamus_auth";
+      const saved = globalThis.localStorage.getItem(storageKey);
       if (saved) {
         try {
           return JSON.parse(saved).accessToken;
@@ -510,6 +511,7 @@ function useThalamus(options) {
     const code = params.get("code");
     const state = params.get("state");
     if (!code || !state) return;
+    window.history.replaceState({}, "", window.location.pathname);
     const savedState = sessionStorage.getItem(`${storageKey}_state`);
     if (state !== savedState) {
       setError("State mismatch \u2014 possible CSRF attack");
@@ -525,7 +527,6 @@ function useThalamus(options) {
       setToken(data.access_token);
       client.tokens.getUserInfo(data.access_token).then((u) => setUser(u)).catch(() => {
       });
-      window.history.replaceState({}, "", window.location.pathname);
     }).catch((err) => setError(err.message));
   }, [storageKey]);
   const persistAuth = (data) => {
@@ -777,16 +778,35 @@ function APIKeyManager({ baseUrl, authStorageKey = "thalamus_auth", label = "+ G
   const token = typeof window !== "undefined" ? (() => {
     try {
       const s = localStorage.getItem(authStorageKey);
-      return s ? JSON.parse(s).accessToken : "";
+      return s ? JSON.parse(s).accessToken : null;
     } catch {
-      return "";
+      return null;
     }
-  })() : "";
+  })() : null;
+  useEffect(() => {
+    if (!token) return;
+    const controller = new AbortController();
+    fetch(`${baseUrl}/api/personal-access-tokens`, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: controller.signal
+    }).then((res) => res.json()).then((data) => {
+      if (data.data) {
+        setKeys(data.data.map((k) => ({
+          api_key: k.api_key || k.id,
+          prefix: k.token_prefix || k.prefix || "zpat_",
+          created: k.inserted_at || k.created_at || k.created || (/* @__PURE__ */ new Date()).toISOString()
+        })));
+      }
+    }).catch((e) => {
+      if (e.name !== "AbortError") console.error("Failed to load API keys:", e);
+    });
+    return () => controller.abort();
+  }, [baseUrl, token]);
   const createKey = async () => {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`${baseUrl}/api/v1/api-keys`, {
+      const res = await fetch(`${baseUrl}/api/personal-access-tokens`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ name: `key-${Date.now()}`, scopes: ["api:read", "api:write"] })
@@ -894,7 +914,7 @@ function OrgManager({ config, className }) {
       setError(e.message);
       setLoading(false);
     });
-  }, [config.baseUrl]);
+  }, [config.baseUrl, config.clientId, config.redirectUri]);
   if (loading) return /* @__PURE__ */ jsx("p", { style: { color: "#656d76", fontSize: 13 }, children: "Loading..." });
   if (error) return /* @__PURE__ */ jsx("div", { style: { padding: "8px 12px", background: "#fff0f0", borderRadius: 6, color: "#c00", fontSize: 12 }, children: error });
   if (orgs.length === 0) return /* @__PURE__ */ jsx("p", { style: { color: "#656d76", fontSize: 13 }, children: "No organizations." });

@@ -19,7 +19,7 @@ export function OrgManager({ config, className }: OrgManagerProps) {
     client.admin.listOrganizations()
       .then(o => { setOrgs(o); setLoading(false) })
       .catch(e => { setError(e.message); setLoading(false) })
-  }, [config.baseUrl])
+  }, [config.baseUrl, config.clientId, config.redirectUri])
 
   if (loading) return <p style={{ color: '#656d76', fontSize: 13 }}>Loading...</p>
   if (error) return <div style={{ padding: '8px 12px', background: '#fff0f0', borderRadius: 6, color: '#c00', fontSize: 12 }}>{error}</div>
