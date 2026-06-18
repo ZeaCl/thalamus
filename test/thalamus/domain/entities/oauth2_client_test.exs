@@ -1,5 +1,5 @@
 defmodule Thalamus.Domain.Entities.OAuth2ClientTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias Thalamus.Domain.Entities.OAuth2Client
   alias Thalamus.Domain.ValueObjects.{ClientId, OrganizationId, GrantType, RedirectUri, Scope}

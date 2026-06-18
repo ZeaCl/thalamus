@@ -1,5 +1,5 @@
 defmodule Thalamus.Application.UseCases.AuthenticateUserTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   import Mox
 

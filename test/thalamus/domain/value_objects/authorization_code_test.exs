@@ -1,5 +1,5 @@
 defmodule Thalamus.Domain.ValueObjects.AuthorizationCodeTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias Thalamus.Domain.ValueObjects.{
     AuthorizationCode,

@@ -1,5 +1,5 @@
 defmodule ThalamusWeb.API.LoginControllerTest do
-  use ThalamusWeb.ConnCase, async: true
+  use ThalamusWeb.ConnCase, async: false
 
   alias Thalamus.Domain.Entities.User
   alias Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository

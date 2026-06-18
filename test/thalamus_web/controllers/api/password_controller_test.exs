@@ -1,5 +1,5 @@
 defmodule ThalamusWeb.API.PasswordControllerTest do
-  use ThalamusWeb.ConnCase, async: true
+  use ThalamusWeb.ConnCase, async: false
 
   alias Thalamus.Domain.Entities.{User, Organization}
   alias Thalamus.Domain.ValueObjects.{AccessToken, Scope}

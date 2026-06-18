@@ -1,5 +1,5 @@
 defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
-  use ThalamusWeb.ConnCase, async: true
+  use ThalamusWeb.ConnCase, async: false
 
   import Thalamus.TestHelpers
 

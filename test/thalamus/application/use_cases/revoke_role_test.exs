@@ -1,5 +1,5 @@
 defmodule Thalamus.Application.UseCases.RevokeRoleTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
   import Mox
 
   alias Thalamus.Application.UseCases.RevokeRole

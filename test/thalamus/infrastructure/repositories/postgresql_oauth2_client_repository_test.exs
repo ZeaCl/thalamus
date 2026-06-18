@@ -1,5 +1,5 @@
 defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepositoryTest do
-  use Thalamus.DataCase, async: true
+  use Thalamus.DataCase, async: false
 
   alias Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository
   alias Thalamus.Domain.Entities.OAuth2Client

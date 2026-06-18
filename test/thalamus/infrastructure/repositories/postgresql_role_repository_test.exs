@@ -1,5 +1,5 @@
 defmodule Thalamus.Infrastructure.Repositories.PostgresqlRoleRepositoryTest do
-  use Thalamus.DataCase, async: true
+  use Thalamus.DataCase, async: false
 
   alias Thalamus.Infrastructure.Repositories.PostgresqlRoleRepository
 

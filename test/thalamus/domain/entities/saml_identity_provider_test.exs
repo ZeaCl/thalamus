@@ -1,5 +1,5 @@
 defmodule Thalamus.Domain.Entities.SamlIdentityProviderTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias Thalamus.Domain.Entities.SamlIdentityProvider
   alias Thalamus.Domain.ValueObjects.OrganizationId

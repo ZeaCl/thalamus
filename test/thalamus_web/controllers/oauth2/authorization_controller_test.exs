@@ -1,5 +1,5 @@
 defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
-  use ThalamusWeb.ConnCase, async: true
+  use ThalamusWeb.ConnCase, async: false
 
   alias Thalamus.Domain.Entities.{User, Organization, OAuth2Client}
   alias Thalamus.Domain.ValueObjects.{ClientId, GrantType, Scope, RedirectUri}

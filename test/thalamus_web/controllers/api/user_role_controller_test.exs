@@ -1,5 +1,5 @@
 defmodule ThalamusWeb.API.UserRoleControllerTest do
-  use ThalamusWeb.ConnCase, async: true
+  use ThalamusWeb.ConnCase, async: false
 
   alias Thalamus.Infrastructure.Persistence.Schemas.{
     RoleSchema,

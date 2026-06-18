@@ -1,5 +1,5 @@
 defmodule Thalamus.Application.DTOs.TokenResponseTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias Thalamus.Application.DTOs.TokenResponse
 

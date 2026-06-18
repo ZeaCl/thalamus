@@ -1,5 +1,5 @@
 defmodule Thalamus.Infrastructure.Persistence.Schemas.ProjectContextSchemaTest do
-  use Thalamus.DataCase, async: true
+  use Thalamus.DataCase, async: false
   alias Thalamus.Infrastructure.Persistence.Schemas.{ProjectContextSchema, ProjectSchema}
 
   describe "ProjectContextSchema" do

@@ -1,5 +1,5 @@
 defmodule Thalamus.Infrastructure.Repositories.PostgreSQLSamlIdpRepositoryTest do
-  use Thalamus.DataCase, async: true
+  use Thalamus.DataCase, async: false
 
   alias Thalamus.Domain.Entities.SamlIdentityProvider
   alias Thalamus.Domain.ValueObjects.OrganizationId

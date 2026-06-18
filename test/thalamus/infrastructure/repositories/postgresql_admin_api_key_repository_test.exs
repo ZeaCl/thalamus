@@ -1,5 +1,5 @@
 defmodule Thalamus.Infrastructure.Repositories.PostgreSQLAdminApiKeyRepositoryTest do
-  use Thalamus.DataCase, async: true
+  use Thalamus.DataCase, async: false
 
   alias Thalamus.Infrastructure.Repositories.PostgreSQLAdminApiKeyRepository
   alias Thalamus.Domain.Entities.AdminApiKey

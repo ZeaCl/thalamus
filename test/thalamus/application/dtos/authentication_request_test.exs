@@ -1,5 +1,5 @@
 defmodule Thalamus.Application.DTOs.AuthenticationRequestTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias Thalamus.Application.DTOs.AuthenticationRequest
 

@@ -1,5 +1,5 @@
 defmodule Thalamus.Domain.Entities.UserTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias Thalamus.Domain.Entities.User
   alias Thalamus.Domain.ValueObjects.{UserId, Email, PasswordHash, MFAMethod}

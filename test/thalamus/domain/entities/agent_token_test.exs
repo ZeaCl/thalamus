@@ -1,5 +1,5 @@
 defmodule Thalamus.Domain.Entities.AgentTokenTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias Thalamus.Domain.Entities.AgentToken
   alias Thalamus.Domain.ValueObjects.{AgentType, TaskId, DelegationChain}

@@ -1,5 +1,5 @@
 defmodule Thalamus.Application.UseCases.CreateRoleTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
   import Mox
 
   alias Thalamus.Application.UseCases.CreateRole

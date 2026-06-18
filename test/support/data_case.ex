@@ -29,6 +29,11 @@ defmodule Thalamus.DataCase do
 
   setup tags do
     Thalamus.DataCase.setup_sandbox(tags)
+    
+    Mox.stub(MockCacheService, :get, fn _ -> {:error, :not_found} end)
+    Mox.stub(MockCacheService, :set, fn _, _, _ -> :ok end)
+    Mox.stub(MockCacheService, :delete, fn _ -> :ok end)
+    
     :ok
   end
 

@@ -1,5 +1,5 @@
 defmodule ThalamusWeb.Plugs.RequireAuthTest do
-  use ThalamusWeb.ConnCase, async: true
+  use ThalamusWeb.ConnCase, async: false
 
   alias ThalamusWeb.Plugs.RequireAuth
 

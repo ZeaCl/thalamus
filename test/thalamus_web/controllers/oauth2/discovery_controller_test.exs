@@ -1,5 +1,5 @@
 defmodule ThalamusWeb.OAuth2.DiscoveryControllerTest do
-  use ThalamusWeb.ConnCase, async: true
+  use ThalamusWeb.ConnCase, async: false
 
   describe "GET /.well-known/openid-configuration" do
     test "returns OpenID Connect Discovery document", %{conn: conn} do

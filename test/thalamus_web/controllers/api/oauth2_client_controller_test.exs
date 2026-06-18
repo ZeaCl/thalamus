@@ -1,5 +1,5 @@
 defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
-  use ThalamusWeb.ConnCase, async: true
+  use ThalamusWeb.ConnCase, async: false
 
   alias Thalamus.Domain.Entities.{User, Organization, OAuth2Client}
   alias Thalamus.Domain.ValueObjects.{AccessToken, Scope}
@@ -18,7 +18,7 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
     {:ok, org} = PostgreSQLOrganizationRepository.save(org)
 
     # Create admin user with access token
-    {:ok, admin} = User.register("admin@test.com", "AdminPass123!")
+    {:ok, admin} = User.register("admin8183@test.com", "AdminPass123!")
     {:ok, admin} = User.verify_email(admin)
     {:ok, admin} = PostgreSQLUserRepository.save(admin)
 

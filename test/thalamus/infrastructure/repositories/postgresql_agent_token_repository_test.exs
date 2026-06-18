@@ -1,5 +1,5 @@
 defmodule Thalamus.Infrastructure.Repositories.PostgreSQLAgentTokenRepositoryTest do
-  use Thalamus.DataCase, async: true
+  use Thalamus.DataCase, async: false
 
   alias Thalamus.Infrastructure.Repositories.PostgreSQLAgentTokenRepository
   alias Thalamus.Domain.Entities.AgentToken

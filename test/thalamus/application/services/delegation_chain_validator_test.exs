@@ -1,5 +1,5 @@
 defmodule Thalamus.Application.Services.DelegationChainValidatorTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
   import Mox
 
   alias Thalamus.Application.Services.DelegationChainValidator

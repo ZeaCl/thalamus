@@ -1,5 +1,5 @@
 defmodule Thalamus.Domain.Entities.OrganizationTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias Thalamus.Domain.Entities.Organization
   alias Thalamus.Domain.ValueObjects.{OrganizationId, UserId, Plan, Email}

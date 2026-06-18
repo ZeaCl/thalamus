@@ -1,5 +1,5 @@
 defmodule Thalamus.Infrastructure.Persistence.Schemas.AgentSkillSchemaTest do
-  use Thalamus.DataCase, async: true
+  use Thalamus.DataCase, async: false
   alias Thalamus.Infrastructure.Persistence.Schemas.AgentSkillSchema
 
   describe "AgentSkillSchema" do

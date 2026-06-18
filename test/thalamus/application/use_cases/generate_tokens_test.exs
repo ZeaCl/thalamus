@@ -1,5 +1,5 @@
 defmodule Thalamus.Application.UseCases.GenerateTokensTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   import Mox
 
@@ -564,7 +564,7 @@ defmodule Thalamus.Application.UseCases.GenerateTokensTest do
   end
 
   describe "execute/2 - password grant (deprecated)" do
-    test "returns error for password grant type" do
+    test "generates token for password grant type" do
       {:ok, client_id} = ClientId.new("test_client_123")
       {:ok, grant_type} = GrantType.new(:password)
 
@@ -583,6 +583,20 @@ defmodule Thalamus.Application.UseCases.GenerateTokensTest do
         created_at: DateTime.utc_now(),
         updated_at: DateTime.utc_now()
       }
+      
+      {:ok, user_id} = UserId.new("user_123")
+      {:ok, email_vo} = Email.new("user@example.com")
+      {:ok, pwd_hash} = PasswordHash.from_password("password123")
+      
+      user = %User{
+        id: user_id,
+        email: email_vo,
+        name: "Test User",
+        password_hash: pwd_hash,
+        status: :active,
+        is_agent: false,
+        organization_id: "org_123"
+      }
 
       {:ok, request} =
         TokenRequest.new(%{
@@ -599,12 +613,20 @@ defmodule Thalamus.Application.UseCases.GenerateTokensTest do
         token_repository: MockTokenRepository,
         audit_logger: MockAuditLogger
       }
-
+      
       expect(MockOAuth2ClientRepository, :find_by_client_id, fn "test_client_123" ->
         {:ok, client}
       end)
+      
+      expect(MockUserRepository, :find_by_email, fn _ ->
+        {:ok, user}
+      end)
+      
+      expect(MockAuditLogger, :log, fn _ -> :ok end)
 
-      {:error, :deprecated_grant_type} = GenerateTokens.execute(request, deps)
+      {:ok, response} = GenerateTokens.execute(request, deps)
+      assert response.token_type == "Bearer"
+      assert Map.has_key?(response, :access_token)
     end
   end
 

@@ -1,5 +1,5 @@
 defmodule ThalamusWeb.ErrorHTMLTest do
-  use ThalamusWeb.ConnCase, async: true
+  use ThalamusWeb.ConnCase, async: false
 
   # Bring render_to_string/4 for testing custom views
   import Phoenix.Template, only: [render_to_string: 4]

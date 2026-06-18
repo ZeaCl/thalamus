@@ -29,7 +29,7 @@ defmodule ThalamusWeb.API.HealthControllerTest do
   - Documentation: Tests match OpenAPI specification
   """
 
-  use ThalamusWeb.ConnCase, async: true
+  use ThalamusWeb.ConnCase, async: false
 
   alias Thalamus.Repo
   alias Thalamus.Infrastructure.Adapters.RedisCacheAdapter

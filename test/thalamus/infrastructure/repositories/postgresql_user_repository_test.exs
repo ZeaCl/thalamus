@@ -1,5 +1,5 @@
 defmodule Thalamus.Infrastructure.Repositories.PostgreSQLUserRepositoryTest do
-  use Thalamus.DataCase, async: true
+  use Thalamus.DataCase, async: false
 
   alias Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository
   alias Thalamus.Domain.Entities.User

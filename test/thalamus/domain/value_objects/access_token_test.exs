@@ -1,5 +1,5 @@
 defmodule Thalamus.Domain.ValueObjects.AccessTokenTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias Thalamus.Domain.ValueObjects.{AccessToken, UserId, ClientId, Scope}
 

@@ -17,7 +17,7 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLTokenRepositoryTest do
   Tests cover: store, find, revoke, cleanup_expired, and value object reconstruction
   """
 
-  use Thalamus.DataCase, async: true
+  use Thalamus.DataCase, async: false
 
   alias Thalamus.Infrastructure.Repositories.PostgreSQLTokenRepository
   alias Thalamus.Domain.ValueObjects.{UserId, ClientId, OrganizationId}

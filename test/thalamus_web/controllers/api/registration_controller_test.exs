@@ -1,5 +1,5 @@
 defmodule ThalamusWeb.API.RegistrationControllerTest do
-  use ThalamusWeb.ConnCase, async: true
+  use ThalamusWeb.ConnCase, async: false
 
   alias Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository
 

@@ -1,5 +1,5 @@
 defmodule Thalamus.Domain.ValueObjects.PasswordHashTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias Thalamus.Domain.ValueObjects.PasswordHash
 
