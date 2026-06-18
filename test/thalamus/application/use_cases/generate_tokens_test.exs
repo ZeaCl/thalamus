@@ -6,7 +6,7 @@ defmodule Thalamus.Application.UseCases.GenerateTokensTest do
   alias Thalamus.Application.UseCases.GenerateTokens
   alias Thalamus.Application.DTOs.{TokenRequest, TokenResponse}
   alias Thalamus.Domain.Entities.{User, OAuth2Client}
-  alias Thalamus.Domain.ValueObjects.{UserId, Email, ClientId, GrantType}
+  alias Thalamus.Domain.ValueObjects.{UserId, Email, ClientId, GrantType, PasswordHash}
 
   # Use global mocks defined in test_helper.exs
   # MockOAuth2ClientRepository
@@ -586,7 +586,7 @@ defmodule Thalamus.Application.UseCases.GenerateTokensTest do
       
       {:ok, user_id} = UserId.new("user_123")
       {:ok, email_vo} = Email.new("user@example.com")
-      {:ok, pwd_hash} = PasswordHash.from_password("password123")
+      {:ok, pwd_hash} = PasswordHash.from_password("Password123!")
       
       user = %User{
         id: user_id,
@@ -604,7 +604,7 @@ defmodule Thalamus.Application.UseCases.GenerateTokensTest do
           client_id: "test_client_123",
           client_secret: client_secret,
           username: "user@example.com",
-          password: "password123"
+          password: "Password123!"
         })
 
       deps = %{
@@ -622,7 +622,9 @@ defmodule Thalamus.Application.UseCases.GenerateTokensTest do
         {:ok, user}
       end)
       
-      expect(MockAuditLogger, :log, fn _ -> :ok end)
+      stub(MockAuditLogger, :log, fn _ -> :ok end)
+      stub(MockAuditLogger, :log_token_generated, fn _, _, _ -> :ok end)
+      stub(MockTokenRepository, :store, fn _ -> :ok end)
 
       {:ok, response} = GenerateTokens.execute(request, deps)
       assert response.token_type == "Bearer"

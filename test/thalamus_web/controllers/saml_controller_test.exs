@@ -32,13 +32,25 @@ defmodule ThalamusWeb.SamlControllerTest do
 
   describe "GET /auth/saml/init" do
     test "redirects to login when domain unknown" do
-      conn = get(build_conn(), "/auth/saml/init?email=pepito@unknown.com")
+      conn = get(build_conn() |> init_test_session(%{}) |> fetch_flash(), "/auth/saml/init?email=pepito@unknown.com")
       assert redirected_to(conn) =~ "/login"
     end
 
     test "redirects to login when no email param" do
-      conn = get(build_conn(), "/auth/saml/init")
+      conn = get(build_conn() |> init_test_session(%{}) |> fetch_flash(), "/auth/saml/init")
       assert redirected_to(conn) =~ "/login"
+    end
+  end
+
+  describe "POST /auth/saml/acs" do
+    test "redirects to login when user not found or auth fails" do
+      conn = post(build_conn() |> init_test_session(%{}) |> fetch_flash(), ~p"/auth/saml/acs", %{
+        "SAMLResponse" => "invalid",
+        "RelayState" => Ecto.UUID.generate()
+      })
+
+      assert redirected_to(conn) == "/login"
+      assert Phoenix.Flash.get(conn.assigns.flash, :error) =~ "SSO authentication failed"
     end
   end
 
