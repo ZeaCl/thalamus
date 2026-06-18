@@ -221,7 +221,8 @@ export class AdminAPI {
 
   private getAccessToken(): string | null {
     if (typeof globalThis !== 'undefined' && 'localStorage' in globalThis) {
-      const saved = (globalThis as any).localStorage.getItem('auth')
+      const storageKey = (this.config as any).storageKey || 'thalamus_auth'
+      const saved = (globalThis as any).localStorage.getItem(storageKey)
       if (saved) {
         try {
           return JSON.parse(saved).accessToken
