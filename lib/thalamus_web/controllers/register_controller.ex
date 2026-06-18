@@ -17,15 +17,17 @@ defmodule ThalamusWeb.RegisterController do
   end
 
   def create(conn, %{
-        "user" => %{
-          "email" => email,
-          "name" => name,
-          "password" => password,
-          "password_confirmation" => password_confirmation
-        } = user_params
+        "user" =>
+          %{
+            "email" => email,
+            "name" => name,
+            "password" => password,
+            "password_confirmation" => password_confirmation
+          } = user_params
       }) do
     org_name = user_params["org_name"]
     app_origin = user_params["app_origin"]
+
     cond do
       email == "" or name == "" or password == "" ->
         conn
@@ -70,6 +72,7 @@ defmodule ThalamusWeb.RegisterController do
 
             # Register OAuth client if app_origin provided and org was created
             sdk_client_id = get_session(conn, :sdk_client_id)
+
             new_client_id =
               if app_origin not in [nil, ""] and org != nil do
                 create_oauth_client(app_origin, org, user, sdk_client_id)
@@ -92,7 +95,10 @@ defmodule ThalamusWeb.RegisterController do
 
             # Log verification link for development
             require Logger
-            Logger.info("Verification: http://auth.zea.localhost/verify?email=#{URI.encode_www_form(email)}&token=#{verification_token}")
+
+            Logger.info(
+              "Verification: http://auth.zea.localhost/verify?email=#{URI.encode_www_form(email)}&token=#{verification_token}"
+            )
 
             conn
             |> put_flash(:info, "Welcome! Check your email to verify your account.")
@@ -118,6 +124,7 @@ defmodule ThalamusWeb.RegisterController do
 
   defp redirect_after_login(conn, nil, return_to) do
     target = return_to || get_return_to(conn)
+
     if String.starts_with?(target, "http://") or String.starts_with?(target, "https://") do
       redirect(conn, external: target)
     else
@@ -125,7 +132,8 @@ defmodule ThalamusWeb.RegisterController do
     end
   end
 
-  defp redirect_after_login(conn, authorization_request, _return_to) when is_map(authorization_request) do
+  defp redirect_after_login(conn, authorization_request, _return_to)
+       when is_map(authorization_request) do
     query_string = URI.encode_query(authorization_request)
     redirect(conn, to: "/oauth/authorize?" <> query_string)
   end
@@ -167,6 +175,7 @@ defmodule ThalamusWeb.RegisterController do
       {:ok, org} ->
         from(u in UserSchema, where: u.id == ^user.id)
         |> Repo.update_all(set: [organization_id: org.id])
+
         {:ok, %{id: org.id, name: org.name}}
 
       {:error, _changeset} ->
@@ -183,10 +192,21 @@ defmodule ThalamusWeb.RegisterController do
     Repo.query!(
       "INSERT INTO oauth2_clients (id, client_id_string, name, client_type, is_active, allowed_grant_types, allowed_scopes, redirect_uris, pkce_required, token_endpoint_auth_method, access_token_lifetime, refresh_token_lifetime, authorization_code_lifetime, organization_id, inserted_at, updated_at) VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14::uuid, $15, $15)",
       [
-        Ecto.UUID.dump!(Ecto.UUID.generate()), client_id, "#{org[:name]} App", "public", true,
-        ["authorization_code", "refresh_token"], ["openid", "profile", "email"],
-        [redirect_uri], true, "client_secret_post", 3600, 2_592_000, 600,
-        Ecto.UUID.dump!(org[:id]), now
+        Ecto.UUID.dump!(Ecto.UUID.generate()),
+        client_id,
+        "#{org[:name]} App",
+        "public",
+        true,
+        ["authorization_code", "refresh_token"],
+        ["openid", "profile", "email"],
+        [redirect_uri],
+        true,
+        "client_secret_post",
+        3600,
+        2_592_000,
+        600,
+        Ecto.UUID.dump!(org[:id]),
+        now
       ]
     )
 

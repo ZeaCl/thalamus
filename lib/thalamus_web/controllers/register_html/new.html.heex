@@ -111,7 +111,11 @@
                 <span class="label-text text-[10px] font-medium text-base-content/60 tracking-wide uppercase">
                   {gettext("Password")}
                 </span>
-                <button type="button" class="text-[10px] text-primary hover:text-primary-focus cursor-pointer bg-transparent border-none p-0 uppercase" onclick="generatePassword()">
+                <button
+                  type="button"
+                  class="text-[10px] text-primary hover:text-primary-focus cursor-pointer bg-transparent border-none p-0 uppercase"
+                  onclick="generatePassword()"
+                >
                   Generate
                 </button>
               </label>
@@ -140,37 +144,37 @@
             </div>
 
             <%= if assigns[:org_name] do %>
-            <div class="form-control w-full">
-              <label class="label py-0.5">
-                <span class="label-text text-[10px] font-medium text-base-content/60 tracking-wide uppercase">
-                  {gettext("Organization Name")}
-                </span>
-              </label>
-              <input
-                type="text"
-                name="user[org_name]"
-                value={assigns[:org_name]}
-                class="input bg-base-300/40 border border-white/5 rounded-xl w-full text-sm text-white placeholder-base-content/25 focus:border-primary/50 focus:bg-base-300/60 focus:ring-1 focus:ring-primary/20 transition-all duration-200"
-                placeholder="My Startup"
-              />
-            </div>
+              <div class="form-control w-full">
+                <label class="label py-0.5">
+                  <span class="label-text text-[10px] font-medium text-base-content/60 tracking-wide uppercase">
+                    {gettext("Organization Name")}
+                  </span>
+                </label>
+                <input
+                  type="text"
+                  name="user[org_name]"
+                  value={assigns[:org_name]}
+                  class="input bg-base-300/40 border border-white/5 rounded-xl w-full text-sm text-white placeholder-base-content/25 focus:border-primary/50 focus:bg-base-300/60 focus:ring-1 focus:ring-primary/20 transition-all duration-200"
+                  placeholder="My Startup"
+                />
+              </div>
             <% end %>
 
             <%= if assigns[:app_origin] do %>
-            <div class="form-control w-full">
-              <label class="label py-0.5">
-                <span class="label-text text-[10px] font-medium text-base-content/60 tracking-wide uppercase">
-                  {gettext("App Origin")}
-                </span>
-              </label>
-              <input
-                type="text"
-                name="user[app_origin]"
-                value={assigns[:app_origin]}
-                class="input bg-base-300/40 border border-white/5 rounded-xl w-full text-sm text-white placeholder-base-content/25 focus:border-primary/50 focus:bg-base-300/60 focus:ring-1 focus:ring-primary/20 transition-all duration-200"
-                placeholder="http://localhost:5173"
-              />
-            </div>
+              <div class="form-control w-full">
+                <label class="label py-0.5">
+                  <span class="label-text text-[10px] font-medium text-base-content/60 tracking-wide uppercase">
+                    {gettext("App Origin")}
+                  </span>
+                </label>
+                <input
+                  type="text"
+                  name="user[app_origin]"
+                  value={assigns[:app_origin]}
+                  class="input bg-base-300/40 border border-white/5 rounded-xl w-full text-sm text-white placeholder-base-content/25 focus:border-primary/50 focus:bg-base-300/60 focus:ring-1 focus:ring-primary/20 transition-all duration-200"
+                  placeholder="http://localhost:5173"
+                />
+              </div>
             <% end %>
 
             <div class="form-control pt-3">
@@ -220,7 +224,10 @@
           <div class="text-center">
             <p class="text-xs text-base-content/50">
               {gettext("Already have an account?")}
-              <a href={"/login" <> if @conn.query_string != "", do: "?#{@conn.query_string}", else: ""} class="text-primary hover:underline font-medium ml-1">
+              <a
+                href={"/login" <> if @conn.query_string != "", do: "?#{@conn.query_string}", else: ""}
+                class="text-primary hover:underline font-medium ml-1"
+              >
                 {gettext("Sign In")}
               </a>
             </p>

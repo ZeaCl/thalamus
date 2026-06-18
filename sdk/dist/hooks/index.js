@@ -403,7 +403,8 @@ var AdminAPI = class {
   // ── Internal ──────────────────────────────────────────────────────────────
   getAccessToken() {
     if (typeof globalThis !== "undefined" && "localStorage" in globalThis) {
-      const saved = globalThis.localStorage.getItem("auth");
+      const storageKey = this.config.storageKey || "thalamus_auth";
+      const saved = globalThis.localStorage.getItem(storageKey);
       if (saved) {
         try {
           return JSON.parse(saved).accessToken;
@@ -511,6 +512,7 @@ function useThalamus(options) {
     const code = params.get("code");
     const state = params.get("state");
     if (!code || !state) return;
+    window.history.replaceState({}, "", window.location.pathname);
     const savedState = sessionStorage.getItem(`${storageKey}_state`);
     if (state !== savedState) {
       setError("State mismatch \u2014 possible CSRF attack");
@@ -526,7 +528,6 @@ function useThalamus(options) {
       setToken(data.access_token);
       client.tokens.getUserInfo(data.access_token).then((u) => setUser(u)).catch(() => {
       });
-      window.history.replaceState({}, "", window.location.pathname);
     }).catch((err) => setError(err.message));
   }, [storageKey]);
   const persistAuth = (data) => {

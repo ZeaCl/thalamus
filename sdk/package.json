@@ -55,5 +55,11 @@
     "typescript": "^5.0.0"
   },
   "license": "MIT",
-  "repository": "github.com/zeacl/thalamus"
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ZeaCl/thalamus.git"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  }
 }

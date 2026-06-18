@@ -263,6 +263,7 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
 
   defp authenticate_user(nil, _password, _deps), do: {:error, :invalid_grant}
   defp authenticate_user(email, nil, _deps), do: {:error, :invalid_grant}
+
   defp authenticate_user(email, password, %{user_repository: repo}) when is_binary(email) do
     case Email.new(email) do
       {:ok, email_vo} ->

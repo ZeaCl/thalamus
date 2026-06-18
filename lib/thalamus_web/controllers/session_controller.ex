@@ -154,6 +154,7 @@ defmodule ThalamusWeb.SessionController do
 
   defp redirect_after_login(conn, nil, return_to) do
     target = return_to || get_return_to(conn)
+
     if String.starts_with?(target, "http://") or String.starts_with?(target, "https://") do
       redirect(conn, external: target)
     else
@@ -161,7 +162,8 @@ defmodule ThalamusWeb.SessionController do
     end
   end
 
-  defp redirect_after_login(conn, authorization_request, _return_to) when is_map(authorization_request) do
+  defp redirect_after_login(conn, authorization_request, _return_to)
+       when is_map(authorization_request) do
     # Rebuild authorization URL with original OAuth2 parameters
     query_string = URI.encode_query(authorization_request)
     redirect(conn, to: "/oauth/authorize?" <> query_string)

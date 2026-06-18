@@ -387,9 +387,11 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLUserRepositoryTest do
       # Search by email partial
       assert {:ok, users_by_email} = PostgreSQLUserRepository.list(%{username: "search_target"})
       assert length(users_by_email) >= 1
+
       assert Enum.any?(users_by_email, fn u ->
-        Thalamus.Domain.ValueObjects.Email.to_string(u.email) == "search_target@example.com"
-      end)
+               Thalamus.Domain.ValueObjects.Email.to_string(u.email) ==
+                 "search_target@example.com"
+             end)
 
       # No match
       assert {:ok, empty} = PostgreSQLUserRepository.list(%{username: "nonexistent_xyz"})

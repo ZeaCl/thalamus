@@ -138,7 +138,10 @@ defmodule ThalamusWeb.API.UserControllerTest do
       assert is_map(meta)
     end
 
-    test "filters by username (partial match on name or email)", %{conn: conn, access_token: token} do
+    test "filters by username (partial match on name or email)", %{
+      conn: conn,
+      access_token: token
+    } do
       # Create a user with specific name for search
       {:ok, named_user} = User.register("carlos@test.com", "Pass123!")
       named_user = %{named_user | name: "FullStack Developer"}

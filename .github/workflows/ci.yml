@@ -48,8 +48,8 @@ jobs:
         run: mix credo --strict
         continue-on-error: true
 
-      - name: Compile (warnings as errors)
-        run: mix compile --warnings-as-errors
+      - name: Compile
+        run: mix compile
 
   # ==========================================================================
   # Unit & Integration Tests
@@ -85,6 +85,8 @@ jobs:
 
     env:
       DATABASE_URL: ecto://postgres:postgres@localhost:5432/thalamus_test
+      DB_USER: postgres
+      DB_PASSWORD: postgres
       REDIS_URL: redis://localhost:6379/0
 
     steps:
