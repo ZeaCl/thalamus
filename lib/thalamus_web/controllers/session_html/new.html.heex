@@ -156,7 +156,10 @@
           <div class="text-center space-y-3">
             <p class="text-xs text-base-content/50">
               {gettext("Don't have an account?")}
-              <a href={"/register" <> if @conn.query_string != "", do: "?#{@conn.query_string}", else: ""} class="text-primary hover:underline font-medium ml-1">
+              <a
+                href={"/register" <> if @conn.query_string != "", do: "?#{@conn.query_string}", else: ""}
+                class="text-primary hover:underline font-medium ml-1"
+              >
                 {gettext("Sign Up")}
               </a>
             </p>

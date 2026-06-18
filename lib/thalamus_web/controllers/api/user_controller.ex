@@ -187,6 +187,7 @@ defmodule ThalamusWeb.API.UserController do
   def update(conn, %{"id" => id} = params) do
     # Unwrap "user" key if SDK wraps data (thalamus-js sends { user: data })
     update_params = params["user"] || params
+
     with {:ok, user_id} <- UserId.from_string(id),
          {:ok, user} <- PostgreSQLUserRepository.find_by_id(user_id),
          {:ok, updated_user} <- apply_updates(user, update_params),

@@ -123,9 +123,9 @@ defmodule Thalamus.Infrastructure.Adapters.SamlyAssertionValidator do
       # Use esaml_sp to validate the SAML response (HTTP-POST binding)
       # validate_assertion/2: (SAMLResponseXml, AcsUrl) -> {ok, Attributes} | {error, Reason}
       case :esaml_sp.validate_assertion(
-        to_charlist(saml_response_xml),
-        acs_url
-      ) do
+             to_charlist(saml_response_xml),
+             acs_url
+           ) do
         {:ok, assertion_data} ->
           # Extract attributes from the validated assertion
           name_id = Keyword.get(assertion_data, :name_id, "")
