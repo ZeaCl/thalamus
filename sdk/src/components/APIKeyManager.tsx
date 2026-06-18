@@ -37,10 +37,29 @@ export function APIKeyManager({ baseUrl, authStorageKey = 'thalamus_auth', label
     try { const s = localStorage.getItem(authStorageKey); return s ? JSON.parse(s).accessToken : '' } catch { return '' }
   })() : ''
 
+  useEffect(() => {
+    if (!token) return
+    fetch(`${baseUrl}/api/personal-access-tokens`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.data) {
+          // Map backend response correctly based on standard Elixir JSON:API or similar
+          setKeys(data.data.map((k: any) => ({
+            api_key: k.id, 
+            prefix: k.token_prefix || k.prefix || 'zpat_',
+            created: k.inserted_at || k.created_at || k.created || new Date().toISOString()
+          })))
+        }
+      })
+      .catch(e => console.error('Failed to load API keys:', e))
+  }, [baseUrl, token])
+
   const createKey = async () => {
     setLoading(true); setError('')
     try {
-      const res = await fetch(`${baseUrl}/api/v1/api-keys`, {
+      const res = await fetch(`${baseUrl}/api/personal-access-tokens`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ name: `key-${Date.now()}`, scopes: ['api:read', 'api:write'] }),
