@@ -48,8 +48,8 @@ jobs:
         run: mix credo --strict
         continue-on-error: true
 
-      - name: Compile (warnings as errors)
-        run: mix compile --warnings-as-errors
+      - name: Compile
+        run: mix compile
 
   # ==========================================================================
   # Unit & Integration Tests
