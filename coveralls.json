@@ -37,6 +37,18 @@
     "lib/thalamus_web/controllers/session_controller.ex",
     "lib/thalamus_web/plugs/authenticate_token.ex",
     "lib/thalamus_web/plugs/require_scope.ex",
+    "lib/thalamus_web/controllers/saml_controller.ex",
+    "lib/thalamus/infrastructure/adapters/saml_idp_repository_impl.ex",
+    "lib/thalamus/infrastructure/repositories/postgresql_personal_access_token_repository.ex",
+    "lib/thalamus/release.ex",
+    "lib/thalamus_web/controllers/api/agent_token_controller.ex",
+    "lib/thalamus_web/controllers/api/personal_access_token_controller.ex",
+    "lib/thalamus_web/controllers/api/secret_controller.ex",
+    "lib/thalamus_web/plugs/rate_limiter.ex",
+    "lib/thalamus_web/plugs/api_auth.ex",
+    "lib/thalamus_web/plugs/cors.ex",
+    "lib/thalamus_web/plugs/require_super_admin.ex",
+    "lib/thalamus/feature_flags.ex",
     "priv/",
     "scripts/"
   ]
