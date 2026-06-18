@@ -85,6 +85,8 @@ jobs:
 
     env:
       DATABASE_URL: ecto://postgres:postgres@localhost:5432/thalamus_test
+      DB_USER: postgres
+      DB_PASSWORD: postgres
       REDIS_URL: redis://localhost:6379/0
 
     steps:
