@@ -217,6 +217,18 @@ defmodule ThalamusWeb.Router do
     delete "/mfa/disable", MFAController, :disable_mfa
     post "/mfa/backup-codes/regenerate", MFAController, :regenerate_backup_codes
 
+    # RBAC - Role management
+    resources "/roles", RoleController, except: [:new, :edit]
+
+    # RBAC - User-role assignments
+    post "/users/:user_id/roles", UserRoleController, :assign
+    delete "/users/:user_id/roles/:role_id", UserRoleController, :revoke
+    get "/users/:user_id/roles", UserRoleController, :index
+    get "/users/:user_id/effective-scopes", UserRoleController, :effective_scopes
+
+    # Audit Logs - Compliance exports
+    get "/audit-logs/export", AuditLogController, :export
+
     # Agent Token Authorization (Cerebelum integration)
     post "/authorization/validate-step", AuthorizationController, :validate_step
   end
@@ -229,7 +241,19 @@ defmodule ThalamusWeb.Router do
 
     # Rotate OAuth2 client secret
     post "/clients/:client_id/rotate-secret", OAuth2ClientController, :rotate_secret
+
+    # Add dynamic redirect URI for subdomains
+    post "/clients/:client_id/add-redirect-uri", OAuth2ClientController, :add_redirect_uri
     resources "/secrets", SecretController, only: [:index, :create, :delete]
+  end
+
+  # SAML Configuration Management — admin, JWT + API Key auth
+  scope "/api", ThalamusWeb.API do
+    pipe_through :api_auth
+
+    get "/organizations/:id/saml-config", OrganizationController, :show_saml_config
+    put "/organizations/:id/saml-config", OrganizationController, :update_saml_config
+    delete "/organizations/:id/saml-config", OrganizationController, :delete_saml_config
   end
 
   # Admin API - requires super_admin role

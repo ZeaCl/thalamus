@@ -167,12 +167,12 @@ defmodule ThalamusWeb.API.RegistrationControllerTest do
              } = json_response(conn, 400)
     end
 
-    test "returns error with expired token", %{conn: conn, saved_user: saved_user} do
+    test "returns error with expired token", %{conn: conn} do
       # This would require mocking time or waiting
       # For now, just test with invalid token format
       conn =
         post(conn, ~p"/api/public/verify-email", %{
-          email: to_string(saved_user.email),
+          email: "user@test.com",
           token: "expired_token"
         })
 

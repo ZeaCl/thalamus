@@ -148,8 +148,8 @@ defmodule Thalamus.Application.UseCases.AuthenticateUserViaSaml do
 
     # Generate a random secure password for SAML-only users
     random_password =
-      :crypto.strong_rand_bytes(32)
-      |> Base.url_encode64(padding: false)
+      (:crypto.strong_rand_bytes(32)
+      |> Base.url_encode64(padding: false)) <> "!@1aA"
 
     {:ok, password_hash} = PasswordHash.from_password(random_password)
 

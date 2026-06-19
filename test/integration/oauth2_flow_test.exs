@@ -10,6 +10,7 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
   @moduletag :integration
 
   alias Thalamus.Domain.Entities.{User, Organization}
+  alias Thalamus.Domain.ValueObjects.{ClientId, GrantType, Scope, RedirectUri}
 
   alias Thalamus.Infrastructure.Repositories.{
     PostgreSQLUserRepository,
