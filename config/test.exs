@@ -7,7 +7,7 @@ import Config
 # Run `mix help test` for more information.
 config :thalamus, Thalamus.Repo,
   url: System.get_env("DATABASE_URL"),
-  username: System.get_env("DB_USER") || "dev",
+  username: System.get_env("DB_USER") || "postgres",
   password: System.get_env("DB_PASSWORD") || "",
   hostname: System.get_env("DB_HOST") || "localhost",
   database: "thalamus_test#{System.get_env("MIX_TEST_PARTITION")}",

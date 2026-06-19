@@ -2,7 +2,7 @@ import Config
 
 # Configure your database (macOS defaults to system user)
 config :thalamus, Thalamus.Repo,
-  username: System.get_env("DB_USER") || "dev",
+  username: System.get_env("DB_USER") || "postgres",
   password: System.get_env("DB_PASSWORD") || "",
   hostname: System.get_env("DB_HOST") || "localhost",
   database: System.get_env("DB_NAME") || "thalamus_dev",
