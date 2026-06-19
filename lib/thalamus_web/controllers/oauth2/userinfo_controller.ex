@@ -145,7 +145,6 @@ defmodule ThalamusWeb.OAuth2.UserinfoController do
     end
   end
 
-
   defp generate_slug(name) do
     name
     |> String.downcase()
