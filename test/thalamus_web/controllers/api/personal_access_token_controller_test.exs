@@ -56,7 +56,7 @@ defmodule ThalamusWeb.API.PersonalAccessTokenControllerTest do
 
     :ok = PostgreSQLTokenRepository.store(token_data)
 
-    conn = 
+    conn =
       Phoenix.ConnTest.build_conn()
       |> Plug.Conn.put_req_header("accept", "application/json")
       |> Plug.Conn.put_req_header("authorization", "Bearer #{access_token.token}")
@@ -65,31 +65,36 @@ defmodule ThalamusWeb.API.PersonalAccessTokenControllerTest do
   end
 
   describe "POST /api/personal-access-tokens" do
-    test "creates a personal access token successfully", %{conn: conn, user_id: user_id, org_id: org_id} do
-      
-      conn = post(conn, ~p"/api/personal-access-tokens", %{
-        "name" => "My Token",
-        "organization_id" => org_id,
-        "scopes" => ["zea:read"]
-      })
+    test "creates a personal access token successfully", %{
+      conn: conn,
+      user_id: user_id,
+      org_id: org_id
+    } do
+      conn =
+        post(conn, ~p"/api/personal-access-tokens", %{
+          "name" => "My Token",
+          "organization_id" => org_id,
+          "scopes" => ["zea:read"]
+        })
 
       user_uuid = String.replace_prefix(user_id, "user_", "")
+
       assert %{
-        "data" => %{
-          "name" => "My Token",
-          "user_id" => ^user_uuid,
-          "organization_id" => ^org_id,
-          "scopes" => ["zea:read"]
-        },
-        "token" => token
-      } = json_response(conn, 201)
+               "data" => %{
+                 "name" => "My Token",
+                 "user_id" => ^user_uuid,
+                 "organization_id" => ^org_id,
+                 "scopes" => ["zea:read"]
+               },
+               "token" => token
+             } = json_response(conn, 201)
 
       assert String.starts_with?(token, "th_pat_")
     end
 
     test "returns 400 when name is missing", %{conn: conn} do
       org_id = Ecto.UUID.generate()
-      
+
       # Will crash due to function clause not matching in controller (missing name or org_id)
       assert_error_sent 400, fn ->
         post(conn, ~p"/api/personal-access-tokens", %{
@@ -100,9 +105,13 @@ defmodule ThalamusWeb.API.PersonalAccessTokenControllerTest do
   end
 
   describe "GET /api/personal-access-tokens" do
-    test "lists personal access tokens for the authenticated user", %{conn: conn, user_id: user_id, org_id: org_id} do
+    test "lists personal access tokens for the authenticated user", %{
+      conn: conn,
+      user_id: user_id,
+      org_id: org_id
+    } do
       # Create a token first
-      
+
       post(conn, ~p"/api/personal-access-tokens", %{
         "name" => "My Token",
         "organization_id" => org_id,
@@ -114,25 +123,29 @@ defmodule ThalamusWeb.API.PersonalAccessTokenControllerTest do
 
       assert %{"data" => [token_data]} = json_response(conn, 200)
       assert token_data["name"] == "My Token"
-      
+
       user_uuid = String.replace_prefix(user_id, "user_", "")
       assert token_data["user_id"] == user_uuid
     end
   end
 
   describe "DELETE /api/personal-access-tokens/:id" do
-    test "deletes personal access token successfully", %{conn: conn, user_id: user_id, org_id: org_id} do
-      
-      res_conn = post(conn, ~p"/api/personal-access-tokens", %{
-        "name" => "My Token to Delete",
-        "organization_id" => org_id,
-        "scopes" => ["zea:read"]
-      })
+    test "deletes personal access token successfully", %{
+      conn: conn,
+      user_id: user_id,
+      org_id: org_id
+    } do
+      res_conn =
+        post(conn, ~p"/api/personal-access-tokens", %{
+          "name" => "My Token to Delete",
+          "organization_id" => org_id,
+          "scopes" => ["zea:read"]
+        })
 
       %{"data" => %{"id" => pat_id}} = json_response(res_conn, 201)
 
       del_conn = delete(conn, ~p"/api/personal-access-tokens/#{pat_id}")
-      
+
       assert json_response(del_conn, 200)["message"] == "Token revoked successfully"
     end
   end

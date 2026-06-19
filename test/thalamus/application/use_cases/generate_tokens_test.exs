@@ -577,11 +577,11 @@ defmodule Thalamus.Application.UseCases.GenerateTokensTest do
         created_at: DateTime.utc_now(),
         updated_at: DateTime.utc_now()
       }
-      
+
       {:ok, user_id} = UserId.new("user_123")
       {:ok, email_vo} = Email.new("user@example.com")
       {:ok, pwd_hash} = PasswordHash.from_password("Password123!")
-      
+
       user = %User{
         id: user_id,
         email: email_vo,
@@ -607,15 +607,15 @@ defmodule Thalamus.Application.UseCases.GenerateTokensTest do
         token_repository: MockTokenRepository,
         audit_logger: MockAuditLogger
       }
-      
+
       expect(MockOAuth2ClientRepository, :find_by_client_id, fn "test_client_123" ->
         {:ok, client}
       end)
-      
+
       expect(MockUserRepository, :find_by_email, fn _ ->
         {:ok, user}
       end)
-      
+
       stub(MockAuditLogger, :log, fn _ -> :ok end)
       stub(MockAuditLogger, :log_token_generated, fn _, _, _ -> :ok end)
       stub(MockTokenRepository, :store, fn _ -> :ok end)

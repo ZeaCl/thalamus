@@ -2,6 +2,7 @@ defmodule ThalamusWeb.API.DomainControllerTest do
   use ThalamusWeb.ConnCase
 
   alias Thalamus.Repo
+
   alias Thalamus.Infrastructure.Persistence.Schemas.{
     DomainScopeSchema,
     UserDomainRoleSchema,
@@ -13,7 +14,12 @@ defmodule ThalamusWeb.API.DomainControllerTest do
     {conn, user, org, token} = authenticate_api(conn)
     user_id = user.id.value |> String.replace_prefix("user_", "")
     org_id = org.id.value
-    {:ok, conn: put_req_header(conn, "accept", "application/json"), user_id: user_id, org_id: org_id, token: token}
+
+    {:ok,
+     conn: put_req_header(conn, "accept", "application/json"),
+     user_id: user_id,
+     org_id: org_id,
+     token: token}
   end
 
   describe "POST /api/domains/register" do
@@ -59,7 +65,7 @@ defmodule ThalamusWeb.API.DomainControllerTest do
       conn = put_req_header(conn, "authorization", "Bearer #{token}")
       conn = get(conn, "/api/domains")
       response = json_response(conn, 200)
-      
+
       data = response["data"]
       assert length(data) > 0
       assert Enum.any?(data, fn d -> d["domain"] == "test_domain" end)
@@ -67,7 +73,12 @@ defmodule ThalamusWeb.API.DomainControllerTest do
   end
 
   describe "POST /api/domains/roles/grant and POST /api/domains/roles/revoke" do
-    test "grants a domain role to a user", %{conn: conn, org_id: org_id, user_id: user_id, token: token} do
+    test "grants a domain role to a user", %{
+      conn: conn,
+      org_id: org_id,
+      user_id: user_id,
+      token: token
+    } do
       payload = %{
         "organization_id" => org_id,
         "user_id" => user_id,
@@ -82,7 +93,7 @@ defmodule ThalamusWeb.API.DomainControllerTest do
 
       roles = Repo.all(UserDomainRoleSchema)
       assert length(roles) == 1
-      
+
       role = hd(roles)
       assert role.domain == "venture"
       assert role.role == "admin"
@@ -90,14 +101,19 @@ defmodule ThalamusWeb.API.DomainControllerTest do
       assert role.organization_id == org_id
       assert role.user_id == user_id
     end
-    
+
     test "fails to grant role with invalid payload", %{conn: conn, token: token} do
-       conn = put_req_header(conn, "authorization", "Bearer #{token}")
-       conn = post(conn, "/api/domains/roles/grant", %{})
-       assert json_response(conn, 400)["error"] =~ "Missing required fields"
+      conn = put_req_header(conn, "authorization", "Bearer #{token}")
+      conn = post(conn, "/api/domains/roles/grant", %{})
+      assert json_response(conn, 400)["error"] =~ "Missing required fields"
     end
 
-    test "revokes a domain role from a user", %{conn: conn, org_id: org_id, user_id: user_id, token: token} do
+    test "revokes a domain role from a user", %{
+      conn: conn,
+      org_id: org_id,
+      user_id: user_id,
+      token: token
+    } do
       # Grant role manually
       Repo.insert!(%UserDomainRoleSchema{
         organization_id: org_id,
@@ -106,7 +122,7 @@ defmodule ThalamusWeb.API.DomainControllerTest do
         role: "admin",
         scopes: ["venture:read"]
       })
-      
+
       assert Repo.aggregate(UserDomainRoleSchema, :count, :id) == 1
 
       payload = %{
@@ -122,11 +138,11 @@ defmodule ThalamusWeb.API.DomainControllerTest do
 
       assert Repo.aggregate(UserDomainRoleSchema, :count, :id) == 0
     end
-    
+
     test "fails to revoke role with invalid payload", %{conn: conn, token: token} do
-       conn = put_req_header(conn, "authorization", "Bearer #{token}")
-       conn = delete(conn, "/api/domains/roles/revoke", %{})
-       assert json_response(conn, 400)["error"] =~ "Missing required fields"
+      conn = put_req_header(conn, "authorization", "Bearer #{token}")
+      conn = delete(conn, "/api/domains/roles/revoke", %{})
+      assert json_response(conn, 400)["error"] =~ "Missing required fields"
     end
   end
 
@@ -139,15 +155,20 @@ defmodule ThalamusWeb.API.DomainControllerTest do
         role: "editor",
         scopes: ["venture:read"]
       })
-      
+
       :ok
     end
 
-    test "lists all roles for a user in an org", %{conn: conn, org_id: org_id, user_id: user_id, token: token} do
+    test "lists all roles for a user in an org", %{
+      conn: conn,
+      org_id: org_id,
+      user_id: user_id,
+      token: token
+    } do
       conn = put_req_header(conn, "authorization", "Bearer #{token}")
       conn = get(conn, "/api/domains/roles?organization_id=#{org_id}&user_id=#{user_id}")
       response = json_response(conn, 200)
-      
+
       data = response["data"]
       assert length(data) == 1
       assert hd(data)["domain"] == "venture"

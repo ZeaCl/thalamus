@@ -61,14 +61,15 @@ defmodule ThalamusWeb.OAuth2.AgentTokenController do
   ```
   """
   def create(conn, params) do
-    request = build_request(params)
-    deps = DependencyBuilder.build_for_web(conn)
+    if Thalamus.FeatureFlags.agent_tokens_enabled?() do
+      request = build_request(params)
+      deps = DependencyBuilder.build_for_web(conn)
 
-    case GenerateAgentToken.execute(request, deps) do
-      {:ok, response} ->
-        conn
-        |> put_status(:ok)
-        |> json(AgentTokenResponse.to_map(response))
+      case GenerateAgentToken.execute(request, deps) do
+        {:ok, response} ->
+          conn
+          |> put_status(:ok)
+          |> json(AgentTokenResponse.to_map(response))
 
         {:error, error} ->
           handle_error(conn, error)
