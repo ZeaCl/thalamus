@@ -115,17 +115,11 @@ defmodule ThalamusWeb.Router do
   # Dashboard (Admin Panel)
   scope "/dashboard", ThalamusWeb.Dashboard do
     pipe_through :dashboard
-    live "/workflows", PlaceholderLive
-    live "/identity", PlaceholderLive
   end
 
   # OAuth2 Clients Management
   scope "/dashboard", ThalamusWeb do
     pipe_through :dashboard
-    live "/clients", PlaceholderLive
-    live "/clients/new", PlaceholderLive
-    live "/clients/:id", PlaceholderLive
-    live "/clients/:id/edit", PlaceholderLive
   end
 
   # Users Management

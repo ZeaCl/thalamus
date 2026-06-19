@@ -48,6 +48,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
     } do
       conn =
         post(conn, ~p"/oauth/agent-token", %{
+          organization_id: to_string(client.organization_id),
           client_id: to_string(client.id),
           client_secret: @test_client_secret,
           delegated_by_user_id: to_string(delegator.id),
@@ -75,6 +76,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
     } do
       conn =
         post(conn, ~p"/oauth/agent-token", %{
+          organization_id: to_string(client.organization_id),
           client_id: to_string(client.id),
           client_secret: @test_client_secret,
           delegated_by_user_id: to_string(delegator.id),
@@ -112,6 +114,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
     } do
       conn =
         post(conn, ~p"/oauth/agent-token", %{
+          organization_id: to_string(client.organization_id),
           client_id: to_string(client.id),
           client_secret: @test_client_secret,
           delegated_by_user_id: to_string(delegator.id),
@@ -140,6 +143,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
     test "enforces max TTL of 3600 seconds", %{conn: conn, delegator: delegator, client: client} do
       conn =
         post(conn, ~p"/oauth/agent-token", %{
+          organization_id: to_string(client.organization_id),
           client_id: to_string(client.id),
           client_secret: @test_client_secret,
           delegated_by_user_id: to_string(delegator.id),
@@ -184,6 +188,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
     } do
       conn =
         post(conn, ~p"/oauth/agent-token", %{
+          organization_id: to_string(client.organization_id),
           client_id: to_string(client.id),
           delegated_by_user_id: to_string(delegator.id),
           agent_type: "autonomous",
@@ -199,6 +204,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
     test "returns error with missing delegated_by_user_id", %{conn: conn, client: client} do
       conn =
         post(conn, ~p"/oauth/agent-token", %{
+          organization_id: to_string(client.organization_id),
           client_id: to_string(client.id),
           client_secret: @test_client_secret,
           agent_type: "autonomous",
@@ -218,6 +224,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
     } do
       conn =
         post(conn, ~p"/oauth/agent-token", %{
+          organization_id: to_string(client.organization_id),
           client_id: to_string(client.id),
           client_secret: @test_client_secret,
           delegated_by_user_id: to_string(delegator.id),
@@ -237,6 +244,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
     } do
       conn =
         post(conn, ~p"/oauth/agent-token", %{
+          organization_id: to_string(client.organization_id),
           client_id: to_string(client.id),
           client_secret: @test_client_secret,
           delegated_by_user_id: to_string(delegator.id),
@@ -253,6 +261,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
     test "returns error with empty scope", %{conn: conn, delegator: delegator, client: client} do
       conn =
         post(conn, ~p"/oauth/agent-token", %{
+          organization_id: to_string(client.organization_id),
           client_id: to_string(client.id),
           client_secret: @test_client_secret,
           delegated_by_user_id: to_string(delegator.id),
@@ -273,6 +282,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
     } do
       conn =
         post(conn, ~p"/oauth/agent-token", %{
+          organization_id: to_string(client.organization_id),
           client_id: to_string(client.id),
           client_secret: @test_client_secret,
           delegated_by_user_id: to_string(delegator.id),
@@ -314,6 +324,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
     } do
       conn =
         post(conn, ~p"/oauth/agent-token", %{
+          organization_id: to_string(client.organization_id),
           client_id: to_string(client.id),
           client_secret: "wrong_secret",
           delegated_by_user_id: to_string(delegator.id),
@@ -330,6 +341,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
     test "returns error with non-existent delegator", %{conn: conn, client: client} do
       conn =
         post(conn, ~p"/oauth/agent-token", %{
+          organization_id: to_string(client.organization_id),
           client_id: to_string(client.id),
           client_secret: @test_client_secret,
           delegated_by_user_id: "00000000-0000-0000-0000-000000000000",
@@ -352,6 +364,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
 
       conn =
         post(conn, ~p"/oauth/agent-token", %{
+          organization_id: to_string(client.organization_id),
           client_id: to_string(client.id),
           client_secret: @test_client_secret,
           delegated_by_user_id: to_string(inactive_user.id),
@@ -374,6 +387,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
     } do
       conn =
         post(conn, ~p"/oauth/agent-token", %{
+          organization_id: to_string(client.organization_id),
           client_id: to_string(client.id),
           client_secret: @test_client_secret,
           delegated_by_user_id: to_string(delegator.id),
@@ -398,6 +412,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
     } do
       conn =
         post(conn, ~p"/oauth/agent-token", %{
+          organization_id: to_string(client.organization_id),
           client_id: to_string(client.id),
           client_secret: @test_client_secret,
           delegated_by_user_id: to_string(delegator.id),
@@ -423,6 +438,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
     } do
       conn =
         post(conn, ~p"/oauth/agent-token", %{
+          organization_id: to_string(client.organization_id),
           client_id: to_string(client.id),
           client_secret: @test_client_secret,
           delegated_by_user_id: to_string(delegator.id),
@@ -445,6 +461,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
     test "accepts valid TTL within range", %{conn: conn, delegator: delegator, client: client} do
       conn =
         post(conn, ~p"/oauth/agent-token", %{
+          organization_id: to_string(client.organization_id),
           client_id: to_string(client.id),
           client_secret: @test_client_secret,
           delegated_by_user_id: to_string(delegator.id),
@@ -467,6 +484,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
     } do
       conn =
         post(conn, ~p"/oauth/agent-token", %{
+          organization_id: to_string(client.organization_id),
           client_id: to_string(client.id),
           client_secret: @test_client_secret,
           delegated_by_user_id: to_string(delegator.id),
@@ -489,6 +507,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
     } do
       conn =
         post(conn, ~p"/oauth/agent-token", %{
+          organization_id: to_string(client.organization_id),
           client_id: to_string(client.id),
           client_secret: @test_client_secret,
           delegated_by_user_id: to_string(delegator.id),
@@ -528,6 +547,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
       # Generate agent token
       conn1 =
         post(conn, ~p"/oauth/agent-token", %{
+          organization_id: to_string(client.organization_id),
           client_id: to_string(client.id),
           client_secret: @test_client_secret,
           delegated_by_user_id: to_string(delegator.id),
@@ -543,6 +563,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
       conn2 =
         post(conn, ~p"/oauth/introspect", %{
           token: access_token,
+          organization_id: to_string(client.organization_id),
           client_id: to_string(client.id),
           client_secret: @test_client_secret
         })

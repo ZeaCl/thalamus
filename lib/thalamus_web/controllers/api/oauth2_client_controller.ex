@@ -333,8 +333,7 @@ defmodule ThalamusWeb.API.OAuth2ClientController do
     grant_type_strings = params["grant_types"] || ["authorization_code", "refresh_token"]
 
     grant_types =
-      Enum.map(grant_type_strings, fn type_string ->
-        # Convert string to atom safely (validate against known grant types)
+      Enum.reduce_while(grant_type_strings, [], fn type_string, acc ->
         type_atom =
           case type_string do
             "authorization_code" -> :authorization_code
@@ -347,26 +346,54 @@ defmodule ThalamusWeb.API.OAuth2ClientController do
 
         if type_atom do
           {:ok, grant_type} = Thalamus.Domain.ValueObjects.GrantType.new(type_atom)
-          grant_type
+          {:cont, [grant_type | acc]}
         else
-          raise ArgumentError, "Invalid grant type: #{type_string}"
+          {:halt, {:error, :invalid_grant_type}}
         end
       end)
 
-    # Convert scope strings to Scope value objects (keep as strings for now)
-    scopes = params["scopes"] || []
+    case grant_types do
+      {:error, _} = err ->
+        err
 
-    {:ok, client_id} = ClientId.generate()
+      grant_types ->
+        grant_types = Enum.reverse(grant_types)
 
-    OAuth2Client.new(%{
-      id: client_id,
-      organization_id: org_id,
-      name: name,
-      client_type: client_type,
-      redirect_uris: redirect_uris,
-      grant_types: grant_types,
-      allowed_scopes: scopes
-    })
+        redirect_uris =
+          (params["redirect_uris"] || [])
+          |> Enum.map(fn uri ->
+            {:ok, redirect_uri} = Thalamus.Domain.ValueObjects.RedirectUri.new(uri)
+            redirect_uri
+          end)
+
+        # Convert scope strings to Scope value objects
+        scopes =
+          Enum.reduce_while(params["scopes"] || [], [], fn scope_string, acc ->
+            case Thalamus.Domain.ValueObjects.Scope.new(scope_string) do
+              {:ok, scope} -> {:cont, [scope | acc]}
+              {:error, _} -> {:halt, {:error, :invalid_scope}}
+            end
+          end)
+
+        case scopes do
+          {:error, _} = err ->
+            err
+
+          scopes ->
+            scopes = Enum.reverse(scopes)
+            {:ok, client_id} = ClientId.generate()
+
+            OAuth2Client.new(%{
+              id: client_id,
+              organization_id: org_id,
+              name: name,
+              client_type: client_type,
+              redirect_uris: redirect_uris,
+              grant_types: grant_types,
+              allowed_scopes: scopes
+            })
+        end
+    end
   end
 
   defp apply_updates(client, params) do
@@ -380,7 +407,14 @@ defmodule ThalamusWeb.API.OAuth2ClientController do
 
     # Apply redirect URIs update if present
     client =
-      if redirect_uris = params["redirect_uris"] do
+      if redirect_uris_strings = params["redirect_uris"] do
+        redirect_uris =
+          redirect_uris_strings
+          |> Enum.map(fn uri ->
+            {:ok, redirect_uri} = Thalamus.Domain.ValueObjects.RedirectUri.new(uri)
+            redirect_uri
+          end)
+
         %{client | redirect_uris: redirect_uris}
       else
         client

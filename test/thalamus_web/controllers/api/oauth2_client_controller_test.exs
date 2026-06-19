@@ -140,7 +140,7 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
           organization_id: to_string(org.id),
           redirect_uris: ["http://localhost:3000/callback", "http://localhost:3000/auth"],
           allowed_grant_types: ["authorization_code", "refresh_token"],
-          allowed_scopes: ["read", "write"]
+          allowed_scopes: ["zea:read", "write"]
         })
 
       assert %{
@@ -149,7 +149,7 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
                  "name" => "New Client",
                  "organization_id" => org_id,
                  "redirect_uris" => redirect_uris,
-                 "allowed_grant_types" => grant_types,
+                 "grant_types" => grant_types,
                  "allowed_scopes" => scopes,
                  "secret" => secret
                }
@@ -179,7 +179,7 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
 
       assert %{
                "data" => %{
-                 "allowed_grant_types" => grant_types,
+                 "grant_types" => grant_types,
                  "allowed_scopes" => scopes
                }
              } = json_response(conn, 201)
@@ -197,7 +197,7 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
           organization_id: to_string(org.id),
           redirect_uris: ["not-a-valid-uri"],
           allowed_grant_types: ["authorization_code"],
-          allowed_scopes: ["read"]
+          allowed_scopes: ["zea:read"]
         })
 
       assert %{
@@ -214,7 +214,7 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
           organization_id: to_string(org.id),
           redirect_uris: ["http://localhost:3000/callback"],
           allowed_grant_types: ["invalid_grant"],
-          allowed_scopes: ["read"]
+          allowed_scopes: ["zea:read"]
         })
 
       assert %{
@@ -271,7 +271,7 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
                  "id" => id,
                  "name" => "Get Client",
                  "redirect_uris" => redirect_uris,
-                 "allowed_grant_types" => grant_types
+                 "grant_types" => grant_types
                }
              } = json_response(conn, 200)
 
@@ -408,7 +408,7 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
         conn
         |> put_req_header("authorization", "Bearer #{token}")
         |> patch(~p"/api/clients/#{to_string(client.id)}", %{
-          allowed_scopes: ["read", "write", "admin"]
+          allowed_scopes: ["zea:read", "write", "admin"]
         })
 
       assert %{

@@ -384,7 +384,7 @@ defmodule ThalamusWeb.API.OrganizationController do
          {:ok, email} <- Email.new(email_string),
          {:ok, user} <- PostgreSQLUserRepository.find_by_email(email),
          role <- String.to_existing_atom(role_string),
-         {:ok, updated_org} <- Organization.add_member(organization, user.id, role),
+         {:ok, updated_org} <- Organization.add_member(organization, user.id, email, role),
          {:ok, _saved_org} <- PostgreSQLOrganizationRepository.save(updated_org) do
       conn
       |> put_status(:ok)

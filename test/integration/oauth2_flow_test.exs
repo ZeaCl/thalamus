@@ -62,7 +62,7 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
           response_type: "code",
           client_id: to_string(client.id),
           redirect_uri: "http://localhost:3000/callback",
-          scope: "openid profile email",
+          scope: "openid profile email zea:read",
           state: state
         })
 
@@ -79,7 +79,7 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
           decision: "approve",
           client_id: to_string(client.id),
           redirect_uri: "http://localhost:3000/callback",
-          scope: "openid profile email",
+          scope: "openid profile email zea:read",
           state: state
         })
 
@@ -301,7 +301,7 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
           grant_type: "client_credentials",
           client_id: to_string(client.id),
           client_secret: "test_secret_123",
-          scope: "openid profile email"
+          scope: "openid profile email zea:read"
         })
 
       assert %{

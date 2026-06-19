@@ -20,7 +20,7 @@ defmodule ThalamusWeb.API.PasswordControllerTest do
     {:ok, org} = Thalamus.Infrastructure.Repositories.PostgreSQLOrganizationRepository.save(org)
 
     {:ok, client} =
-      Thalamus.Integration.TestHelpers.create_test_client(
+      Thalamus.TestHelpers.create_test_client(
         "Test Client",
         org.id,
         ["zea:read", "zea:write"]

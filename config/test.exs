@@ -6,6 +6,7 @@ import Config
 # to provide built-in test partitioning in CI environment.
 # Run `mix help test` for more information.
 config :thalamus, Thalamus.Repo,
+  url: System.get_env("DATABASE_URL"),
   username: System.get_env("DB_USER") || "dev",
   password: System.get_env("DB_PASSWORD") || "",
   hostname: System.get_env("DB_HOST") || "localhost",
