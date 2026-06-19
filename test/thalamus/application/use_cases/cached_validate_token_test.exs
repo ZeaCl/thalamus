@@ -8,6 +8,11 @@ defmodule Thalamus.Application.UseCases.CachedValidateTokenTest do
 
   setup :verify_on_exit!
 
+  setup do
+    stub(MockCacheService, :set, fn _key, _value, _ttl -> :ok end)
+    :ok
+  end
+
   describe "execute/2 - cache hit" do
     test "returns cached result when available" do
       token = "at_cached_token_123"
