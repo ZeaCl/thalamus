@@ -9,6 +9,7 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
   """
 
   alias Thalamus.Application.DTOs.{TokenRequest, TokenResponse}
+  alias Thalamus.Infrastructure.JwtSigner
   # Ports are referenced via deps parameter, not direct aliases
 
   alias Thalamus.Domain.Entities.OAuth2Client
@@ -24,6 +25,8 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
   # 1 hour
   @refresh_token_ttl 2_592_000
   # 30 days
+  @service_token_ttl 604_800
+  # 7 days for service accounts (machine-to-machine)
 
   @doc """
   Executes the token generation use case.
@@ -101,23 +104,38 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
          _deps
        ) do
     # Machine-to-machine flow - no user involved
-    access_token = generate_access_token()
     scopes = parse_scopes(request.scope)
+    ttl = if is_service_client?(client), do: @service_token_ttl, else: @access_token_ttl
 
     unless OAuth2Client.valid_scopes?(client, scopes) do
       {:error, :invalid_scope}
     else
+      access_token =
+        generate_jwt_access_token(%{
+          user_id: nil,
+          client_id: client_id_string(client),
+          scope: Enum.join(scopes, " "),
+          expires_in: ttl,
+          aud: client_id_string(client)
+        })
       {:ok,
        %{
          access_token: access_token,
          token_type: "Bearer",
-         expires_in: @access_token_ttl,
+         expires_in: ttl,
          refresh_token: nil,
          scope: Enum.join(scopes, " "),
          user_id: nil,
          client_id: client.id
        }}
     end
+  end
+
+  defp is_service_client?(client) do
+    grants = client.grant_types || []
+    # Service clients only have client_credentials grant, no user-facing grants
+    grant_atoms = Enum.map(grants, fn g -> g.type end)
+    grant_atoms == [:client_credentials]
   end
 
   defp generate_for_grant_type(
@@ -130,9 +148,19 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
          {:ok, auth_code_data} <- verify_authorization_code(request.code, deps),
          :ok <- verify_pkce(request.code_verifier, auth_code_data),
          {:ok, user} <- get_user(auth_code_data.user_id, deps) do
-      access_token = generate_access_token()
-      refresh_token = generate_refresh_token()
       scopes = auth_code_data.scopes
+      refresh_token = generate_refresh_token()
+      access_token =
+        generate_jwt_access_token(%{
+          user_id: user.id,
+          client_id: client_id_string(client),
+          scope: Enum.join(scopes, " "),
+          expires_in: @access_token_ttl,
+          aud: client_id_string(client)
+        })
+
+      # Revoke authorization code
+      revoke_token(request.code, deps)
 
       {:ok,
        %{
@@ -155,8 +183,16 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
     with {:ok, stored_token} <- find_refresh_token(request.refresh_token, deps),
          :ok <- validate_token_ownership(stored_token, client.id) do
       # Generate new tokens
-      access_token = generate_access_token()
+      scopes_list = stored_token.scopes || []
       new_refresh_token = generate_refresh_token()
+      access_token =
+        generate_jwt_access_token(%{
+          user_id: stored_token.user_id,
+          client_id: client_id_string(client),
+          scope: Enum.join(scopes_list, " "),
+          expires_in: @access_token_ttl,
+          aud: client_id_string(client)
+        })
 
       # Revoke old refresh token (rotation)
       revoke_token(request.refresh_token, deps)
@@ -167,7 +203,7 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
          token_type: "Bearer",
          expires_in: @access_token_ttl,
          refresh_token: new_refresh_token,
-         scope: stored_token.scope,
+         scope: Enum.join(stored_token.scopes || [], " "),
          user_id: stored_token.user_id,
          client_id: client.id
        }}
@@ -209,8 +245,7 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
                user_id: token_data.user_id,
                client_id: token_data.client_id,
                scopes: token_data.scopes,
-               # TODO: Get from token_data once schema is updated
-               pkce_challenge: nil
+               pkce_challenge: Map.get(token_data, :code_challenge)
              }}
           end
         end
@@ -261,7 +296,21 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
   end
 
   defp generate_access_token do
-    "at_" <> (:crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false))
+    :crypto.strong_rand_bytes(32)
+    |> Base.url_encode64(padding: false)
+  end
+
+  defp generate_jwt_access_token(claims) do
+    JwtSigner.sign_access_token(claims)
+  end
+
+  defp client_id_string(client) do
+    if is_struct(client.id) do
+      to_string(client.id)
+    else
+      client.id
+    end
+    |> String.replace_prefix("client_", "")
   end
 
   defp generate_refresh_token do

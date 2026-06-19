@@ -16,7 +16,7 @@ defmodule ThalamusWeb.Clients.Index do
   def mount(_params, _session, socket) do
     {:ok,
      socket
-     |> assign(:page_title, "OAuth2 Clients")
+     |> assign(:page_title, "Multi-Agent Clients")
      |> assign(:current_path, "/dashboard/clients")
      |> assign(:search_query, "")
      |> assign(:filter_active, :all)
@@ -50,7 +50,7 @@ defmodule ThalamusWeb.Clients.Index do
 
   defp apply_action(socket, :index, _params) do
     socket
-    |> assign(:page_title, "OAuth2 Clients")
+    |> assign(:page_title, "Multi-Agent Clients")
     |> assign(:client, nil)
   end
 
@@ -166,15 +166,15 @@ defmodule ThalamusWeb.Clients.Index do
     <div class="px-4 sm:px-6 lg:px-8 py-8">
       <.breadcrumbs items={[
         %{label: "Dashboard", path: "/dashboard"},
-        %{label: "OAuth2 Clients", path: nil}
+        %{label: "Multi-Agent Clients", path: nil}
       ]} />
       
     <!-- Header -->
       <div class="sm:flex sm:items-center sm:justify-between">
         <div class="sm:flex-auto">
-          <h1 class="text-2xl font-semibold text-base-content">OAuth2 Clients</h1>
+          <h1 class="text-2xl font-semibold text-base-content">Multi-Agent Clients</h1>
           <p class="mt-2 text-sm text-base-content/70">
-            Manage OAuth2 client applications and their permissions
+            Manage agent authorization credentials and execution permissions
           </p>
         </div>
         <div class="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">

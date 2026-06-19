@@ -209,9 +209,18 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLTokenRepository do
 
     # Reconstruct the client_id as ClientId value object
     client_id =
-      case ClientId.from_string(schema.client_id) do
-        {:ok, client_id} -> client_id
-        _ -> nil
+      if schema.client_id do
+        client_id_str =
+          if String.starts_with?(schema.client_id, "client_"),
+            do: schema.client_id,
+            else: "client_" <> schema.client_id
+
+        case ClientId.from_string(client_id_str) do
+          {:ok, client_id} -> client_id
+          _ -> nil
+        end
+      else
+        nil
       end
 
     # Reconstruct the organization_id as OrganizationId value object if present
@@ -263,6 +272,8 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLTokenRepository do
       expires_at: schema.expires_at,
       revoked: schema.revoked,
       created_at: schema.inserted_at,
+      code_challenge: schema.code_challenge,
+      code_challenge_method: schema.code_challenge_method,
       # Agent-specific fields
       agent_type: schema.agent_type,
       delegated_by_user_id: delegated_by_user_id,

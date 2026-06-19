@@ -99,7 +99,7 @@ defmodule ThalamusWeb.Clients.Show do
     <div class="px-4 sm:px-6 lg:px-8 py-8">
       <.breadcrumbs items={[
         %{label: "Dashboard", path: "/dashboard"},
-        %{label: "OAuth2 Clients", path: "/dashboard/clients"},
+        %{label: "Multi-Agent Clients", path: "/dashboard/clients"},
         %{label: @client.name, path: nil}
       ]} />
       
@@ -175,7 +175,7 @@ defmodule ThalamusWeb.Clients.Show do
         <!-- Client Information -->
         <div class="card bg-base-100 shadow">
           <div class="card-body">
-            <h2 class="card-title">Client Information</h2>
+            <h2 class="card-title">Agent Information</h2>
 
             <div class="space-y-4">
               <div>
@@ -237,7 +237,7 @@ defmodule ThalamusWeb.Clients.Show do
     <!-- OAuth2 Configuration -->
         <div class="card bg-base-100 shadow">
           <div class="card-body">
-            <h2 class="card-title">OAuth2 Configuration</h2>
+            <h2 class="card-title">Identity & OAuth2 Scopes</h2>
 
             <div class="space-y-4">
               <div>

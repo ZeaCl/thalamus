@@ -24,7 +24,6 @@ erl_crash.dump
 # Static Assets (will be rebuilt)
 priv/static/assets/
 assets/node_modules/
-assets/vendor/
 
 # Test Coverage
 cover/

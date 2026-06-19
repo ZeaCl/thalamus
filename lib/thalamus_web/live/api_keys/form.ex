@@ -256,7 +256,7 @@ defmodule ThalamusWeb.ApiKeys.Form do
             <div class="sm:flex-auto">
               <h1 class="text-2xl font-semibold text-base-content">Create API Key</h1>
               <p class="mt-2 text-sm text-base-content/70">
-                Generate a new API key for programmatic access to Thalamus
+                Generate a new API key for programmatic access to ZEA
               </p>
             </div>
           </div>

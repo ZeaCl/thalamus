@@ -71,14 +71,20 @@ defmodule ThalamusWeb.Live.Hooks.LiveAuth do
   # Private helpers
 
   defp load_user(user_id) do
-    case Repo.get(UserSchema, user_id) do
-      nil ->
-        {:error, :not_found}
+    case Ecto.UUID.cast(user_id) do
+      {:ok, uuid} ->
+        case Repo.get(UserSchema, uuid) do
+          nil ->
+            {:error, :not_found}
 
-      user ->
-        # Preload organization if associated
-        user = Repo.preload(user, :organization)
-        {:ok, user}
+          user ->
+            # Preload organization if associated
+            user = Repo.preload(user, :organization)
+            {:ok, user}
+        end
+
+      :error ->
+        {:error, :invalid_uuid}
     end
   end
 end

@@ -89,11 +89,18 @@ defmodule ThalamusWeb.Plugs.RequireAuthTest do
 
   describe "Authenticated access" do
     setup %{conn: conn} do
+      # Create a real user
+      {:ok, user} =
+        Thalamus.Domain.Entities.User.register("test_plug_user@example.com", "Password123!")
+
+      {:ok, user} = Thalamus.Domain.Entities.User.verify_email(user)
+      {:ok, user} = Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository.save(user)
+
       # Create authenticated connection
       authenticated_conn =
         conn
         |> Plug.Test.init_test_session(%{})
-        |> put_session(:user_id, "user_123")
+        |> put_session(:user_id, user.id)
 
       {:ok, authenticated_conn: authenticated_conn}
     end
@@ -102,14 +109,14 @@ defmodule ThalamusWeb.Plugs.RequireAuthTest do
       conn = get(conn, ~p"/dashboard")
 
       # Should not redirect
-      assert html_response(conn, 200) =~ "OAuth2 Server Dashboard"
+      assert html_response(conn, 200) =~ "Dashboard"
     end
 
     test "allows access to clients index when authenticated", %{authenticated_conn: conn} do
       conn = get(conn, ~p"/dashboard/clients")
 
       # Should not redirect
-      assert html_response(conn, 200) =~ "OAuth2 Clients"
+      assert html_response(conn, 200) =~ "Multi-Agent Clients"
     end
 
     test "allows access to clients new form when authenticated", %{authenticated_conn: conn} do
