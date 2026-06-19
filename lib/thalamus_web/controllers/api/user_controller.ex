@@ -35,6 +35,7 @@ defmodule ThalamusWeb.API.UserController do
   - status: Filter by status (active, suspended, etc.)
   - verified: Filter by verification status (true/false)
   - organization_id: Filter by organization
+  - username: Filter by name or email (partial ILIKE match)
   - limit: Number of results (default: 50, max: 100)
   - offset: Pagination offset
 
@@ -258,6 +259,13 @@ defmodule ThalamusWeb.API.UserController do
     filters =
       if org_id = params["organization_id"] do
         Map.put(filters, :organization_id, org_id)
+      else
+        filters
+      end
+
+    filters =
+      if username = params["username"] do
+        Map.put(filters, :username, username)
       else
         filters
       end

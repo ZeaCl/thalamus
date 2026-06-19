@@ -101,8 +101,8 @@ defmodule Thalamus.Infrastructure.Adapters.SamlyAssertionValidator do
     cert = clean_pem(idp.idp_certificate)
     idp_entity_id = to_string(idp.idp_entity_id)
 
-    _sp_entity_id = resolve_sp_entity_id(idp)
-    _private_key = load_sp_keys() |> elem(0)
+    sp_entity_id = resolve_sp_entity_id(idp)
+    private_key = load_sp_keys() |> elem(0)
 
     # Build expected audience/recipient URLs
     base_url = base_url()

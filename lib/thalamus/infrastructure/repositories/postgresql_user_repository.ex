@@ -244,6 +244,7 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository do
     |> filter_by_status(filters[:status])
     |> filter_by_verified(filters[:verified])
     |> filter_by_organization(filters[:organization_id])
+    |> filter_by_username(filters[:username])
     |> order_by_field(filters[:order_by])
     |> limit_results(filters[:limit])
     |> offset_results(filters[:offset])
@@ -270,6 +271,16 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository do
   defp filter_by_organization(query, org_id) when is_binary(org_id) do
     where(query, [u], u.organization_id == ^org_id)
   end
+
+  defp filter_by_username(query, nil), do: query
+
+  defp filter_by_username(query, username) when is_binary(username) and username != "" do
+    search_term = "%#{username}%"
+
+    where(query, [u], ilike(u.name, ^search_term) or ilike(u.email, ^search_term))
+  end
+
+  defp filter_by_username(query, _), do: query
 
   defp order_by_field(query, nil), do: order_by(query, [u], desc: u.inserted_at)
   defp order_by_field(query, :email), do: order_by(query, [u], asc: u.email)

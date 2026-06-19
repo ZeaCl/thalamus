@@ -13,6 +13,7 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
   # Ports are referenced via deps parameter, not direct aliases
 
   alias Thalamus.Domain.Entities.OAuth2Client
+  alias Thalamus.Domain.ValueObjects.{UserId, Email}
 
   @type deps :: %{
           oauth2_client_repository: module(),
@@ -156,7 +157,11 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
           client_id: client_id_string(client),
           scope: Enum.join(scopes, " "),
           expires_in: @access_token_ttl,
-          aud: client_id_string(client)
+          aud: client_id_string(client),
+          sub: UserId.to_string(user.id),
+          name: user.name,
+          email: Email.to_string(user.email),
+          is_agent: user.is_agent
         })
 
       # Revoke authorization code
@@ -181,18 +186,23 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
          deps
        ) do
     with {:ok, stored_token} <- find_refresh_token(request.refresh_token, deps),
-         :ok <- validate_token_ownership(stored_token, client.id) do
+         :ok <- validate_token_ownership(stored_token, client.id),
+         {:ok, user} <- get_user(stored_token.user_id, deps) do
       # Generate new tokens
       scopes_list = stored_token.scopes || []
       new_refresh_token = generate_refresh_token()
 
       access_token =
         generate_jwt_access_token(%{
-          user_id: stored_token.user_id,
+          user_id: user.id,
           client_id: client_id_string(client),
           scope: Enum.join(scopes_list, " "),
           expires_in: @access_token_ttl,
-          aud: client_id_string(client)
+          aud: client_id_string(client),
+          sub: UserId.to_string(user.id),
+          name: user.name,
+          email: Email.to_string(user.email),
+          is_agent: user.is_agent
         })
 
       # Revoke old refresh token (rotation)
@@ -205,7 +215,7 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
          expires_in: @access_token_ttl,
          refresh_token: new_refresh_token,
          scope: Enum.join(stored_token.scopes || [], " "),
-         user_id: stored_token.user_id,
+         user_id: user.id,
          client_id: client.id
        }}
     end
