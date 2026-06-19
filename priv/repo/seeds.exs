@@ -62,7 +62,7 @@ sudlich_org =
       org_attrs = %{
         id: sudlich_org_id,
         name: "Südlich",
-        plan_type: :premium,
+        plan_type: :enterprise,
         status: :active,
         verified: true,
         max_users: 500,
@@ -165,6 +165,7 @@ ccerda_user =
 zea_members = [
   %{
     "user_id" => c_user_id,
+    "email" => "c@zea.cl",
     "role" => "owner",
     "joined_at" => DateTime.to_iso8601(DateTime.utc_now())
   }
@@ -178,11 +179,13 @@ zea_org
 sudlich_members = [
   %{
     "user_id" => ccerda_user_id,
+    "email" => "ccerda@sudlich.cl",
     "role" => "owner",
     "joined_at" => DateTime.to_iso8601(DateTime.utc_now())
   },
   %{
     "user_id" => c_user_id,
+    "email" => "c@zea.cl",
     "role" => "admin",
     "joined_at" => DateTime.to_iso8601(DateTime.utc_now())
   }

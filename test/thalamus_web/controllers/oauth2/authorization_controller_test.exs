@@ -40,6 +40,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
       # Simulate logged-in user
       conn =
         conn
+        |> Plug.Test.init_test_session(%{})
         |> put_session(:user_id, "some_user_id")
         |> get(~p"/oauth/authorize", %{
           response_type: "code",
@@ -62,6 +63,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
 
       conn =
         conn
+        |> Plug.Test.init_test_session(%{})
         |> put_session(:user_id, "some_user_id")
         |> get(~p"/oauth/authorize", %{
           response_type: "code",
@@ -93,6 +95,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
     test "returns error with missing response_type", %{conn: conn, client: client} do
       conn =
         conn
+        |> Plug.Test.init_test_session(%{})
         |> put_session(:user_id, "some_user_id")
         |> get(~p"/oauth/authorize", %{
           client_id: to_string(client.id),
@@ -105,6 +108,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
     test "returns error with invalid response_type", %{conn: conn, client: client} do
       conn =
         conn
+        |> Plug.Test.init_test_session(%{})
         |> put_session(:user_id, "some_user_id")
         |> get(~p"/oauth/authorize", %{
           # Not supported
@@ -119,6 +123,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
     test "returns error with invalid client_id", %{conn: conn} do
       conn =
         conn
+        |> Plug.Test.init_test_session(%{})
         |> put_session(:user_id, "some_user_id")
         |> get(~p"/oauth/authorize", %{
           response_type: "code",
@@ -132,6 +137,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
     test "returns error with unauthorized redirect_uri", %{conn: conn, client: client} do
       conn =
         conn
+        |> Plug.Test.init_test_session(%{})
         |> put_session(:user_id, "some_user_id")
         |> get(~p"/oauth/authorize", %{
           response_type: "code",
@@ -148,6 +154,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
     test "returns error with unsupported scope", %{conn: conn, client: client} do
       conn =
         conn
+        |> Plug.Test.init_test_session(%{})
         |> put_session(:user_id, "some_user_id")
         |> get(~p"/oauth/authorize", %{
           response_type: "code",
@@ -163,6 +170,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
     test "returns error with invalid PKCE challenge method", %{conn: conn, client: client} do
       conn =
         conn
+        |> Plug.Test.init_test_session(%{})
         |> put_session(:user_id, "some_user_id")
         |> get(~p"/oauth/authorize", %{
           response_type: "code",
@@ -186,6 +194,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
     } do
       conn =
         conn
+        |> Plug.Test.init_test_session(%{})
         |> put_session(:user_id, to_string(user.id))
         |> post(~p"/oauth/authorize", %{
           decision: "approve",
@@ -214,6 +223,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
     test "redirects with error when user denies", %{conn: conn, user: user, client: client} do
       conn =
         conn
+        |> Plug.Test.init_test_session(%{})
         |> put_session(:user_id, to_string(user.id))
         |> post(~p"/oauth/authorize", %{
           decision: "deny",
@@ -244,6 +254,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
 
       conn =
         conn
+        |> Plug.Test.init_test_session(%{})
         |> put_session(:user_id, to_string(user.id))
         |> post(~p"/oauth/authorize", %{
           decision: "approve",
@@ -269,6 +280,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
 
       conn =
         conn
+        |> Plug.Test.init_test_session(%{})
         |> put_session(:user_id, to_string(user.id))
         |> post(~p"/oauth/authorize", %{
           decision: "approve",
@@ -288,6 +300,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
     test "returns error with invalid decision", %{conn: conn, user: user, client: client} do
       conn =
         conn
+        |> Plug.Test.init_test_session(%{})
         |> put_session(:user_id, to_string(user.id))
         |> post(~p"/oauth/authorize", %{
           decision: "invalid_decision",
@@ -314,6 +327,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
     test "returns error with missing required parameters", %{conn: conn, user: user} do
       conn =
         conn
+        |> Plug.Test.init_test_session(%{})
         |> put_session(:user_id, to_string(user.id))
         |> post(~p"/oauth/authorize", %{
           decision: "approve"
@@ -332,6 +346,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
       # Generate authorization code
       conn =
         conn
+        |> Plug.Test.init_test_session(%{})
         |> put_session(:user_id, to_string(user.id))
         |> post(~p"/oauth/authorize", %{
           decision: "approve",
@@ -359,9 +374,10 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
       user: user,
       client: client
     } do
-      # Client allows [:read, :write], request only [:read]
+      # Client allows [%Thalamus.Domain.ValueObjects.Scope{value: "read"}, %Thalamus.Domain.ValueObjects.Scope{value: "write"}], request only [:read]
       conn =
         conn
+        |> Plug.Test.init_test_session(%{})
         |> put_session(:user_id, to_string(user.id))
         |> post(~p"/oauth/authorize", %{
           decision: "approve",
@@ -376,9 +392,10 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
     end
 
     test "rejects scopes not in client allowed list", %{conn: conn, user: user, client: client} do
-      # Client allows [:read, :write], request [:admin]
+      # Client allows [%Thalamus.Domain.ValueObjects.Scope{value: "read"}, %Thalamus.Domain.ValueObjects.Scope{value: "write"}], request [:admin]
       conn =
         conn
+        |> Plug.Test.init_test_session(%{})
         |> put_session(:user_id, to_string(user.id))
         |> post(~p"/oauth/authorize", %{
           decision: "approve",
@@ -395,6 +412,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
     test "uses default scopes when no scope specified", %{conn: conn, user: user, client: client} do
       conn =
         conn
+        |> Plug.Test.init_test_session(%{})
         |> put_session(:user_id, to_string(user.id))
         |> post(~p"/oauth/authorize", %{
           decision: "approve",
@@ -413,6 +431,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
     test "allows exact match redirect URI", %{conn: conn, user: user, client: client} do
       conn =
         conn
+        |> Plug.Test.init_test_session(%{})
         |> put_session(:user_id, to_string(user.id))
         |> post(~p"/oauth/authorize", %{
           decision: "approve",
@@ -432,6 +451,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
     } do
       conn =
         conn
+        |> Plug.Test.init_test_session(%{})
         |> put_session(:user_id, to_string(user.id))
         |> post(~p"/oauth/authorize", %{
           decision: "approve",
@@ -446,6 +466,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
     test "rejects redirect URI with different scheme", %{conn: conn, user: user, client: client} do
       conn =
         conn
+        |> Plug.Test.init_test_session(%{})
         |> put_session(:user_id, to_string(user.id))
         |> post(~p"/oauth/authorize", %{
           decision: "approve",
@@ -465,6 +486,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
       # Make multiple requests
       for _n <- 1..25 do
         conn
+        |> Plug.Test.init_test_session(%{})
         |> put_session(:user_id, to_string(user.id))
         |> get(~p"/oauth/authorize", %{
           response_type: "code",
@@ -477,6 +499,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
       # Next request should be rate limited
       conn =
         conn
+        |> Plug.Test.init_test_session(%{})
         |> put_session(:user_id, to_string(user.id))
         |> get(~p"/oauth/authorize", %{
           response_type: "code",

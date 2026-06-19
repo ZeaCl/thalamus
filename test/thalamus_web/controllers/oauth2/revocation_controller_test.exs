@@ -65,7 +65,7 @@ defmodule ThalamusWeb.OAuth2.RevocationControllerTest do
         type: :access_token,
         user_id: user.id,
         client_id: client.id,
-        scope: [:openid],
+        scopes: ["openid"],
         expires_at: access_token.expires_at
       }
 
@@ -93,14 +93,15 @@ defmodule ThalamusWeb.OAuth2.RevocationControllerTest do
     @tag :skip
     test "revokes valid refresh token", %{conn: conn, user: user, client: client} do
       # TODO: RefreshToken value object does not exist yet
-      {:ok, refresh_token} = RefreshToken.generate(user.id, client.id, [:openid, :profile, :email])
+      {:ok, refresh_token} =
+        RefreshToken.generate(user.id, client.id, [:openid, :profile, :email])
 
       token_data = %{
         token: refresh_token.token,
         type: :refresh_token,
         user_id: user.id,
         client_id: client.id,
-        scope: [:openid, :profile, :email],
+        scopes: ["openid", "profile", "email"],
         expires_at: DateTime.add(DateTime.utc_now(), 2_592_000, :second)
       }
 
@@ -143,7 +144,7 @@ defmodule ThalamusWeb.OAuth2.RevocationControllerTest do
         type: :access_token,
         user_id: user.id,
         client_id: client.id,
-        scope: [:openid],
+        scopes: ["openid"],
         expires_at: access_token.expires_at,
         revoked: true
       }
@@ -219,7 +220,7 @@ defmodule ThalamusWeb.OAuth2.RevocationControllerTest do
         type: :access_token,
         user_id: user.id,
         client_id: client.id,
-        scope: [:openid],
+        scopes: ["openid"],
         expires_at: access_token.expires_at
       }
 

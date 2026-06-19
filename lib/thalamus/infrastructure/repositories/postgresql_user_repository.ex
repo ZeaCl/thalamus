@@ -142,7 +142,11 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository do
   defp do_find_by_id(user_id_string) do
     # Extract UUID from "user_<uuid>" format
     uuid = String.replace_prefix(user_id_string, "user_", "")
-    Repo.get(UserSchema, uuid)
+
+    case Ecto.UUID.cast(uuid) do
+      {:ok, valid_uuid} -> Repo.get(UserSchema, valid_uuid)
+      :error -> nil
+    end
   end
 
   defp schema_to_entity(%UserSchema{} = schema) do

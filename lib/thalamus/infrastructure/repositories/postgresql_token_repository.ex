@@ -124,10 +124,10 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLTokenRepository do
     %{
       token: token_data.token,
       type: token_data.type,
-      user_id: prepare_user_id(token_data.user_id),
-      client_id: prepare_client_id(token_data.client_id),
+      user_id: prepare_user_id(Map.get(token_data, :user_id)),
+      client_id: prepare_client_id(Map.get(token_data, :client_id)),
       organization_id: prepare_organization_id(Map.get(token_data, :organization_id)),
-      scopes: token_data.scopes || [],
+      scopes: Map.get(token_data, :scopes) || Map.get(token_data, :scope) || [],
       expires_at: token_data.expires_at,
       code_challenge: Map.get(token_data, :code_challenge),
       code_challenge_method: Map.get(token_data, :code_challenge_method),

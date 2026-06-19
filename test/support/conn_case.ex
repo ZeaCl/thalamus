@@ -70,7 +70,7 @@ defmodule ThalamusWeb.ConnCase do
     user =
       UserSchema.create_changeset(%{
         "email" => "test#{System.unique_integer()}@example.com",
-        "password" => "TestPassword123!",
+        "password_hash" => Bcrypt.hash_pwd_salt("TestPassword123!"),
         "organization_id" => org.id,
         "status" => "active"
       })

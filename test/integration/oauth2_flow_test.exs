@@ -34,7 +34,7 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
       TestHelpers.create_test_client(
         "Test Client",
         org.id,
-        ["openid", "profile", "email"],
+        ["openid", "profile", "email", "zea:read", "zea:write"],
         redirect_uris: ["http://localhost:3000/callback"],
         grant_types: [:authorization_code, :refresh_token, :client_credentials]
       )
@@ -56,6 +56,7 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
 
       conn1 =
         conn
+        |> Plug.Test.init_test_session(%{})
         |> put_session(:user_id, to_string(user.id))
         |> get(~p"/oauth/authorize", %{
           response_type: "code",
@@ -72,6 +73,7 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
       # Step 2: User approves authorization
       conn2 =
         conn
+        |> Plug.Test.init_test_session(%{})
         |> put_session(:user_id, to_string(user.id))
         |> post(~p"/oauth/authorize", %{
           decision: "approve",
@@ -98,7 +100,7 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
           grant_type: "authorization_code",
           code: auth_code,
           client_id: to_string(client.id),
-          client_secret: client.secret,
+          client_secret: "test_secret_123",
           redirect_uri: "http://localhost:3000/callback"
         })
 
@@ -112,7 +114,7 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
 
       assert is_binary(access_token)
       assert is_binary(refresh_token)
-      assert String.contains?(scope, "read")
+      assert String.contains?(scope, "zea:read")
 
       # Step 4: Use access token to access protected resource
       conn4 =
@@ -124,7 +126,7 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
       assert is_list(users)
 
       # Step 5: Introspect token
-      credentials = Base.encode64("#{client.id}:#{client.secret}")
+      credentials = Base.encode64("#{client.id}:#{"test_secret_123"}")
 
       conn5 =
         conn
@@ -145,7 +147,7 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
           grant_type: "refresh_token",
           refresh_token: refresh_token,
           client_id: to_string(client.id),
-          client_secret: client.secret
+          client_secret: "test_secret_123"
         })
 
       assert %{
@@ -191,12 +193,13 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
       # Step 1: Authorization request with code_challenge
       conn1 =
         conn
+        |> Plug.Test.init_test_session(%{})
         |> put_session(:user_id, to_string(user.id))
         |> get(~p"/oauth/authorize", %{
           response_type: "code",
           client_id: to_string(client.id),
           redirect_uri: "http://localhost:3000/callback",
-          scope: "read",
+          scope: "zea:read",
           state: "state_123",
           code_challenge: code_challenge,
           code_challenge_method: "S256"
@@ -207,12 +210,13 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
       # Step 2: User approves
       conn2 =
         conn
+        |> Plug.Test.init_test_session(%{})
         |> put_session(:user_id, to_string(user.id))
         |> post(~p"/oauth/authorize", %{
           decision: "approve",
           client_id: to_string(client.id),
           redirect_uri: "http://localhost:3000/callback",
-          scope: "read",
+          scope: "zea:read",
           state: "state_123",
           code_challenge: code_challenge,
           code_challenge_method: "S256"
@@ -229,7 +233,7 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
           grant_type: "authorization_code",
           code: auth_code,
           client_id: to_string(client.id),
-          client_secret: client.secret,
+          client_secret: "test_secret_123",
           redirect_uri: "http://localhost:3000/callback",
           code_verifier: code_verifier
         })
@@ -254,12 +258,13 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
       # Get authorization code
       conn1 =
         conn
+        |> Plug.Test.init_test_session(%{})
         |> put_session(:user_id, to_string(user.id))
         |> post(~p"/oauth/authorize", %{
           decision: "approve",
           client_id: to_string(client.id),
           redirect_uri: "http://localhost:3000/callback",
-          scope: "read",
+          scope: "zea:read",
           code_challenge: code_challenge,
           code_challenge_method: "S256"
         })
@@ -277,7 +282,7 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
           grant_type: "authorization_code",
           code: auth_code,
           client_id: to_string(client.id),
-          client_secret: client.secret,
+          client_secret: "test_secret_123",
           redirect_uri: "http://localhost:3000/callback",
           code_verifier: wrong_verifier
         })
@@ -295,7 +300,7 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
         post(conn, ~p"/oauth/token", %{
           grant_type: "client_credentials",
           client_id: to_string(client.id),
-          client_secret: client.secret,
+          client_secret: "test_secret_123",
           scope: "openid profile email"
         })
 
@@ -307,7 +312,7 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
              } = json_response(conn1, 200)
 
       assert is_binary(access_token)
-      assert String.contains?(scope, "read")
+      assert String.contains?(scope, "zea:read")
 
       # Step 2: Use token to access API
       conn2 =
@@ -319,7 +324,7 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
       assert is_list(orgs)
 
       # Step 3: Introspect token
-      credentials = Base.encode64("#{client.id}:#{client.secret}")
+      credentials = Base.encode64("#{client.id}:#{"test_secret_123"}")
 
       conn3 =
         conn
@@ -342,7 +347,7 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
         post(conn, ~p"/oauth/token", %{
           grant_type: "client_credentials",
           client_id: to_string(client.id),
-          client_secret: client.secret
+          client_secret: "test_secret_123"
         })
 
       %{"access_token" => access_token} = json_response(conn1, 200)
@@ -367,7 +372,7 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
         post(conn, ~p"/oauth/token", %{
           grant_type: "client_credentials",
           client_id: to_string(client.id),
-          client_secret: client.secret
+          client_secret: "test_secret_123"
         })
 
       %{"access_token" => access_token} = json_response(conn1, 200)
@@ -381,7 +386,7 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
       assert json_response(conn2, 200)
 
       # Revoke token
-      credentials = Base.encode64("#{client.id}:#{client.secret}")
+      credentials = Base.encode64("#{client.id}:#{"test_secret_123"}")
 
       conn3 =
         conn
@@ -407,12 +412,13 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
       # Get authorization code
       conn1 =
         conn
+        |> Plug.Test.init_test_session(%{})
         |> put_session(:user_id, to_string(user.id))
         |> post(~p"/oauth/authorize", %{
           decision: "approve",
           client_id: to_string(client.id),
           redirect_uri: "http://localhost:3000/callback",
-          scope: "read"
+          scope: "zea:read"
         })
 
       location = Plug.Conn.get_resp_header(conn1, "location") |> List.first()
@@ -426,7 +432,7 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
           grant_type: "authorization_code",
           code: auth_code,
           client_id: to_string(client.id),
-          client_secret: client.secret,
+          client_secret: "test_secret_123",
           redirect_uri: "http://localhost:3000/callback"
         })
 
@@ -438,7 +444,7 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
           grant_type: "authorization_code",
           code: auth_code,
           client_id: to_string(client.id),
-          client_secret: client.secret,
+          client_secret: "test_secret_123",
           redirect_uri: "http://localhost:3000/callback"
         })
 
@@ -466,7 +472,7 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
           # Not supported
           grant_type: "password",
           client_id: to_string(client.id),
-          client_secret: client.secret
+          client_secret: "test_secret_123"
         })
 
       assert %{
@@ -482,9 +488,9 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
         post(conn, ~p"/oauth/token", %{
           grant_type: "client_credentials",
           client_id: to_string(client.id),
-          client_secret: client.secret,
+          client_secret: "test_secret_123",
           # Only read, not write
-          scope: "read"
+          scope: "zea:read"
         })
 
       %{"access_token" => access_token} = json_response(conn1, 200)

@@ -99,10 +99,10 @@ defmodule ThalamusWeb.Plugs.AuthenticateToken do
         else
           # Token is invalid or inactive (expired, revoked, or not found)
           cond do
-            validation_result.revoked ->
+            Map.get(validation_result, :revoked, false) ->
               unauthorized(conn, "Token has been revoked")
 
-            validation_result.expired ->
+            Map.get(validation_result, :expired, false) ->
               unauthorized(conn, "Token has expired")
 
             !validation_result.active ->

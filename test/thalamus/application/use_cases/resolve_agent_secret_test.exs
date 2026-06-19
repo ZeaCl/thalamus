@@ -28,7 +28,7 @@ defmodule Thalamus.Application.UseCases.ResolveAgentSecretTest do
         })
 
       assert {:ok, secret} = ResolveAgentSecret.execute("stitch", org_id, user_id)
-      assert secret.encrypted_value == "org-123"
+      assert secret.value == "org-123"
       assert secret.owner_type == "organization"
     end
 
@@ -57,7 +57,7 @@ defmodule Thalamus.Application.UseCases.ResolveAgentSecretTest do
       assert {:ok, secret} =
                ResolveAgentSecret.execute("stitch", org_id, user_id, prefer_user: true)
 
-      assert secret.encrypted_value == "user-123"
+      assert secret.value == "user-123"
       assert secret.owner_type == "user"
     end
 
@@ -75,7 +75,7 @@ defmodule Thalamus.Application.UseCases.ResolveAgentSecretTest do
         })
 
       assert {:ok, secret} = ResolveAgentSecret.execute("stitch", org_id, user_id)
-      assert secret.encrypted_value == "user-123"
+      assert secret.value == "user-123"
       assert secret.owner_type == "user"
     end
 

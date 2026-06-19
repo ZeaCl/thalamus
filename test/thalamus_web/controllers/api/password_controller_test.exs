@@ -15,20 +15,27 @@ defmodule ThalamusWeb.API.PasswordControllerTest do
     {:ok, user} = User.verify_email(user)
     {:ok, user} = PostgreSQLUserRepository.save(user)
 
+    # Create organization and client
+    {:ok, org} = Thalamus.Domain.Entities.Organization.new("Test Org", "admin@test.com")
+    {:ok, org} = Thalamus.Infrastructure.Repositories.PostgreSQLOrganizationRepository.save(org)
+
+    {:ok, client} =
+      Thalamus.Integration.TestHelpers.create_test_client(
+        "Test Client",
+        org.id,
+        ["zea:read", "zea:write"]
+      )
+
     # Generate access token for authenticated requests
     {:ok, access_token} =
-      AccessToken.generate(
-        user.id,
-        Thalamus.Domain.ValueObjects.ClientId.generate(),
-        [:read, :write],
-        3600
-      )
+      AccessToken.generate(["zea:read", "zea:write"], user.id, 3600)
 
     token_data = %{
       token: access_token.token,
       type: :access_token,
       user_id: user.id,
-      scope: [:read, :write],
+      client_id: client.id,
+      scopes: ["zea:read", "zea:write"],
       expires_at: access_token.expires_at
     }
 

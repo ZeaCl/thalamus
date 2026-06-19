@@ -25,9 +25,7 @@ defmodule Thalamus.Application.UseCases.ManageSecretsTest do
       # Reload to prove encryption
       reloaded = Thalamus.Repo.get!(Secret, secret.id)
       # cloak transparently decrypts this field!
-      assert reloaded.encrypted_value == "sk-12345"
-      # Virtual field is not loaded
-      assert reloaded.value == nil
+      assert reloaded.value == "sk-12345"
     end
 
     test "fails with invalid data" do

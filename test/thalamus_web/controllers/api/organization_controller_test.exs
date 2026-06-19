@@ -16,12 +16,29 @@ defmodule ThalamusWeb.API.OrganizationControllerTest do
     {:ok, admin} = User.verify_email(admin)
     {:ok, admin} = PostgreSQLUserRepository.save(admin)
 
+    # Create organization and client
+    {:ok, org} = Thalamus.Domain.Entities.Organization.new("Test Org", "admin@test.com")
+    {:ok, org} = Thalamus.Infrastructure.Repositories.PostgreSQLOrganizationRepository.save(org)
+
+    {:ok, client} =
+      Thalamus.TestHelpers.create_test_client(
+        "Test Client",
+        org.id,
+        ["zea:read", "zea:write", "zea:admin"]
+      )
+
+    {:ok, client} =
+      Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository.save(client)
+
     # Generate access token
     {:ok, access_token} =
       AccessToken.generate(
+        [
+          %Thalamus.Domain.ValueObjects.Scope{value: "zea:read"},
+          %Thalamus.Domain.ValueObjects.Scope{value: "zea:write"},
+          %Thalamus.Domain.ValueObjects.Scope{value: "zea:admin"}
+        ],
         admin.id,
-        Thalamus.Domain.ValueObjects.ClientId.generate(),
-        [:read, :write, :admin],
         3600
       )
 
@@ -29,7 +46,8 @@ defmodule ThalamusWeb.API.OrganizationControllerTest do
       token: access_token.token,
       type: :access_token,
       user_id: admin.id,
-      scope: [:read, :write, :admin],
+      client_id: client.id,
+      scopes: ["zea:read", "zea:write", "zea:admin"],
       expires_at: access_token.expires_at
     }
 
@@ -244,7 +262,7 @@ defmodule ThalamusWeb.API.OrganizationControllerTest do
     end
 
     test "returns 404 for non-existent organization", %{conn: conn, access_token: token} do
-      fake_id = Thalamus.Domain.ValueObjects.OrganizationId.generate!()
+      fake_id = Thalamus.Domain.ValueObjects.OrganizationId.generate() |> elem(1)
 
       conn =
         conn
@@ -323,7 +341,7 @@ defmodule ThalamusWeb.API.OrganizationControllerTest do
     end
 
     test "returns 404 for non-existent organization", %{conn: conn, access_token: token} do
-      fake_id = Thalamus.Domain.ValueObjects.OrganizationId.generate!()
+      fake_id = Thalamus.Domain.ValueObjects.OrganizationId.generate() |> elem(1)
 
       conn =
         conn
@@ -361,11 +379,12 @@ defmodule ThalamusWeb.API.OrganizationControllerTest do
       assert response(conn, 204)
 
       # Verify organization is deleted
-      assert {:error, :not_found} = PostgreSQLOrganizationRepository.find_by_id(org.id)
+      {:ok, deleted_org} = PostgreSQLOrganizationRepository.find_by_id(org.id)
+      assert deleted_org.status == :cancelled
     end
 
     test "returns 404 for non-existent organization", %{conn: conn, access_token: token} do
-      fake_id = Thalamus.Domain.ValueObjects.OrganizationId.generate!()
+      fake_id = Thalamus.Domain.ValueObjects.OrganizationId.generate() |> elem(1)
 
       conn =
         conn

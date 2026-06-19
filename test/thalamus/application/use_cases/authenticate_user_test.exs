@@ -8,33 +8,6 @@ defmodule Thalamus.Application.UseCases.AuthenticateUserTest do
   alias Thalamus.Domain.Entities.User
   alias Thalamus.Domain.ValueObjects.{UserId, Email, PasswordHash, MFAMethod}
 
-  # Define mocks
-  defmodule MockUserRepository do
-    @behaviour Thalamus.Application.Ports.UserRepository
-
-    def find_by_id(_user_id), do: {:error, :not_implemented}
-    def find_by_email(_email), do: {:error, :not_implemented}
-    def save(_user), do: {:error, :not_implemented}
-    def delete(_user_id), do: {:error, :not_implemented}
-    def list(_filters), do: {:error, :not_implemented}
-    def count(_filters), do: {:error, :not_implemented}
-    def update_last_login(_user_id, _timestamp), do: :ok
-  end
-
-  defmodule MockAuditLogger do
-    @behaviour Thalamus.Application.Ports.AuditLogger
-
-    def log_authentication_success(_user_id, _context), do: :ok
-    def log_authentication_failure(_identifier, _reason, _context), do: :ok
-    def log_authorization_granted(_user_id, _client_id, _scopes, _context), do: :ok
-    def log_authorization_denied(_user_id, _client_id, _reason, _context), do: :ok
-    def log_token_generated(_user_id, _client_id, _context), do: :ok
-    def log_token_revoked(_user_id, _token_id, _context), do: :ok
-    def log_user_event(_user_id, _event, _context), do: :ok
-    def log_client_event(_client_id, _event, _context), do: :ok
-    def log_organization_event(_org_id, _event, _context), do: :ok
-  end
-
   setup :verify_on_exit!
 
   describe "execute/2 - successful authentication" do

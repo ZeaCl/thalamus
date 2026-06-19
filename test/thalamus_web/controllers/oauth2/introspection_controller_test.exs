@@ -72,7 +72,7 @@ defmodule ThalamusWeb.OAuth2.IntrospectionControllerTest do
         type: :access_token,
         user_id: user.id,
         client_id: client.id,
-        scope: [:openid, :profile, :email],
+        scopes: ["openid", "profile", "email"],
         expires_at: access_token.expires_at
       }
 
@@ -137,7 +137,7 @@ defmodule ThalamusWeb.OAuth2.IntrospectionControllerTest do
         type: :access_token,
         user_id: user.id,
         client_id: client.id,
-        scope: [:openid],
+        scopes: ["openid"],
         expires_at: past_time
       }
 
@@ -166,7 +166,7 @@ defmodule ThalamusWeb.OAuth2.IntrospectionControllerTest do
         type: :access_token,
         user_id: user.id,
         client_id: client.id,
-        scope: [:openid],
+        scopes: ["openid"],
         expires_at: access_token.expires_at,
         revoked: true
       }
@@ -231,7 +231,7 @@ defmodule ThalamusWeb.OAuth2.IntrospectionControllerTest do
         type: :access_token,
         user_id: user.id,
         client_id: client.id,
-        scope: [:openid],
+        scopes: ["openid"],
         expires_at: access_token.expires_at
       }
 

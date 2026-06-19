@@ -101,3 +101,10 @@ defimpl Jason.Encoder, for: Thalamus.Domain.ValueObjects.UserId do
     Jason.Encode.string(value, opts)
   end
 end
+
+defimpl Phoenix.Param, for: Thalamus.Domain.ValueObjects.UserId do
+  def to_param(%Thalamus.Domain.ValueObjects.UserId{value: value}) do
+    # API endpoints expect the raw UUID for Ecto casting, not "user_..."
+    String.replace_prefix(value, "user_", "")
+  end
+end

@@ -72,7 +72,7 @@ defmodule ThalamusWeb.API.SecretController do
           owner_id: secret.owner_id,
           name: secret.name,
           # decrypted thanks to cloak!
-          value: secret.encrypted_value
+          value: secret.value
         })
 
       {:error, :not_found} ->

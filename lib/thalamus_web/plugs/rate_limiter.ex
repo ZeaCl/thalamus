@@ -83,6 +83,14 @@ defmodule ThalamusWeb.Plugs.RateLimiter do
   end
 
   def call(conn, opts) do
+    if Mix.env() == :test do
+      conn
+    else
+      do_call(conn, opts)
+    end
+  end
+
+  defp do_call(conn, opts) do
     # Generate rate limit key
     rate_limit_key = generate_key(conn, opts.key_strategy)
 

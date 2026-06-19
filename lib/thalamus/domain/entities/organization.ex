@@ -205,7 +205,7 @@ defmodule Thalamus.Domain.Entities.Organization do
       iex> Organization.add_member(org, user_id, :member)
       {:ok, %Organization{members: [_, _]}}
   """
-  def add_member(%__MODULE__{} = org, %UserId{} = user_id, role)
+  def add_member(%__MODULE__{} = org, %UserId{} = user_id, %Email{} = email, role)
       when role in @valid_roles do
     cond do
       member_exists?(org, user_id) ->
@@ -218,8 +218,9 @@ defmodule Thalamus.Domain.Entities.Organization do
         {:error, :cannot_add_owner}
 
       true ->
-        new_member = %{
+        new_member = %__MODULE__.Member{
           user_id: user_id,
+          email: email,
           role: role,
           joined_at: DateTime.utc_now()
         }
@@ -228,7 +229,7 @@ defmodule Thalamus.Domain.Entities.Organization do
     end
   end
 
-  def add_member(_, _, _), do: {:error, :invalid_member_data}
+  def add_member(_, _, _, _), do: {:error, :invalid_member_data}
 
   @doc """
   Removes a member from the organization.
@@ -507,12 +508,15 @@ defmodule Thalamus.Domain.Entities.Organization do
   #   Enum.any?(members, fn member -> member.role == :owner end)
   # end
 
-  defp can_add_member?(%__MODULE__{plan: plan, members: members}) do
-    Plan.allows_users?(plan, length(members) + 1)
+  defp can_add_member?(%__MODULE__{max_users: nil}), do: true
+
+  defp can_add_member?(%__MODULE__{max_users: max_users, members: members}) do
+    length(members) + 1 <= max_users
   end
 
-  defp can_downgrade_to_plan?(%__MODULE__{members: members}, new_plan) do
-    Plan.allows_users?(new_plan, length(members))
+  defp can_downgrade_to_plan?(%__MODULE__{members: members}, new_plan_type) do
+    max_users = plan_max_users(new_plan_type)
+    if is_nil(max_users), do: true, else: length(members) <= max_users
   end
 
   # Role hierarchy: owner > admin > billing > member

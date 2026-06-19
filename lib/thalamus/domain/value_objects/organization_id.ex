@@ -100,3 +100,9 @@ defimpl Jason.Encoder, for: Thalamus.Domain.ValueObjects.OrganizationId do
     Jason.Encode.string(value, opts)
   end
 end
+
+defimpl Phoenix.Param, for: Thalamus.Domain.ValueObjects.OrganizationId do
+  def to_param(%Thalamus.Domain.ValueObjects.OrganizationId{value: value}) do
+    String.replace_prefix(value, "org_", "")
+  end
+end

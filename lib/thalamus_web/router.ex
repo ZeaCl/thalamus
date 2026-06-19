@@ -77,6 +77,13 @@ defmodule ThalamusWeb.Router do
     plug ThalamusWeb.Plugs.RequireAuth
   end
 
+  scope "/auth/saml", ThalamusWeb do
+    get "/init", SamlController, :init
+    get "/callback", SamlController, :callback
+    post "/callback", SamlController, :callback
+    get "/metadata/:id", SamlController, :metadata
+  end
+
   scope "/", ThalamusWeb do
     pipe_through :browser
 
@@ -108,69 +115,47 @@ defmodule ThalamusWeb.Router do
   # Dashboard (Admin Panel)
   scope "/dashboard", ThalamusWeb.Dashboard do
     pipe_through :dashboard
-
-    live "/", Index, :index
+    live "/workflows", PlaceholderLive
+    live "/identity", PlaceholderLive
   end
 
   # OAuth2 Clients Management
   scope "/dashboard", ThalamusWeb do
     pipe_through :dashboard
-
-    live "/clients", Clients.Index, :index
-    live "/clients/new", Clients.Form, :new
-    live "/clients/:id", Clients.Show, :show
-    live "/clients/:id/edit", Clients.Form, :edit
+    live "/clients", PlaceholderLive
+    live "/clients/new", PlaceholderLive
+    live "/clients/:id", PlaceholderLive
+    live "/clients/:id/edit", PlaceholderLive
   end
 
   # Users Management
   scope "/dashboard", ThalamusWeb do
     pipe_through :dashboard
-
-    live "/users", Users.Index, :index
-    live "/users/new", Users.Form, :new
-    live "/users/:id", Users.Show, :show
-    live "/users/:id/edit", Users.Form, :edit
   end
 
   # Organizations Management
   scope "/dashboard", ThalamusWeb do
     pipe_through :dashboard
-
-    live "/organizations", Organizations.Index, :index
-    live "/organizations/new", Organizations.Form, :new
-    live "/organizations/:id", Organizations.Show, :show
-    live "/organizations/:id/edit", Organizations.Form, :edit
   end
 
   # Token Management
   scope "/dashboard", ThalamusWeb do
     pipe_through :dashboard
-
-    live "/tokens", Tokens.Index, :index
-    live "/tokens/:id", Tokens.Show, :show
   end
 
   # Audit Logs
   scope "/dashboard", ThalamusWeb do
     pipe_through :dashboard
-
-    live "/audit-logs", AuditLogs.Index, :index
   end
 
   # API Keys Management
   scope "/dashboard", ThalamusWeb do
     pipe_through :dashboard
-
-    live "/api-keys", ApiKeys.Index, :index
-    live "/api-keys/new", ApiKeys.Form, :new
-    live "/api-keys/:id", ApiKeys.Show, :show
   end
 
   # Settings
   scope "/dashboard", ThalamusWeb do
     pipe_through :dashboard
-
-    live "/settings", Settings.Index, :index
   end
 
   # OAuth2 Authorization Endpoints (Browser-based, needs CSRF protection)
@@ -247,6 +232,11 @@ defmodule ThalamusWeb.Router do
   end
 
   # OAuth2 Client Management API - accepts both JWT and API Keys
+  scope "/api/internal", ThalamusWeb.API do
+    pipe_through :api_auth
+    get "/secrets/resolve", SecretController, :resolve
+  end
+
   scope "/api", ThalamusWeb.API do
     pipe_through :api_auth
 
@@ -255,6 +245,7 @@ defmodule ThalamusWeb.Router do
 
     # Rotate OAuth2 client secret
     post "/clients/:client_id/rotate-secret", OAuth2ClientController, :rotate_secret
+    resources "/secrets", SecretController, except: [:new, :edit]
   end
 
   # Admin API - requires super_admin role

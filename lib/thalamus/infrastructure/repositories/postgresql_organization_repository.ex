@@ -230,7 +230,23 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOrganizationRepository 
 
     # Extract owner email from members (owner is the first member with owner role)
     owner_member = Enum.find(members, fn m -> m.role == :owner end)
-    owner_email = if owner_member, do: owner_member.email, else: nil
+
+    owner_email_str =
+      schema.owner_email || if owner_member, do: Email.to_string(owner_member.email), else: nil
+
+    owner_email_str = if owner_email_str in [nil, ""], do: nil, else: owner_email_str
+
+    owner_email =
+      case owner_email_str do
+        nil ->
+          nil
+
+        str ->
+          case Email.new(str) do
+            {:ok, email} -> email
+            _ -> nil
+          end
+      end
 
     # Use verified boolean to determine verified_at (if verified, use inserted_at as proxy)
     verified_at = if schema.verified, do: schema.inserted_at, else: nil
@@ -242,8 +258,12 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOrganizationRepository 
       status: schema.status,
       verified_at: verified_at,
       plan_type: schema.plan_type,
-      max_users: schema.max_users,
-      max_api_calls_per_month: schema.max_api_calls_per_month,
+      max_users: if(schema.max_users == 999_999_999, do: nil, else: schema.max_users),
+      max_api_calls_per_month:
+        if(schema.max_api_calls_per_month == 999_999_999,
+          do: nil,
+          else: schema.max_api_calls_per_month
+        ),
       api_calls_current_month: schema.api_calls_current_month,
       members: members,
       created_at: schema.inserted_at,
@@ -252,6 +272,7 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOrganizationRepository 
   end
 
   defp entity_to_map(%Organization{} = org) do
+    owner_email_str = if org.owner_email, do: Email.to_string(org.owner_email), else: nil
     org_id_string = OrganizationId.to_string(org.id)
     # Extract UUID from "org_<uuid>" format for database storage
     org_uuid = String.replace_prefix(org_id_string, "org_", "")
@@ -262,8 +283,9 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOrganizationRepository 
       status: org.status,
       verified: not is_nil(org.verified_at),
       plan_type: org.plan_type,
-      max_users: org.max_users,
-      max_api_calls_per_month: org.max_api_calls_per_month,
+      owner_email: owner_email_str,
+      max_users: org.max_users || 999_999_999,
+      max_api_calls_per_month: org.max_api_calls_per_month || 999_999_999,
       api_calls_current_month: org.api_calls_current_month,
       members: Enum.map(org.members, &member_to_map/1)
     }

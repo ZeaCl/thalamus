@@ -17,12 +17,28 @@ defmodule ThalamusWeb.API.MFAControllerTest do
     {:ok, user} = User.verify_email(user)
     {:ok, user} = PostgreSQLUserRepository.save(user)
 
+    # Create organization and client
+    {:ok, org} = Thalamus.Domain.Entities.Organization.new("Test Org", "admin@test.com")
+    {:ok, org} = Thalamus.Infrastructure.Repositories.PostgreSQLOrganizationRepository.save(org)
+
+    {:ok, client} =
+      Thalamus.TestHelpers.create_test_client(
+        "Test Client",
+        org.id,
+        ["zea:read", "zea:write"]
+      )
+
+    {:ok, client} =
+      Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository.save(client)
+
     # Generate access token for authenticated requests
     {:ok, access_token} =
       AccessToken.generate(
+        [
+          %Thalamus.Domain.ValueObjects.Scope{value: "zea:read"},
+          %Thalamus.Domain.ValueObjects.Scope{value: "zea:write"}
+        ],
         user.id,
-        Thalamus.Domain.ValueObjects.ClientId.generate(),
-        [:read, :write],
         3600
       )
 
@@ -30,7 +46,8 @@ defmodule ThalamusWeb.API.MFAControllerTest do
       token: access_token.token,
       type: :access_token,
       user_id: user.id,
-      scope: [:read, :write],
+      client_id: client.id,
+      scopes: ["zea:read", "zea:write"],
       expires_at: access_token.expires_at
     }
 
@@ -75,8 +92,14 @@ defmodule ThalamusWeb.API.MFAControllerTest do
 
     test "returns error if MFA already enabled", %{conn: conn, user: user, access_token: token} do
       # Enable MFA first
-      {:ok, mfa_method} = Thalamus.Domain.ValueObjects.MFAMethod.new(:totp, "TESTSECRET123456")
-      updated_user = %{user | mfa_enabled: true, mfa_methods: [mfa_method]}
+      {:ok, mfa_method} =
+        Thalamus.Domain.ValueObjects.MFAMethod.new(:totp, "JBSWY3DPEHPK3PXP", true)
+
+      updated_user = %{user | mfa_methods: [mfa_method]}
+
+      {:ok, updated_user} =
+        Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository.save(updated_user)
+
       {:ok, _} = PostgreSQLUserRepository.save(updated_user)
 
       conn =
@@ -128,7 +151,7 @@ defmodule ThalamusWeb.API.MFAControllerTest do
 
       # Verify user has MFA enabled
       {:ok, updated_user} = PostgreSQLUserRepository.find_by_id(user.id)
-      assert updated_user.mfa_enabled == true
+      assert Enum.any?(updated_user.mfa_methods, & &1.verified)
     end
 
     test "returns error with invalid code", %{conn: conn, access_token: token} do
@@ -216,16 +239,22 @@ defmodule ThalamusWeb.API.MFAControllerTest do
 
       # Verify MFA is disabled
       {:ok, updated_user} = PostgreSQLUserRepository.find_by_id(user.id)
-      assert updated_user.mfa_enabled == false
+      assert Enum.any?(updated_user.mfa_methods, & &1.verified) == false
     end
 
     test "returns error with invalid password", %{conn: conn, user: user, access_token: token} do
       # Enable MFA
-      {:ok, mfa_method} = Thalamus.Domain.ValueObjects.MFAMethod.new(:totp, "TESTSECRET123456")
-      updated_user = %{user | mfa_enabled: true, mfa_methods: [mfa_method]}
+      {:ok, mfa_method} =
+        Thalamus.Domain.ValueObjects.MFAMethod.new(:totp, "JBSWY3DPEHPK3PXP", true)
+
+      updated_user = %{user | mfa_methods: [mfa_method]}
+
+      {:ok, updated_user} =
+        Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository.save(updated_user)
+
       {:ok, _} = PostgreSQLUserRepository.save(updated_user)
 
-      code = generate_totp_code("TESTSECRET123456")
+      code = generate_totp_code("JBSWY3DPEHPK3PXP")
 
       conn =
         conn
@@ -242,8 +271,14 @@ defmodule ThalamusWeb.API.MFAControllerTest do
 
     test "returns error with invalid code", %{conn: conn, user: user, access_token: token} do
       # Enable MFA
-      {:ok, mfa_method} = Thalamus.Domain.ValueObjects.MFAMethod.new(:totp, "TESTSECRET123456")
-      updated_user = %{user | mfa_enabled: true, mfa_methods: [mfa_method]}
+      {:ok, mfa_method} =
+        Thalamus.Domain.ValueObjects.MFAMethod.new(:totp, "JBSWY3DPEHPK3PXP", true)
+
+      updated_user = %{user | mfa_methods: [mfa_method]}
+
+      {:ok, updated_user} =
+        Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository.save(updated_user)
+
       {:ok, _} = PostgreSQLUserRepository.save(updated_user)
 
       conn =
@@ -281,11 +316,17 @@ defmodule ThalamusWeb.API.MFAControllerTest do
       access_token: token
     } do
       # Enable MFA
-      {:ok, mfa_method} = Thalamus.Domain.ValueObjects.MFAMethod.new(:totp, "TESTSECRET123456")
-      updated_user = %{user | mfa_enabled: true, mfa_methods: [mfa_method]}
+      {:ok, mfa_method} =
+        Thalamus.Domain.ValueObjects.MFAMethod.new(:totp, "JBSWY3DPEHPK3PXP", true)
+
+      updated_user = %{user | mfa_methods: [mfa_method]}
+
+      {:ok, updated_user} =
+        Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository.save(updated_user)
+
       {:ok, _} = PostgreSQLUserRepository.save(updated_user)
 
-      code = generate_totp_code("TESTSECRET123456")
+      code = generate_totp_code("JBSWY3DPEHPK3PXP")
 
       conn =
         conn
@@ -310,11 +351,17 @@ defmodule ThalamusWeb.API.MFAControllerTest do
     end
 
     test "returns error with invalid password", %{conn: conn, user: user, access_token: token} do
-      {:ok, mfa_method} = Thalamus.Domain.ValueObjects.MFAMethod.new(:totp, "TESTSECRET123456")
-      updated_user = %{user | mfa_enabled: true, mfa_methods: [mfa_method]}
+      {:ok, mfa_method} =
+        Thalamus.Domain.ValueObjects.MFAMethod.new(:totp, "JBSWY3DPEHPK3PXP", true)
+
+      updated_user = %{user | mfa_methods: [mfa_method]}
+
+      {:ok, updated_user} =
+        Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository.save(updated_user)
+
       {:ok, _} = PostgreSQLUserRepository.save(updated_user)
 
-      code = generate_totp_code("TESTSECRET123456")
+      code = generate_totp_code("JBSWY3DPEHPK3PXP")
 
       conn =
         conn

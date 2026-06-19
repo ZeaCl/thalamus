@@ -8,56 +8,6 @@ defmodule Thalamus.Application.UseCases.GenerateTokensTest do
   alias Thalamus.Domain.Entities.{User, OAuth2Client}
   alias Thalamus.Domain.ValueObjects.{UserId, Email, ClientId, GrantType}
 
-  # Define mocks
-  defmodule MockOAuth2ClientRepository do
-    @behaviour Thalamus.Application.Ports.OAuth2ClientRepository
-
-    def find_by_id(_client_id), do: {:error, :not_implemented}
-    def find_by_client_id(_client_id_string), do: {:error, :not_implemented}
-    def save(_client), do: {:error, :not_implemented}
-    def delete(_client_id), do: {:error, :not_implemented}
-    def list(_filters), do: {:error, :not_implemented}
-    def find_by_organization(_org_id), do: {:error, :not_implemented}
-  end
-
-  defmodule MockUserRepository do
-    @behaviour Thalamus.Application.Ports.UserRepository
-
-    def find_by_id(_user_id), do: {:error, :not_implemented}
-    def find_by_email(_email), do: {:error, :not_implemented}
-    def save(_user), do: {:error, :not_implemented}
-    def delete(_user_id), do: {:error, :not_implemented}
-    def list(_filters), do: {:error, :not_implemented}
-    def count(_filters), do: {:error, :not_implemented}
-    def update_last_login(_user_id, _timestamp), do: :ok
-  end
-
-  defmodule MockTokenRepository do
-    @behaviour Thalamus.Application.Ports.TokenRepository
-
-    def store(_token_data), do: :ok
-    def find(_token), do: {:error, :not_found}
-    def revoke(_token), do: :ok
-    def revoke_all_for_user(_user_id), do: :ok
-    def revoke_all_for_client(_client_id), do: :ok
-    def cleanup_expired(), do: {:ok, 0}
-    def find_by_user(_user_id), do: {:ok, []}
-  end
-
-  defmodule MockAuditLogger do
-    @behaviour Thalamus.Application.Ports.AuditLogger
-
-    def log_authentication_success(_user_id, _context), do: :ok
-    def log_authentication_failure(_identifier, _reason, _context), do: :ok
-    def log_authorization_granted(_user_id, _client_id, _scopes, _context), do: :ok
-    def log_authorization_denied(_user_id, _client_id, _reason, _context), do: :ok
-    def log_token_generated(_user_id, _client_id, _context), do: :ok
-    def log_token_revoked(_user_id, _token_id, _context), do: :ok
-    def log_user_event(_user_id, _event, _context), do: :ok
-    def log_client_event(_client_id, _event, _context), do: :ok
-    def log_organization_event(_org_id, _event, _context), do: :ok
-  end
-
   setup :verify_on_exit!
 
   describe "execute/2 - client_credentials grant" do

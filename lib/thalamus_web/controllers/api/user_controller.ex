@@ -293,7 +293,6 @@ defmodule ThalamusWeb.API.UserController do
       id: UserId.to_string(user.id),
       email: Email.to_string(user.email),
       name: user.name,
-      avatar_url: user.avatar_url,
       status: user.status,
       verified: !is_nil(user.verified_at),
       verified_at: user.verified_at,

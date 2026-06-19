@@ -6,19 +6,6 @@ defmodule Thalamus.Application.UseCases.ValidateTokenTest do
   alias Thalamus.Application.UseCases.ValidateToken
   alias Thalamus.Domain.ValueObjects.{UserId, ClientId}
 
-  # Define mock
-  defmodule MockTokenRepository do
-    @behaviour Thalamus.Application.Ports.TokenRepository
-
-    def store(_token_data), do: :ok
-    def find(_token), do: {:error, :not_found}
-    def revoke(_token), do: :ok
-    def revoke_all_for_user(_user_id), do: :ok
-    def revoke_all_for_client(_client_id), do: :ok
-    def cleanup_expired(), do: {:ok, 0}
-    def find_by_user(_user_id), do: {:ok, []}
-  end
-
   setup :verify_on_exit!
 
   describe "execute/2 - valid tokens" do

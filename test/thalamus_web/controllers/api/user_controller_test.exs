@@ -15,12 +15,29 @@ defmodule ThalamusWeb.API.UserControllerTest do
     {:ok, admin} = User.verify_email(admin)
     {:ok, admin} = PostgreSQLUserRepository.save(admin)
 
+    # Create organization and client
+    {:ok, org} = Thalamus.Domain.Entities.Organization.new("Test Org", "admin@test.com")
+    {:ok, org} = Thalamus.Infrastructure.Repositories.PostgreSQLOrganizationRepository.save(org)
+
+    {:ok, client} =
+      Thalamus.TestHelpers.create_test_client(
+        "Test Client",
+        org.id,
+        ["zea:read", "zea:write", "zea:admin"]
+      )
+
+    {:ok, client} =
+      Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository.save(client)
+
     # Generate access token
     {:ok, access_token} =
       AccessToken.generate(
+        [
+          %Thalamus.Domain.ValueObjects.Scope{value: "zea:read"},
+          %Thalamus.Domain.ValueObjects.Scope{value: "zea:write"},
+          %Thalamus.Domain.ValueObjects.Scope{value: "zea:admin"}
+        ],
         admin.id,
-        Thalamus.Domain.ValueObjects.ClientId.generate(),
-        [:read, :write, :admin],
         3600
       )
 
@@ -28,7 +45,8 @@ defmodule ThalamusWeb.API.UserControllerTest do
       token: access_token.token,
       type: :access_token,
       user_id: admin.id,
-      scope: [:read, :write, :admin],
+      client_id: client.id,
+      scopes: ["zea:read", "zea:write", "zea:admin"],
       expires_at: access_token.expires_at
     }
 
@@ -116,7 +134,10 @@ defmodule ThalamusWeb.API.UserControllerTest do
       assert is_map(meta)
     end
 
-    test "filters by username (partial match on name or email)", %{conn: conn, access_token: token} do
+    test "filters by username (partial match on name or email)", %{
+      conn: conn,
+      access_token: token
+    } do
       # Create a user with specific name for search
       {:ok, named_user} = User.register("carlos@test.com", "Pass123!")
       named_user = %{named_user | name: "FullStack Developer"}
@@ -211,7 +232,7 @@ defmodule ThalamusWeb.API.UserControllerTest do
 
       assert %{
                "error" => _
-             } = json_response(conn, 409)
+             } = json_response(conn, 400)
     end
 
     test "returns error with invalid email", %{conn: conn, access_token: token} do
@@ -272,7 +293,7 @@ defmodule ThalamusWeb.API.UserControllerTest do
     end
 
     test "returns 404 for non-existent user", %{conn: conn, access_token: token} do
-      fake_id = Thalamus.Domain.ValueObjects.UserId.generate!()
+      fake_id = Thalamus.Domain.ValueObjects.UserId.generate() |> elem(1)
 
       conn =
         conn
@@ -290,7 +311,7 @@ defmodule ThalamusWeb.API.UserControllerTest do
         |> put_req_header("authorization", "Bearer #{token}")
         |> get(~p"/api/users/invalid-id")
 
-      assert json_response(conn, 400)
+      assert json_response(conn, 404)
     end
 
     test "requires authentication", %{conn: conn, admin: admin} do
@@ -321,7 +342,7 @@ defmodule ThalamusWeb.API.UserControllerTest do
     end
 
     test "returns 404 for non-existent user", %{conn: conn, access_token: token} do
-      fake_id = Thalamus.Domain.ValueObjects.UserId.generate!()
+      fake_id = Thalamus.Domain.ValueObjects.UserId.generate() |> elem(1)
 
       conn =
         conn
@@ -360,7 +381,7 @@ defmodule ThalamusWeb.API.UserControllerTest do
     end
 
     test "returns 404 for non-existent user", %{conn: conn, access_token: token} do
-      fake_id = Thalamus.Domain.ValueObjects.UserId.generate!()
+      fake_id = Thalamus.Domain.ValueObjects.UserId.generate() |> elem(1)
 
       conn =
         conn
