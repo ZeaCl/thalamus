@@ -205,7 +205,10 @@ platform_web_uris = [
   "http://zea.localhost:4001/auth/callback",
   "http://sudlich.zea.localhost:4001/auth/callback",
   "https://zea.cl/auth/callback",
-  "https://sudlich.zea.cl/auth/callback"
+  "https://sudlich.zea.cl/auth/callback",
+  # NextAuth callback URLs (provider-specific path)
+  "http://localhost:3000/api/auth/callback/thalamus",
+  "http://app.zea.localhost/api/auth/callback/thalamus"
 ]
 
 case Repo.get(OAuth2ClientSchema, platform_web_client_id) ||

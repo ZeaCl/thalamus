@@ -75,6 +75,7 @@ defmodule Thalamus.MixProject do
       {:bcrypt_elixir, "~> 3.0"},
       {:pbkdf2_elixir, "~> 2.0"},
       {:comeonin, "~> 5.3"},
+      {:cloak_ecto, "~> 1.3"},
       # TOTP for MFA
       {:pot, "~> 1.0"},
 

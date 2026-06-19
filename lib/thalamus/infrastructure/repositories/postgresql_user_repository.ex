@@ -165,7 +165,9 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository do
         locked_until: schema.locked_until,
         mfa_methods: mfa_methods,
         created_at: schema.inserted_at,
-        updated_at: schema.updated_at
+        updated_at: schema.updated_at,
+        is_agent: schema.is_agent,
+        agent_config: schema.agent_config
       }
 
       {:ok, user}
@@ -197,7 +199,9 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository do
       locked_until: user.locked_until,
       mfa_methods: mfa_methods_maps,
       inserted_at: user.created_at,
-      updated_at: user.updated_at
+      updated_at: user.updated_at,
+      is_agent: user.is_agent,
+      agent_config: user.agent_config
     }
   end
 

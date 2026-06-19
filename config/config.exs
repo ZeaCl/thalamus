@@ -64,6 +64,12 @@ config :thalamus,
   password_reset_secret: "change_me_in_production_password_reset",
   session_secret: "change_me_in_production_session"
 
+# Cloak Vault Configuration
+config :thalamus, Thalamus.Vault,
+  ciphers: [
+    default: {Cloak.Ciphers.AES.GCM, tag: "AES.GCM.V1", key: Base.decode64!("x09jB24+l8J45jM83H+g/sT4uI0Hh88aA+1/c/J9gQk=")}
+  ]
+
 # JWT Signing Configuration (RS256 asymmetric)
 config :thalamus, :jwt,
   issuer: "https://auth.zea.cl",

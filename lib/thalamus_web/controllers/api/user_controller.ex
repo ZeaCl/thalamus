@@ -111,7 +111,9 @@ defmodule ThalamusWeb.API.UserController do
   def create(conn, params) do
     with {:ok, email_string} <- get_required_param(params, "email"),
          {:ok, password} <- get_required_param(params, "password"),
-         {:ok, user} <- User.register(email_string, password),
+         is_agent = (params["is_agent"] == true || params["is_agent"] == "true"),
+         create_result = if(is_agent, do: User.register_agent(params["name"] || "Agent User", email_string, password, params["agent_config"] || %{}), else: User.register(email_string, password)),
+         {:ok, user} <- create_result,
          {:ok, saved_user} <- PostgreSQLUserRepository.save(user) do
       conn
       |> put_status(:created)
@@ -272,13 +274,17 @@ defmodule ThalamusWeb.API.UserController do
     %{
       id: UserId.to_string(user.id),
       email: Email.to_string(user.email),
+      name: user.name,
+      avatar_url: user.avatar_url,
       status: user.status,
       verified: !is_nil(user.verified_at),
       verified_at: user.verified_at,
       last_login_at: user.last_login_at,
       mfa_enabled: User.mfa_enabled?(user),
       created_at: user.created_at,
-      updated_at: user.updated_at
+      updated_at: user.updated_at,
+      is_agent: user.is_agent,
+      agent_config: user.agent_config
     }
   end
 
@@ -308,6 +314,22 @@ defmodule ThalamusWeb.API.UserController do
 
         _ ->
           user
+      end
+
+    # Apply name update if present
+    user =
+      if name = params["name"] do
+        %{user | name: name}
+      else
+        user
+      end
+
+    # Apply agent_config update if present
+    user =
+      if agent_config = params["agent_config"] do
+        %{user | agent_config: agent_config}
+      else
+        user
       end
 
     {:ok, user}

@@ -20,6 +20,20 @@ if System.get_env("PHX_SERVER") do
   config :thalamus, ThalamusWeb.Endpoint, server: true
 end
 
+# CORS configuration — read from environment variable
+if cors_origins = System.get_env("CORS_ORIGINS") do
+  origins =
+    cors_origins
+    |> String.split(",")
+    |> Enum.map(&String.trim/1)
+
+  config :thalamus, ThalamusWeb.Plugs.CORS,
+    origins: origins,
+    allow_credentials: true,
+    max_age: 86400,
+    expose_headers: ["x-ratelimit-limit", "x-ratelimit-remaining", "x-ratelimit-reset"]
+end
+
 if config_env() == :prod do
   database_url =
     System.get_env("DATABASE_URL") ||
