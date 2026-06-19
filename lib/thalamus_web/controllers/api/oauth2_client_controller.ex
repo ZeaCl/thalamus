@@ -327,7 +327,6 @@ defmodule ThalamusWeb.API.OAuth2ClientController do
 
   defp create_client(name, org_id, params) do
     client_type = String.to_existing_atom(params["client_type"] || "confidential")
-    redirect_uris = params["redirect_uris"] || []
 
     # Parse grant types
     grant_type_strings = params["grant_types"] || ["authorization_code", "refresh_token"]

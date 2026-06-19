@@ -161,10 +161,11 @@ defmodule ThalamusWeb.Layouts do
       |> assign(:target_path, target_path)
 
     ~H"""
+    <% link_attrs = %{"x-bind:class" => "sidebarCollapsed ? 'justify-center px-2' : 'px-3'"} %>
     <.link
       navigate={@navigate}
       href={@href}
-      x-bind:class="sidebarCollapsed ? 'justify-center px-2' : 'px-3'"
+      {link_attrs}
       class={[
         "sidebar-link-item group flex items-center py-3 text-[13px] font-medium rounded-md transition-all",
         if(@active,

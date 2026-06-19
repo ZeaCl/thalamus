@@ -145,18 +145,6 @@ defmodule ThalamusWeb.OAuth2.UserinfoController do
     end
   end
 
-  defp validate_token_type(%{type: :access_token}), do: :ok
-  defp validate_token_type(_), do: {:error, :wrong_token_type}
-
-  defp validate_token_not_expired(%{expires_at: expires_at}) do
-    now = DateTime.utc_now()
-
-    if DateTime.compare(expires_at, now) == :gt do
-      :ok
-    else
-      {:error, :expired}
-    end
-  end
 
   defp generate_slug(name) do
     name

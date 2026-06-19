@@ -67,7 +67,7 @@ defmodule ThalamusWeb.RegisterController do
   end
 
   defp get_return_to(conn) do
-    get_session(conn, :return_to) || conn.params["return_to"] || ~p"/dashboard"
+    get_session(conn, :return_to) || conn.params["return_to"] || ~p"/"
   end
 
   defp redirect_after_login(conn, nil) do

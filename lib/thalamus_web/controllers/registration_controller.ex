@@ -41,7 +41,7 @@ defmodule ThalamusWeb.RegistrationController do
       conn
       |> put_flash(:info, "Welcome to Thalamus! Your account has been created.")
       |> put_session(:user_id, uuid_only)
-      |> redirect(to: ~p"/dashboard")
+      |> redirect(to: ~p"/")
     else
       {:error, :missing_parameter, param} ->
         conn

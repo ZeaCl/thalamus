@@ -284,10 +284,6 @@ defmodule ThalamusWeb.API.LoginController do
     "rt_" <> (:crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false))
   end
 
-  defp generate_refresh_token do
-    "rt_" <> (:crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false))
-  end
-
   defp store_token(token_data) do
     PostgreSQLTokenRepository.store(token_data)
   end

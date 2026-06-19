@@ -94,10 +94,8 @@ defmodule Thalamus.Infrastructure.JwtSigner do
     token
   end
 
-  @doc """
-  Adds domain role claims to the JWT from the database.
-  Queries user_domain_roles for the user's scopes across all orgs.
-  """
+  # Adds domain role claims to the JWT from the database.
+  # Queries user_domain_roles for the user's scopes across all orgs.
   defp add_domain_roles(claims) do
     sub = claims["sub"]
 

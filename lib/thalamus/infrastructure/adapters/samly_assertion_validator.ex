@@ -108,13 +108,13 @@ defmodule Thalamus.Infrastructure.Adapters.SamlyAssertionValidator do
     base_url = base_url()
     acs_url = to_charlist("#{base_url}/auth/saml/acs")
 
-    sp_config = %{
+    _sp_config = %{
       entity_id: to_charlist(sp_entity_id),
       key: to_charlist(private_key),
       org_name: "ZEA"
     }
 
-    idp_config = %{
+    _idp_config = %{
       entity_id: to_charlist(idp_entity_id),
       cert: to_charlist(cert)
     }

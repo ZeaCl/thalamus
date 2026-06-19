@@ -493,14 +493,14 @@ defmodule ThalamusWeb.API.MFAController do
     |> String.pad_leading(6, "0")
   end
 
-  defp enable_mfa_for_user(user, mfa_method) do
+  defp enable_mfa_for_user(%Thalamus.Domain.Entities.User{} = user, mfa_method) do
     # Update user with MFA method
     updated_user = %Thalamus.Domain.Entities.User{user | mfa_methods: [mfa_method]}
 
     PostgreSQLUserRepository.save(updated_user)
   end
 
-  defp disable_mfa_for_user(user) do
+  defp disable_mfa_for_user(%Thalamus.Domain.Entities.User{} = user) do
     updated_user = %Thalamus.Domain.Entities.User{user | mfa_methods: []}
 
     PostgreSQLUserRepository.save(updated_user)

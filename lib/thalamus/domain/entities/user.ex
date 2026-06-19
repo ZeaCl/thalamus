@@ -124,6 +124,8 @@ defmodule Thalamus.Domain.Entities.User do
     end
   end
 
+  def register(_, _), do: {:error, :invalid_registration_data}
+
   def register_agent(name, email_string, password, agent_config) do
     with {:ok, user_id} <- UserId.generate(),
          {:ok, email} <- Email.new(email_string),
@@ -143,8 +145,6 @@ defmodule Thalamus.Domain.Entities.User do
       {:error, reason} -> {:error, reason}
     end
   end
-
-  def register(_, _), do: {:error, :invalid_registration_data}
 
   @doc """
   Verifies the user's email address.

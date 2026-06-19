@@ -131,13 +131,6 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
     end
   end
 
-  defp is_service_client?(client) do
-    grants = client.grant_types || []
-    # Service clients only have client_credentials grant, no user-facing grants
-    grant_atoms = Enum.map(grants, fn g -> g.type end)
-    grant_atoms == [:client_credentials]
-  end
-
   defp generate_for_grant_type(
          %TokenRequest{grant_type: :authorization_code} = request,
          client,
@@ -226,6 +219,13 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
     {:error, :deprecated_grant_type}
   end
 
+  defp is_service_client?(client) do
+    grants = client.grant_types || []
+    # Service clients only have client_credentials grant, no user-facing grants
+    grant_atoms = Enum.map(grants, fn g -> g.type end)
+    grant_atoms == [:client_credentials]
+  end
+
   defp validate_redirect_uri(_client, nil), do: :ok
 
   defp validate_redirect_uri(client, redirect_uri) do
@@ -304,11 +304,6 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
 
   defp revoke_token(token, %{token_repository: repo}) do
     repo.revoke(token)
-  end
-
-  defp generate_access_token do
-    :crypto.strong_rand_bytes(32)
-    |> Base.url_encode64(padding: false)
   end
 
   defp generate_jwt_access_token(claims) do
