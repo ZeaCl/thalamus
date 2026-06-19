@@ -183,7 +183,15 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository 
     # Convert client_secret from hash string to ClientSecret value object if present
     client_secret =
       if schema.client_secret do
-        Thalamus.Domain.ValueObjects.ClientSecret.from_hash(schema.client_secret)
+        if String.starts_with?(schema.client_secret, "$2b$") or
+             String.starts_with?(schema.client_secret, "$2a$") do
+          Thalamus.Domain.ValueObjects.ClientSecret.from_hash(schema.client_secret)
+        else
+          hashed = Bcrypt.hash_pwd_salt(schema.client_secret)
+          Ecto.Changeset.change(schema, client_secret: hashed)
+          |> Thalamus.Repo.update!()
+          Thalamus.Domain.ValueObjects.ClientSecret.from_hash(hashed)
+        end
       else
         nil
       end

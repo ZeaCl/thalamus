@@ -37,11 +37,15 @@ defmodule ThalamusWeb.SessionController do
     end
   end
 
-  def delete(conn, _params) do
+  def delete(conn, params) do
+    return_to =
+      params["return_to"] || conn.params["return_to"] ||
+        System.get_env("DEFAULT_LOGOUT_URL") || "http://zea.localhost"
+
     conn
     |> clear_session()
     |> put_flash(:info, "Logged out successfully")
-    |> redirect(to: ~p"/")
+    |> redirect(external: return_to)
   end
 
   def mock_oauth(conn, %{"provider" => provider}) do
@@ -102,7 +106,7 @@ defmodule ThalamusWeb.SessionController do
 
   defp get_return_to(conn) do
     get_session(conn, :return_to) || conn.params["return_to"] ||
-      System.get_env("DEFAULT_REDIRECT_URL") || ~p"/dashboard"
+      System.get_env("DEFAULT_REDIRECT_URL") || "http://zea.localhost/dashboard"
   end
 
   defp redirect_after_login(conn, nil) do
