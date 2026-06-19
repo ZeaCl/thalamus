@@ -26,6 +26,14 @@ jobs:
       working-directory: sdk
       run: npm ci
       
+    - name: Check types
+      working-directory: sdk
+      run: npm run typecheck
+
+    - name: Run tests
+      working-directory: sdk
+      run: npm run test:unit
+      
     - name: Build SDK
       working-directory: sdk
       run: npm run build
