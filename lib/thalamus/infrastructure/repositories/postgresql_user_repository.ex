@@ -27,6 +27,7 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository do
     |> do_find_by_id()
     |> case do
       nil -> {:error, :not_found}
+      {:error, :invalid_uuid} -> {:error, :invalid_uuid}
       schema -> schema_to_entity(schema)
     end
   end
@@ -41,6 +42,30 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository do
     |> case do
       nil -> {:error, :not_found}
       schema -> schema_to_entity(schema)
+    end
+  end
+
+  @impl true
+  def find_by_ids([]), do: {:ok, %{}}
+
+  def find_by_ids(user_ids) when is_list(user_ids) do
+    users_map =
+      UserSchema
+      |> where([u], u.id in ^user_ids)
+      |> Repo.all()
+      |> build_users_map()
+
+    {:ok, users_map}
+  end
+
+  defp build_users_map(schemas) do
+    Enum.reduce(schemas, %{}, &add_user_to_map/2)
+  end
+
+  defp add_user_to_map(schema, acc) do
+    case schema_to_entity(schema) do
+      {:ok, user} -> Map.put(acc, schema.id, user)
+      {:error, _} -> acc
     end
   end
 
@@ -121,8 +146,9 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository do
   @impl true
   def update_last_login(%UserId{} = user_id, timestamp) do
     user_id_string = UserId.to_string(user_id)
+    uuid = String.replace_prefix(user_id_string, "user_", "")
 
-    case Repo.get(UserSchema, user_id_string) do
+    case Repo.get(UserSchema, uuid) do
       nil ->
         {:error, :not_found}
 
@@ -159,10 +185,13 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository do
          {:ok, mfa_methods} <- convert_mfa_methods_from_db(schema.mfa_methods) do
       user = %User{
         id: user_id,
+        organization_id: schema.organization_id,
         email: email,
         name: schema.name,
+        avatar_url: schema.avatar_url,
         password_hash: password_hash,
         status: schema.status,
+        email_verified: schema.verified_at != nil,
         verified_at: schema.verified_at,
         last_login_at: schema.last_login_at,
         failed_login_attempts: schema.failed_login_attempts,
@@ -195,6 +224,7 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository do
       id: user_uuid,
       email: Email.to_string(user.email),
       name: user.name,
+      avatar_url: user.avatar_url,
       password_hash: PasswordHash.to_string(user.password_hash),
       status: user.status,
       verified_at: user.verified_at,

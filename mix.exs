@@ -11,7 +11,15 @@ defmodule Thalamus.MixProject do
       aliases: aliases(),
       deps: deps(),
       compilers: [:phoenix_live_view] ++ Mix.compilers(),
-      listeners: [Phoenix.CodeReloader]
+      listeners: [Phoenix.CodeReloader],
+      test_coverage: [tool: ExCoveralls],
+      preferred_cli_env: [
+        coveralls: :test,
+        "coveralls.detail": :test,
+        "coveralls.post": :test,
+        "coveralls.html": :test,
+        "coveralls.json": :test
+      ]
     ]
   end
 
@@ -108,10 +116,12 @@ defmodule Thalamus.MixProject do
       {:timex, "~> 3.7"},
       {:uuid, "~> 1.1"},
       {:decimal, "~> 2.0"},
+      {:csv, "~> 3.2"},
 
       # Development & Testing
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
+      {:excoveralls, "~> 0.18", only: :test},
       {:mox, "~> 1.1", only: :test},
       {:ex_machina, "~> 2.7", only: :test},
       {:faker, "~> 0.18", only: :test},
@@ -141,6 +151,9 @@ defmodule Thalamus.MixProject do
       # Unit tests without database setup
       "test.unit": ["test"],
       "test.integration": ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
+      # Test coverage
+      "test.coverage": ["ecto.create --quiet", "ecto.migrate --quiet", "coveralls.html"],
+      "test.coverage.ci": ["ecto.create --quiet", "ecto.migrate --quiet", "coveralls"],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
       "assets.build": ["tailwind thalamus", "esbuild thalamus"],
       "assets.deploy": [

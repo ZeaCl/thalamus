@@ -70,9 +70,10 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLTokenRepository do
   @impl true
   def revoke_all_for_user(%UserId{} = user_id) do
     user_id_string = UserId.to_string(user_id)
+    uuid = String.replace_prefix(user_id_string, "user_", "")
 
     TokenSchema
-    |> where([t], t.user_id == ^user_id_string)
+    |> where([t], t.user_id == ^uuid)
     |> where([t], t.revoked == false)
     |> Repo.update_all(set: [revoked: true, revoked_at: DateTime.utc_now()])
     |> case do
@@ -83,9 +84,10 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLTokenRepository do
   @impl true
   def revoke_all_for_client(%ClientId{} = client_id) do
     client_id_string = ClientId.to_string(client_id)
+    uuid = String.replace_prefix(client_id_string, "client_", "")
 
     TokenSchema
-    |> where([t], t.client_id == ^client_id_string)
+    |> where([t], t.client_id == ^uuid)
     |> where([t], t.revoked == false)
     |> Repo.update_all(set: [revoked: true, revoked_at: DateTime.utc_now()])
     |> case do
@@ -108,9 +110,10 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLTokenRepository do
   @impl true
   def find_by_user(%UserId{} = user_id) do
     user_id_string = UserId.to_string(user_id)
+    uuid = String.replace_prefix(user_id_string, "user_", "")
 
     TokenSchema
-    |> where([t], t.user_id == ^user_id_string)
+    |> where([t], t.user_id == ^uuid)
     |> where([t], t.revoked == false)
     |> order_by([t], desc: t.inserted_at)
     |> Repo.all()
@@ -144,7 +147,8 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLTokenRepository do
       expires_on_completion: Map.get(token_data, :expires_on_completion, false),
       intent_description: Map.get(token_data, :intent_description),
       orchestrator_id: Map.get(token_data, :orchestrator_id),
-      environment: Map.get(token_data, :environment)
+      environment: Map.get(token_data, :environment),
+      inserted_at: Map.get(token_data, :inserted_at)
     }
     |> Enum.reject(fn {_k, v} -> is_nil(v) end)
     |> Map.new()

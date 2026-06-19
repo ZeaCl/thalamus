@@ -79,21 +79,27 @@ defmodule ThalamusWeb.API.RegistrationController do
          # Now create organization with user as owner (if organization_name provided)
          {:ok, organization} <- create_organization_if_provided(params, saved_user),
          # Associate user with organization if created
-         :ok <- associate_user_with_organization(saved_user, organization),
-         # Auto-verify user for Campaigns integration (skip email verification for MVP)
-         {:ok, verified_user} <- User.verify_email(saved_user),
-         {:ok, final_user} <- PostgreSQLUserRepository.save(verified_user),
-         {:ok, tokens} <- generate_tokens_for_user(final_user, organization) do
-      # Build response with user, organization, and tokens
+         :ok <- associate_user_with_organization(saved_user, organization) do
+      # Generate verification token
+      verification_token = generate_verification_token(saved_user.id)
+
+      # TODO: Send verification email
+      # EmailService.send_verification_email(saved_user.email, verification_token)
+
+      # Build response
       conn
       |> put_status(:created)
       |> json(%{
-        user: user_to_json(final_user),
-        organization: if(organization, do: organization_to_json(organization), else: nil),
-        access_token: tokens.access_token,
-        token_type: tokens.token_type,
-        expires_in: tokens.expires_in,
-        refresh_token: tokens.refresh_token
+        data: %{
+          id: UserId.to_string(saved_user.id),
+          email: Email.to_string(saved_user.email),
+          status: "pending_verification",
+          verified: false
+        },
+        message:
+          "Registration successful. Please check your email for verification instructions.",
+        # DEVELOPMENT ONLY - remove in production
+        verification_token: verification_token
       })
     else
       {:error, :missing_parameter, param} ->
@@ -109,7 +115,7 @@ defmodule ThalamusWeb.API.RegistrationController do
       {:error, :email_already_exists} ->
         conn
         |> put_status(:conflict)
-        |> json(%{error: "Email address already registered"})
+        |> json(%{error: "Email address already exists"})
 
       {:error, reason} when is_atom(reason) ->
         conn
@@ -191,9 +197,10 @@ defmodule ThalamusWeb.API.RegistrationController do
         |> json(%{error: "Missing required parameter: #{param}"})
 
       {:error, :not_found} ->
+        # Return invalid token instead of not found (prevent enumeration)
         conn
-        |> put_status(:not_found)
-        |> json(%{error: "User not found"})
+        |> put_status(:bad_request)
+        |> json(%{error: "Invalid or expired verification token"})
 
       {:error, :invalid_token} ->
         conn
@@ -229,43 +236,75 @@ defmodule ThalamusWeb.API.RegistrationController do
   - 429 Too Many Requests: Rate limit exceeded
   """
   def resend_verification(conn, params) do
-    with {:ok, email_string} <- get_required_param(params, "email"),
-         {:ok, email_vo} <- Email.new(email_string),
-         {:ok, user} <- PostgreSQLUserRepository.find_by_email(email_vo),
-         :ok <- check_not_verified(user) do
-      # Generate new verification token
-      verification_token = generate_verification_token(user.id)
+    with {:ok, email_string} <- get_required_param(params, "email") do
+      # Try to validate email format
+      case Email.new(email_string) do
+        {:error, _} ->
+          # Invalid email format
+          conn
+          |> put_status(:bad_request)
+          |> json(%{error: "Invalid email format"})
 
-      # TODO: Send verification email
-      # EmailService.send_verification_email(email_vo, verification_token)
+        {:ok, email_vo} ->
+          # Try to find user - but don't reveal if they exist or not (prevent enumeration)
+          case PostgreSQLUserRepository.find_by_email(email_vo) do
+            {:ok, user} ->
+              case check_not_verified(user) do
+                :ok ->
+                  # Generate new verification token
+                  verification_token = generate_verification_token(user.id)
 
-      conn
-      |> put_status(:ok)
-      |> json(%{
-        message: "Verification email sent. Please check your inbox.",
-        # DEVELOPMENT ONLY - remove in production
-        verification_token: verification_token
-      })
+                  # TODO: Send verification email
+                  # EmailService.send_verification_email(email_vo, verification_token)
+
+                  conn
+                  |> put_status(:ok)
+                  |> json(%{
+                    message:
+                      "If this email is registered and unverified, a verification email will be sent.",
+                    # DEVELOPMENT ONLY - remove in production
+                    verification_token: verification_token
+                  })
+
+                {:error, :already_verified} ->
+                  # Return generic success to prevent enumeration
+                  conn
+                  |> put_status(:ok)
+                  |> json(%{
+                    message:
+                      "If this email is registered and unverified, a verification email will be sent."
+                  })
+              end
+
+            {:error, :not_found} ->
+              # Return generic success to prevent enumeration (don't reveal user doesn't exist)
+              conn
+              |> put_status(:ok)
+              |> json(%{
+                message:
+                  "If this email is registered and unverified, a verification email will be sent."
+              })
+
+            {:error, _} ->
+              # Return generic success to prevent enumeration
+              conn
+              |> put_status(:ok)
+              |> json(%{
+                message:
+                  "If this email is registered and unverified, a verification email will be sent."
+              })
+          end
+      end
     else
       {:error, :missing_parameter, param} ->
         conn
         |> put_status(:bad_request)
         |> json(%{error: "Missing required parameter: #{param}"})
 
-      {:error, :not_found} ->
-        conn
-        |> put_status(:not_found)
-        |> json(%{error: "User not found"})
-
-      {:error, :already_verified} ->
-        conn
-        |> put_status(:bad_request)
-        |> json(%{error: "Email address already verified"})
-
       {:error, reason} ->
         conn
         |> put_status(:internal_server_error)
-        |> json(%{error: "Failed to send verification email", details: inspect(reason)})
+        |> json(%{error: "Failed to process request", details: inspect(reason)})
     end
   end
 
@@ -477,75 +516,6 @@ defmodule ThalamusWeb.API.RegistrationController do
     end
   end
 
-  defp generate_tokens_for_user(user, organization) do
-    # Generate tokens
-    access_token = generate_access_token()
-    refresh_token = generate_refresh_token()
-
-    organization_id = if organization, do: organization.id, else: nil
-
-    # Use a fixed UUID for internal client (without "client_" prefix for DB storage)
-    internal_client_uuid = "00000000-0000-0000-0000-000000000001"
-
-    # Store access token
-    PostgreSQLTokenRepository.store(%{
-      token: access_token,
-      type: :access_token,
-      user_id: user.id,
-      client_id: internal_client_uuid,
-      organization_id: organization_id,
-      scopes: get_default_user_scopes(),
-      # 1 hour
-      expires_at: DateTime.add(DateTime.utc_now(), 3600),
-      revoked: false
-    })
-
-    # Store refresh token
-    PostgreSQLTokenRepository.store(%{
-      token: refresh_token,
-      type: :refresh_token,
-      user_id: user.id,
-      client_id: internal_client_uuid,
-      organization_id: organization_id,
-      scopes: get_default_user_scopes(),
-      # 30 days
-      expires_at: DateTime.add(DateTime.utc_now(), 2_592_000),
-      revoked: false
-    })
-
-    {:ok,
-     %{
-       access_token: access_token,
-       token_type: "Bearer",
-       expires_in: 3600,
-       refresh_token: refresh_token
-     }}
-  end
-
-  defp generate_access_token do
-    "at_" <> (:crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false))
-  end
-
-  defp generate_refresh_token do
-    "rt_" <> (:crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false))
-  end
-
-  defp get_default_user_scopes do
-    # Default scopes for authenticated users including Campaigns scopes
-    [
-      "openid",
-      "profile",
-      "email",
-      "campaigns:read",
-      "campaigns:write",
-      "campaigns:sync",
-      "leads:read",
-      "leads:write",
-      "meta:read",
-      "meta:write"
-    ]
-  end
-
   defp user_to_json(%User{} = user) do
     %{
       id: UserId.to_string(user.id),
@@ -553,16 +523,6 @@ defmodule ThalamusWeb.API.RegistrationController do
       name: user.name,
       verified: !is_nil(user.verified_at),
       created_at: user.created_at
-    }
-  end
-
-  defp organization_to_json(nil), do: nil
-
-  defp organization_to_json(organization) do
-    %{
-      id: OrganizationId.to_string(organization.id),
-      name: organization.name,
-      created_at: organization.created_at
     }
   end
 

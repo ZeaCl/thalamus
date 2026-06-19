@@ -66,11 +66,13 @@ if config_env() == :prod do
 
   host = System.get_env("PHX_HOST") || "example.com"
   port = String.to_integer(System.get_env("PORT") || "4000")
+  public_port = if System.get_env("FORCE_SSL") == "true", do: 443, else: 80
+  scheme = if System.get_env("FORCE_SSL") == "true", do: "https", else: "http"
 
   config :thalamus, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
   config :thalamus, ThalamusWeb.Endpoint,
-    url: [host: host, port: 443, scheme: "https"],
+    url: [host: host, port: public_port, scheme: scheme],
     http: [
       # Enable IPv6 and bind on all interfaces.
       # Set it to  {0, 0, 0, 0, 0, 0, 0, 1} for local network only access.
@@ -130,3 +132,118 @@ if config_env() == :prod do
     from_name: System.get_env("FROM_NAME") || "Thalamus OAuth2",
     base_url: "https://#{host}"
 end
+
+# ## Organization Plans Configuration
+#
+# Configure your organization subscription plans here.
+# This configuration is environment-agnostic and can be customized
+# to fit your specific business needs.
+#
+# If not configured, Thalamus will use default plans (free, starter, professional, enterprise).
+#
+# Example custom configuration:
+#
+# config :thalamus, :organization_plans,
+#   # List of available plan types (atoms)
+#   available_plans: [:basic, :premium, :enterprise],
+#
+#   # Default plan for new organizations
+#   default_plan: :basic,
+#
+#   # Plan hierarchy for upgrades/downgrades (lowest to highest)
+#   plan_hierarchy: [:basic, :premium, :enterprise],
+#
+#   # Plan configurations with limits and features
+#   plan_configs: %{
+#     basic: %{
+#       max_users: 10,
+#       max_api_calls_per_month: 50_000,
+#       mfa_required: false,
+#       sso_enabled: false,
+#       audit_logs_retention_days: 30,
+#       support_level: :email
+#     },
+#     premium: %{
+#       max_users: 100,
+#       max_api_calls_per_month: 500_000,
+#       mfa_required: true,
+#       sso_enabled: true,
+#       audit_logs_retention_days: 90,
+#       support_level: :priority
+#     },
+#     enterprise: %{
+#       max_users: :unlimited,
+#       max_api_calls_per_month: :unlimited,
+#       mfa_required: true,
+#       sso_enabled: true,
+#       audit_logs_retention_days: 365,
+#       support_level: :dedicated
+#     }
+#   }
+#
+# Note: If you don't provide this configuration, Thalamus will use
+# default plans compatible with the existing ZEA setup.
+
+# ## OAuth2 Scopes Configuration
+#
+# Configure your custom OAuth2 scopes here.
+# Thalamus supports fully configurable scopes beyond standard OIDC scopes.
+#
+# Standard OIDC scopes are always available: openid, profile, email, address, phone, offline_access
+#
+# Example custom configuration:
+#
+# config :thalamus, :oauth2_scopes,
+#   # Standard OIDC scopes (read-only, always included)
+#   standard_scopes: ["openid", "profile", "email", "address", "phone", "offline_access"],
+#
+#   # Your custom application scopes
+#   custom_scopes: [
+#     "myapp:read",
+#     "myapp:write",
+#     "myapp:admin",
+#     "api:access",
+#     "data:read",
+#     "data:write"
+#   ],
+#
+#   # Scopes that require special permission/approval
+#   restricted_scopes: [
+#     "myapp:admin",
+#     "data:write",
+#     "offline_access"
+#   ]
+#
+# Note: If you don't provide this configuration, Thalamus will use
+# default scopes compatible with the existing ZEA setup.
+
+# ## Feature Flags (Epic 8: Migration & Rollout)
+#
+# Configure feature flags for gradual rollout of new features.
+# Flags can be set via environment variables or application config.
+#
+# Example with environment variables:
+#
+#     # Enable agent tokens globally
+#     export ENABLE_AGENT_TOKENS=true
+#
+# Example with application config:
+#
+# config :thalamus, :feature_flags,
+#   agent_tokens: true
+#
+# Per-organization flags can be set in the organizations.settings JSONB column:
+#
+#     UPDATE organizations
+#     SET settings = jsonb_set(
+#       COALESCE(settings, '{}'),
+#       '{feature_flags,agent_tokens}',
+#       'true'
+#     )
+#     WHERE id = 'org_123';
+#
+# Feature flag priority:
+# 1. Environment variable (ENABLE_<FEATURE>)
+# 2. Application config (:thalamus, :feature_flags, feature_name)
+# 3. Per-organization setting (organizations.settings->feature_flags->feature_name)
+# 4. Default (false)

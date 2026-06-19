@@ -1,5 +1,5 @@
 defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
-  use ThalamusWeb.ConnCase, async: true
+  use ThalamusWeb.ConnCase, async: false
 
   alias Thalamus.Domain.Entities.{User, Organization}
   alias Thalamus.TestHelpers
@@ -12,7 +12,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
 
   setup do
     # Create organization
-    {:ok, org} = Organization.new("Test Corp", "owner@test.com", :professional)
+    {:ok, org} = Organization.new("Test Corp", "owner@test.com", :standard)
     {:ok, org} = PostgreSQLOrganizationRepository.save(org)
 
     # Create and verify user
@@ -20,7 +20,18 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
     {:ok, user} = User.verify_email(user)
     {:ok, user} = PostgreSQLUserRepository.save(user)
 
-    # Create OAuth2 client
+    # Create OAuth2 client with STANDARD OIDC scopes (generic, not ZEA-specific)
+    {:ok, client_id} = ClientId.generate()
+    {:ok, auth_code_grant} = GrantType.authorization_code()
+    {:ok, refresh_grant} = GrantType.refresh_token()
+    {:ok, openid_scope} = Scope.new("openid")
+    {:ok, profile_scope} = Scope.new("profile")
+    {:ok, email_scope} = Scope.new("email")
+    {:ok, redirect_uri} = RedirectUri.new("http://localhost:3000/callback")
+
+    # Generate plain text secret to use in tests
+    plain_secret = :crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false)
+
     {:ok, client} =
       TestHelpers.create_test_client(
         "Test Client",
@@ -32,7 +43,17 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
 
     {:ok, client} = PostgreSQLOAuth2ClientRepository.save(client)
 
+    # Store plain secret for use in tests
+    client = Map.put(client, :plain_secret, plain_secret)
+
     {:ok, %{user: user, client: client, org: org}}
+  end
+
+  # Helper function to set session with proper initialization
+  defp put_user_session(conn, user_id) do
+    conn
+    |> Plug.Test.init_test_session(%{})
+    |> put_session(:user_id, user_id)
   end
 
   describe "GET /oauth/authorize - authorization request" do
@@ -46,7 +67,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
           response_type: "code",
           client_id: to_string(client.id),
           redirect_uri: "http://localhost:3000/callback",
-          scope: "read write",
+          scope: "openid profile",
           state: "random_state_123"
         })
 
@@ -160,8 +181,8 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
           response_type: "code",
           client_id: to_string(client.id),
           redirect_uri: "http://localhost:3000/callback",
-          # Not allowed for this client
-          scope: "admin delete"
+          # Not allowed for this client (only has openid, profile, email)
+          scope: "address phone"
         })
 
       assert response(conn, 400)
@@ -178,7 +199,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
           redirect_uri: "http://localhost:3000/callback",
           scope: "zea:read",
           code_challenge: "some_challenge",
-          # Invalid method
+          # Invalid method (only S256 and plain are supported)
           code_challenge_method: "MD5"
         })
 
@@ -402,7 +423,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
           client_id: to_string(client.id),
           redirect_uri: "http://localhost:3000/callback",
           # Not in allowed scopes
-          scope: "admin",
+          scope: "address",
           state: "state_123"
         })
 

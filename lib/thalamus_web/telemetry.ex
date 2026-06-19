@@ -160,6 +160,27 @@ defmodule ThalamusWeb.Telemetry do
       ),
       last_value("thalamus.oauth2_clients.total",
         description: "Total number of OAuth2 clients"
+      ),
+
+      # Agent Token Metrics (Epic 7)
+      counter("thalamus.agent_tokens.issued",
+        tags: [:agent_type, :organization_id],
+        description: "Total agent tokens issued"
+      ),
+      counter("thalamus.agent_tokens.revoked",
+        tags: [:agent_type, :cascade],
+        description: "Total agent tokens revoked"
+      ),
+      distribution("thalamus.agent_tokens.delegation_depth",
+        buckets: [0, 1, 2, 3, 4, 5, 10],
+        description: "Delegation chain depth distribution"
+      ),
+      summary("thalamus.agent_tokens.generation_duration",
+        unit: {:native, :millisecond},
+        description: "Agent token generation duration"
+      ),
+      last_value("thalamus.agent_tokens.active_total",
+        description: "Total number of active agent tokens"
       )
     ]
   end
@@ -210,6 +231,15 @@ defmodule ThalamusWeb.Telemetry do
       %{value: client_count},
       %{}
     )
+
+    # Agent Token metrics
+    agent_token_count = count_active_agent_tokens()
+
+    :telemetry.execute(
+      [:thalamus, :agent_tokens, :active_total],
+      %{value: agent_token_count},
+      %{}
+    )
   end
 
   # Business metric helpers
@@ -246,6 +276,21 @@ defmodule ThalamusWeb.Telemetry do
   defp count_oauth2_clients do
     try do
       Thalamus.Repo.aggregate("oauth2_clients", :count, :id)
+    rescue
+      _ -> 0
+    end
+  end
+
+  defp count_active_agent_tokens do
+    try do
+      import Ecto.Query
+
+      Thalamus.Repo.one(
+        from at in "agent_tokens",
+          where: is_nil(at.revoked_at),
+          where: at.expires_at > ^DateTime.utc_now(),
+          select: count(at.id)
+      ) || 0
     rescue
       _ -> 0
     end

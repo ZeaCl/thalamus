@@ -46,7 +46,19 @@ config :tailwind,
 # Configures Elixir's Logger
 config :logger, :default_formatter,
   format: "$time $metadata[$level] $message\n",
-  metadata: [:request_id]
+  metadata: [
+    :request_id,
+    # Agent token metadata
+    :token_id,
+    :organization_id,
+    :error,
+    :failed_count,
+    :total_count,
+    :failed_token_ids,
+    # Audit logging metadata
+    :event_type,
+    :data
+  ]
 
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
@@ -55,8 +67,13 @@ config :phoenix, :json_library, Jason
 config :thalamus, Thalamus.Infrastructure.Adapters.EmailServiceImpl,
   mode: :development,
   from_email: "noreply@localhost",
-  from_name: "ZEA Thalamus (Dev)",
+  from_name: "Thalamus (Dev)",
   base_url: "http://localhost:4000"
+
+# MFA configuration
+config :thalamus,
+  # Issuer name displayed in authenticator apps (Google Authenticator, Authy, etc.)
+  mfa_issuer_name: "Thalamus"
 
 # Security tokens configuration
 config :thalamus,
@@ -131,8 +148,10 @@ config :thalamus, ThalamusWeb.Plugs.CORS,
 
 # Security headers configuration
 config :thalamus, ThalamusWeb.Plugs.SecurityHeaders,
-  frame_options: "DENY",
-  hsts_max_age: 31_536_000
+  frame_options: "SAMEORIGIN",
+  hsts_max_age: 31_536_000,
+  csp_policy:
+    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' ws://localhost:* wss://localhost:*; frame-src 'self'; frame-ancestors 'self' https://sudlich.zea.localhost https://zea.cl https://*.zea.cl; base-uri 'self'; form-action 'self' http://localhost:* http://auth.zea.localhost:* http://soma.zea.localhost:* http://cranium.zea.localhost:* http://sudlich.zea.localhost:* http://*.zea.localhost:* https://zea.cl https://*.zea.cl"
 
 # Hammer rate limiting configuration
 config :hammer,
@@ -149,6 +168,22 @@ config :thalamus,
 config :thalamus, Thalamus.Mailer,
   # Default to Local adapter, override in env configs
   adapter: Swoosh.Adapters.Local
+
+# Oban background job processing configuration
+config :thalamus, Oban,
+  repo: Thalamus.Repo,
+  plugins: [
+    # Periodic job pruning (keeps completed jobs for 60 seconds)
+    {Oban.Plugins.Pruner, max_age: 60}
+  ],
+  queues: [
+    # Default queue for general background jobs
+    default: 10,
+    # Email sending queue
+    emails: 20,
+    # Cleanup and maintenance tasks
+    maintenance: 5
+  ]
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.

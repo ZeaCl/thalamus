@@ -131,6 +131,13 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
     end
   end
 
+  defp is_service_client?(client) do
+    grants = client.grant_types || []
+    # Service clients only have client_credentials grant, no user-facing grants
+    grant_atoms = Enum.map(grants, fn g -> g.type end)
+    grant_atoms == [:client_credentials]
+  end
+
   defp generate_for_grant_type(
          %TokenRequest{grant_type: :authorization_code} = request,
          client,
@@ -214,9 +221,42 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
     end
   end
 
-  defp generate_for_grant_type(%TokenRequest{grant_type: :password}, _client, _deps) do
-    # Password grant is deprecated and should not be used
-    {:error, :deprecated_grant_type}
+  defp generate_for_grant_type(%TokenRequest{grant_type: :password} = request, _client, deps) do
+    # Resource Owner Password Credentials grant (RFC 6749 Section 4.3)
+    %{username: email, password: password, scope: scope} = request
+
+    with {:ok, user} <- authenticate_user(email, password, deps),
+         :ok <- validate_user_active(user) do
+      scopes = parse_scopes(scope)
+      # If no scopes requested, default to openid profile email
+      scopes = if scopes == [], do: ["openid", "profile", "email"], else: scopes
+      refresh_token = generate_refresh_token()
+
+      access_token =
+        generate_jwt_access_token(%{
+          user_id: user.id,
+          client_id: client_id_string(_client),
+          scope: Enum.join(scopes, " "),
+          expires_in: @access_token_ttl,
+          aud: client_id_string(_client),
+          sub: UserId.to_string(user.id),
+          name: user.name,
+          email: Email.to_string(user.email),
+          is_agent: user.is_agent,
+          organization_id: user.organization_id
+        })
+
+      {:ok,
+       %{
+         access_token: access_token,
+         token_type: "Bearer",
+         expires_in: @access_token_ttl,
+         refresh_token: refresh_token,
+         scope: Enum.join(scopes, " "),
+         user_id: user.id,
+         client_id: client_id_string(_client)
+       }}
+    end
   end
 
   defp is_service_client?(client) do

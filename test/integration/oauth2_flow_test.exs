@@ -21,7 +21,7 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
 
   setup do
     # Create organization
-    {:ok, org} = Organization.new("Test Corp", "owner@test.com", :professional)
+    {:ok, org} = Organization.new("Test Corp", "owner@test.com", :standard)
     {:ok, org} = PostgreSQLOrganizationRepository.save(org)
 
     # Create and verify user
@@ -29,7 +29,18 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
     {:ok, user} = User.verify_email(user)
     {:ok, user} = PostgreSQLUserRepository.save(user)
 
-    # Create OAuth2 client
+    # Create OAuth2 client with new API
+    {:ok, client_id} = ClientId.generate()
+    {:ok, auth_code_grant} = GrantType.authorization_code()
+    {:ok, refresh_grant} = GrantType.refresh_token()
+    {:ok, client_creds_grant} = GrantType.client_credentials()
+    {:ok, read_scope} = Scope.new("api:read")
+    {:ok, write_scope} = Scope.new("api:write")
+    {:ok, redirect_uri} = RedirectUri.new("http://localhost:3000/callback")
+
+    # Generate plain text secret to use in tests
+    plain_secret = :crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false)
+
     {:ok, client} =
       TestHelpers.create_test_client(
         "Test Client",
@@ -41,7 +52,17 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
 
     {:ok, client} = PostgreSQLOAuth2ClientRepository.save(client)
 
+    # Store plain secret for use in tests
+    client = Map.put(client, :plain_secret, plain_secret)
+
     {:ok, %{user: user, client: client, org: org}}
+  end
+
+  # Helper function to set session with proper initialization
+  defp put_user_session(conn, user_id) do
+    conn
+    |> Plug.Test.init_test_session(%{})
+    |> put_session(:user_id, user_id)
   end
 
   describe "Complete Authorization Code Flow" do

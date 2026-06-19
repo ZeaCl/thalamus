@@ -29,7 +29,7 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.OrganizationSchema do
 
     # Plan fields (embedded)
     field :plan_type, Ecto.Enum,
-      values: [:free, :starter, :professional, :enterprise],
+      values: [:free, :basic, :standard, :premium, :enterprise],
       default: :free
 
     field :max_users, :integer
@@ -269,9 +269,9 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.OrganizationSchema do
     }
   end
 
-  defp get_plan_limits(:starter) do
+  defp get_plan_limits(:basic) do
     %{
-      max_users: 20,
+      max_users: 25,
       max_api_calls_per_month: 100_000,
       mfa_required: false,
       sso_enabled: false,
@@ -280,13 +280,24 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.OrganizationSchema do
     }
   end
 
-  defp get_plan_limits(:professional) do
+  defp get_plan_limits(:standard) do
     %{
       max_users: 100,
-      max_api_calls_per_month: 1_000_000,
+      max_api_calls_per_month: 500_000,
       mfa_required: true,
       sso_enabled: true,
       audit_logs_retention_days: 90,
+      support_level: :priority
+    }
+  end
+
+  defp get_plan_limits(:premium) do
+    %{
+      max_users: 500,
+      max_api_calls_per_month: 2_000_000,
+      mfa_required: true,
+      sso_enabled: true,
+      audit_logs_retention_days: 180,
       support_level: :priority
     }
   end

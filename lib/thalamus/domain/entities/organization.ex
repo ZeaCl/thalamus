@@ -51,7 +51,7 @@ defmodule Thalamus.Domain.Entities.Organization do
           verified_at: DateTime.t() | nil,
           max_users: pos_integer() | nil,
           max_api_calls_per_month: pos_integer() | nil,
-          plan_type: :free | :starter | :professional | :enterprise,
+          plan_type: atom(),
           created_at: DateTime.t(),
           updated_at: DateTime.t()
         }
@@ -142,16 +142,29 @@ defmodule Thalamus.Domain.Entities.Organization do
   def new(name, owner_email_string, plan_type \\ :free)
       when is_binary(name) and is_binary(owner_email_string) do
     with {:ok, org_id} <- OrganizationId.generate(),
-         {:ok, owner_email} <- Email.new(owner_email_string) do
+         {:ok, owner_email} <- Email.new(owner_email_string),
+         {:ok, plan} <- Plan.new(plan_type) do
       # Truncate to seconds for Ecto :utc_datetime compatibility
       now = DateTime.truncate(DateTime.utc_now(), :second)
+
+      # Convert :unlimited to large numbers for database storage (NOT NULL constraints)
+      max_users =
+        case plan.max_users do
+          :unlimited -> 999_999
+          count -> count
+        end
+
+      max_api_calls =
+        case plan.max_api_calls_per_month do
+          :unlimited -> 999_999_999
+          count -> count
+        end
 
       organization = %__MODULE__{
         id: org_id,
         name: name,
         owner_email: owner_email,
-        # Will be set based on plan_type
-        plan: nil,
+        plan: plan,
         plan_type: plan_type,
         members: [],
         settings: default_settings(),
@@ -160,8 +173,8 @@ defmodule Thalamus.Domain.Entities.Organization do
         is_active: true,
         status: :pending_verification,
         verified_at: nil,
-        max_users: plan_max_users(plan_type),
-        max_api_calls_per_month: plan_max_api_calls(plan_type),
+        max_users: max_users,
+        max_api_calls_per_month: max_api_calls,
         created_at: now,
         updated_at: now
       }
@@ -525,18 +538,8 @@ defmodule Thalamus.Domain.Entities.Organization do
   defp role_level(:billing), do: 2
   defp role_level(:member), do: 1
 
-  # Plan limits helper functions
-  defp plan_max_users(:free), do: 5
-  defp plan_max_users(:starter), do: 25
-  defp plan_max_users(:professional), do: 100
-  # unlimited
-  defp plan_max_users(:enterprise), do: nil
-
-  defp plan_max_api_calls(:free), do: 10_000
-  defp plan_max_api_calls(:starter), do: 100_000
-  defp plan_max_api_calls(:professional), do: 1_000_000
-  # unlimited
-  defp plan_max_api_calls(:enterprise), do: nil
+  # Plan limits are now retrieved from Plan value object configuration
+  # No hardcoded values needed
 
   defp default_settings do
     %{
@@ -556,17 +559,39 @@ defmodule Thalamus.Domain.Entities.Organization do
 
   @doc """
   Upgrades the organization's plan to a new plan type.
+
+  The plan type should be a valid plan configured in your application.
+  See `Thalamus.Domain.ValueObjects.Plan` for configuration details.
   """
-  def upgrade_plan(%__MODULE__{} = org, new_plan_type)
-      when new_plan_type in [:free, :starter, :professional, :enterprise] do
-    {:ok,
-     %{
-       org
-       | plan_type: new_plan_type,
-         max_users: plan_max_users(new_plan_type),
-         max_api_calls_per_month: plan_max_api_calls(new_plan_type),
-         updated_at: DateTime.utc_now()
-     }}
+  def upgrade_plan(%__MODULE__{} = org, new_plan_type) when is_atom(new_plan_type) do
+    case Plan.new(new_plan_type) do
+      {:ok, new_plan} ->
+        # Convert :unlimited to large numbers for database storage (NOT NULL constraints)
+        max_users =
+          case new_plan.max_users do
+            :unlimited -> 999_999
+            count -> count
+          end
+
+        max_api_calls =
+          case new_plan.max_api_calls_per_month do
+            :unlimited -> 999_999_999
+            count -> count
+          end
+
+        {:ok,
+         %{
+           org
+           | plan: new_plan,
+             plan_type: new_plan_type,
+             max_users: max_users,
+             max_api_calls_per_month: max_api_calls,
+             updated_at: DateTime.utc_now()
+         }}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
   end
 
   def upgrade_plan(_, _), do: {:error, :invalid_plan_type}

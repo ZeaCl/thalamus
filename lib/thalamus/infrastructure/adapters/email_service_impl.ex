@@ -24,14 +24,14 @@ defmodule Thalamus.Infrastructure.Adapters.EmailServiceImpl do
         auth: :always,
         port: 587,
         from_email: "noreply@thalamus.example.com",
-        from_name: "ZEA Thalamus"
+        from_name: "Thalamus"
 
   Or for development (console backend):
 
       config :thalamus, Thalamus.Infrastructure.Adapters.EmailServiceImpl,
         adapter: Swoosh.Adapters.Local,
         from_email: "noreply@localhost",
-        from_name: "ZEA Thalamus (Dev)"
+        from_name: "Thalamus (Dev)"
   """
 
   @behaviour Thalamus.Application.Ports.EmailService
@@ -55,7 +55,7 @@ defmodule Thalamus.Infrastructure.Adapters.EmailServiceImpl do
       template_path: "emails/mfa_code.html.eex"
     },
     welcome: %{
-      subject: "Welcome to ZEA Thalamus",
+      subject: "Welcome to Thalamus",
       template_path: "emails/welcome.html.eex"
     }
   }
@@ -176,7 +176,7 @@ defmodule Thalamus.Infrastructure.Adapters.EmailServiceImpl do
 
   defp build_email(to_email, subject, body) do
     from_email = get_config(:from_email, "noreply@localhost")
-    from_name = get_config(:from_name, "ZEA Thalamus")
+    from_name = get_config(:from_name, "Thalamus")
 
     # Using a simple map structure for now
     # In production with Swoosh, this would be:
@@ -237,7 +237,7 @@ defmodule Thalamus.Infrastructure.Adapters.EmailServiceImpl do
         </head>
         <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <h1 style="color: #333;">Verify Your Email Address</h1>
-          <p>Thank you for registering with ZEA Thalamus!</p>
+          <p>Thank you for registering with Thalamus!</p>
           <p>Please click the button below to verify your email address:</p>
           <div style="margin: 30px 0; text-align: center;">
             <a href="#{variables.verification_url}"
@@ -326,10 +326,10 @@ defmodule Thalamus.Infrastructure.Adapters.EmailServiceImpl do
         <html>
         <head>
           <meta charset="UTF-8">
-          <title>Welcome to ZEA Thalamus</title>
+          <title>Welcome to Thalamus</title>
         </head>
         <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <h1 style="color: #333;">Welcome to ZEA Thalamus!</h1>
+          <h1 style="color: #333;">Welcome to Thalamus!</h1>
           <p>Hi #{variables.username},</p>
           <p>Thank you for verifying your email. Your account is now active!</p>
           <p>You can now access your dashboard and start using all features:</p>

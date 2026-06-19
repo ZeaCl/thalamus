@@ -1,5 +1,5 @@
 defmodule ThalamusWeb.ErrorJSONTest do
-  use ThalamusWeb.ConnCase, async: true
+  use ThalamusWeb.ConnCase, async: false
 
   test "renders 404" do
     assert ThalamusWeb.ErrorJSON.render("404.json", %{}) == %{errors: %{detail: "Not Found"}}

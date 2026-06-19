@@ -153,12 +153,18 @@ defmodule ThalamusWeb.SessionController do
       System.get_env("DEFAULT_REDIRECT_URL") || "http://zea.localhost/dashboard"
   end
 
-  defp redirect_after_login(conn, nil) do
-    # No authorization request - use normal return_to logic
-    redirect(conn, to: get_return_to(conn))
+  defp redirect_after_login(conn, nil, return_to) do
+    target = return_to || get_return_to(conn)
+
+    if String.starts_with?(target, "http://") or String.starts_with?(target, "https://") do
+      redirect(conn, external: target)
+    else
+      redirect(conn, to: target)
+    end
   end
 
-  defp redirect_after_login(conn, authorization_request) when is_map(authorization_request) do
+  defp redirect_after_login(conn, authorization_request, _return_to)
+       when is_map(authorization_request) do
     # Rebuild authorization URL with original OAuth2 parameters
     query_string = URI.encode_query(authorization_request)
     redirect(conn, to: "/oauth/authorize?" <> query_string)

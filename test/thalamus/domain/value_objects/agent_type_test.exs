@@ -1,5 +1,5 @@
 defmodule Thalamus.Domain.ValueObjects.AgentTypeTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias Thalamus.Domain.ValueObjects.AgentType
 
@@ -204,8 +204,8 @@ defmodule Thalamus.Domain.ValueObjects.AgentTypeTest do
 
     test "special characters fail" do
       assert {:error, :invalid_agent_type} = AgentType.new("autonomous!")
-      assert {:error, :invalid_agent_type} = AgentType.new("supervised?")
-      assert {:error, :invalid_agent_type} = AgentType.new("ephemeral#")
+      assert {:error, :invalid_agent_type} = AgentType.new("supervisor?")
+      assert {:error, :invalid_agent_type} = AgentType.new("tool#")
     end
   end
 

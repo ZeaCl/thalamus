@@ -1,5 +1,5 @@
 defmodule Thalamus.Domain.ValueObjects.UserIdTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
   doctest Thalamus.Domain.ValueObjects.UserId
 
   alias Thalamus.Domain.ValueObjects.UserId

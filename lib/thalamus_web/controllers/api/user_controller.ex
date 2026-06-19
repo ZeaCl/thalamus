@@ -84,6 +84,11 @@ defmodule ThalamusWeb.API.UserController do
             conn
             |> put_status(:not_found)
             |> json(%{error: "User not found"})
+
+          {:error, :invalid_uuid} ->
+            conn
+            |> put_status(:bad_request)
+            |> json(%{error: "Invalid user ID format"})
         end
 
       {:error, _reason} ->
@@ -146,8 +151,12 @@ defmodule ThalamusWeb.API.UserController do
       {:error, %Ecto.Changeset{} = changeset} ->
         errors = format_changeset_errors(changeset)
 
+        # Check if it's a unique constraint violation (email already exists)
+        status =
+          if has_unique_constraint_error?(changeset, :email), do: :conflict, else: :bad_request
+
         conn
-        |> put_status(:bad_request)
+        |> put_status(status)
         |> json(%{error: "Validation failed", details: errors})
 
       {:error, reason} ->
@@ -176,9 +185,12 @@ defmodule ThalamusWeb.API.UserController do
   - 400 Bad Request: Invalid input
   """
   def update(conn, %{"id" => id} = params) do
+    # Unwrap "user" key if SDK wraps data (thalamus-js sends { user: data })
+    update_params = params["user"] || params
+
     with {:ok, user_id} <- UserId.from_string(id),
          {:ok, user} <- PostgreSQLUserRepository.find_by_id(user_id),
-         {:ok, updated_user} <- apply_updates(user, params),
+         {:ok, updated_user} <- apply_updates(user, update_params),
          {:ok, saved_user} <- PostgreSQLUserRepository.save(updated_user) do
       conn
       |> put_status(:ok)
@@ -357,6 +369,13 @@ defmodule ThalamusWeb.API.UserController do
       Enum.reduce(opts, msg, fn {key, value}, acc ->
         String.replace(acc, "%{#{key}}", to_string(value))
       end)
+    end)
+  end
+
+  defp has_unique_constraint_error?(changeset, field) do
+    changeset.errors
+    |> Enum.any?(fn {error_field, {_message, opts}} ->
+      error_field == field && Keyword.get(opts, :constraint) == :unique
     end)
   end
 end

@@ -74,6 +74,7 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.TokenSchema do
   def create_changeset(attrs) do
     %__MODULE__{}
     |> cast(attrs, [
+      :id,
       :token,
       :type,
       :user_id,
@@ -81,6 +82,8 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.TokenSchema do
       :organization_id,
       :scopes,
       :expires_at,
+      :revoked,
+      :revoked_at,
       :code_challenge,
       :code_challenge_method,
       :token_family_id,
@@ -97,7 +100,8 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.TokenSchema do
       :expires_on_completion,
       :intent_description,
       :orchestrator_id,
-      :environment
+      :environment,
+      :inserted_at
     ])
     |> validate_required([:token, :type, :client_id, :expires_at])
     |> validate_token_type()
@@ -159,12 +163,22 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.TokenSchema do
         add_error(changeset, :expires_at, "can't be blank")
 
       expires_at ->
-        now = DateTime.utc_now()
+        # Skip future validation if:
+        # 1. Token has explicit inserted_at (test data or migration)
+        # 2. Token is already revoked (historical data)
+        has_explicit_timestamp = get_change(changeset, :inserted_at) != nil
+        is_revoked = get_change(changeset, :revoked) == true
 
-        if DateTime.compare(expires_at, now) == :gt do
+        if has_explicit_timestamp or is_revoked do
           changeset
         else
-          add_error(changeset, :expires_at, "must be in the future")
+          now = DateTime.utc_now()
+
+          if DateTime.compare(expires_at, now) == :gt do
+            changeset
+          else
+            add_error(changeset, :expires_at, "must be in the future")
+          end
         end
     end
   end

@@ -212,13 +212,29 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOrganizationRepository 
   # Private conversion functions
 
   defp schema_to_entity(%OrganizationSchema{} = schema) do
+    alias Thalamus.Domain.ValueObjects.Plan
+
     {:ok, org_id} = OrganizationId.from_string(schema.id)
 
     # Convert members from JSONB to Member value objects
     members =
       Enum.map(schema.members, fn member_data ->
-        {:ok, user_id} = UserId.from_string(member_data["user_id"])
-        {:ok, email} = Email.new(member_data["email"])
+        # Handle synthetic owner member with nil user_id
+        user_id =
+          if member_data["user_id"] do
+            {:ok, uid} = UserId.from_string(member_data["user_id"])
+            uid
+          else
+            nil
+          end
+
+        email =
+          if member_data["email"] do
+            {:ok, e} = Email.new(member_data["email"])
+            e
+          else
+            nil
+          end
 
         %Organization.Member{
           user_id: user_id,
@@ -251,10 +267,14 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOrganizationRepository 
     # Use verified boolean to determine verified_at (if verified, use inserted_at as proxy)
     verified_at = if schema.verified, do: schema.inserted_at, else: nil
 
+    # Create Plan value object from plan_type
+    {:ok, plan} = Plan.new(schema.plan_type)
+
     %Organization{
       id: org_id,
       name: schema.name,
       owner_email: owner_email,
+      plan: plan,
       status: schema.status,
       verified_at: verified_at,
       plan_type: schema.plan_type,
@@ -277,6 +297,28 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOrganizationRepository 
     # Extract UUID from "org_<uuid>" format for database storage
     org_uuid = String.replace_prefix(org_id_string, "org_", "")
 
+    # If owner_email exists but no owner member, create a synthetic owner member
+    has_owner =
+      Enum.any?(org.members, fn
+        %Organization.Member{role: :owner} -> true
+        %{role: :owner} -> true
+        _ -> false
+      end)
+
+    members =
+      if org.owner_email && !has_owner do
+        owner_member = %Organization.Member{
+          user_id: nil,
+          email: org.owner_email,
+          role: :owner,
+          joined_at: org.created_at || DateTime.utc_now()
+        }
+
+        [owner_member | org.members]
+      else
+        org.members
+      end
+
     %{
       id: org_uuid,
       name: org.name,
@@ -287,13 +329,21 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOrganizationRepository 
       max_users: org.max_users || 999_999_999,
       max_api_calls_per_month: org.max_api_calls_per_month || 999_999_999,
       api_calls_current_month: org.api_calls_current_month,
-      members: Enum.map(org.members, &member_to_map/1)
+      members: Enum.map(members, &member_to_map/1)
     }
   end
 
   defp member_to_map(%Organization.Member{} = member) do
+    user_id_string =
+      if member.user_id do
+        raw = UserId.to_string(member.user_id)
+        String.replace_prefix(raw, "user_", "")
+      else
+        nil
+      end
+
     %{
-      "user_id" => UserId.to_string(member.user_id),
+      "user_id" => user_id_string,
       "email" => Email.to_string(member.email),
       "role" => to_string(member.role),
       "joined_at" => DateTime.to_iso8601(member.joined_at)

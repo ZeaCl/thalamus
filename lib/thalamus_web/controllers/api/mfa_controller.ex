@@ -13,6 +13,7 @@ defmodule ThalamusWeb.API.MFAController do
 
   use ThalamusWeb, :controller
 
+  alias Thalamus.Domain.Entities.User
   alias Thalamus.Domain.ValueObjects.{UserId, MFAMethod}
   alias Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository
   alias Thalamus.Infrastructure.Adapters.AuditLoggerImpl
@@ -178,7 +179,7 @@ defmodule ThalamusWeb.API.MFAController do
          {:ok, user} <- PostgreSQLUserRepository.find_by_id(user_id),
          :ok <- validate_user_has_mfa(user),
          {:ok, mfa_method} <- get_user_totp_method(user),
-         :ok <- validate_totp_code(code, mfa_method.secret) do
+         :ok <- validate_totp_code(code, mfa_method.identifier) do
       AuditLoggerImpl.log_mfa_verification_success(user_id, :totp)
 
       conn
@@ -390,9 +391,10 @@ defmodule ThalamusWeb.API.MFAController do
 
   defp generate_totp_uri(email, secret) do
     email_string = to_string(email)
-    issuer = "ZEA Thalamus"
+    # Configurable issuer name for TOTP authenticator apps
+    issuer = Application.get_env(:thalamus, :mfa_issuer_name, "Thalamus")
 
-    # otpauth://totp/ZEA%20Thalamus:user@example.com?secret=SECRET&issuer=ZEA%20Thalamus
+    # otpauth://totp/Thalamus:user@example.com?secret=SECRET&issuer=Thalamus
     "otpauth://totp/#{URI.encode(issuer)}:#{URI.encode(email_string)}?secret=#{secret}&issuer=#{URI.encode(issuer)}"
   end
 

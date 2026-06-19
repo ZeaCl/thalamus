@@ -1,17 +1,24 @@
 defmodule ThalamusWeb.API.UserControllerTest do
-  use ThalamusWeb.ConnCase, async: true
+  use ThalamusWeb.ConnCase, async: false
 
-  alias Thalamus.Domain.Entities.User
-  alias Thalamus.Domain.ValueObjects.AccessToken
+  alias Thalamus.Domain.Entities.{User, Organization}
+  alias Thalamus.Domain.ValueObjects.{AccessToken, Scope}
+  alias Thalamus.TestHelpers
 
   alias Thalamus.Infrastructure.Repositories.{
     PostgreSQLUserRepository,
+    PostgreSQLOrganizationRepository,
+    PostgreSQLOAuth2ClientRepository,
     PostgreSQLTokenRepository
   }
 
   setup do
+    # Create organization for OAuth2 client
+    {:ok, org} = Organization.new("Test Corp", "owner@test.com", :standard)
+    {:ok, org} = PostgreSQLOrganizationRepository.save(org)
+
     # Create admin user with access token
-    {:ok, admin} = User.register("admin@test.com", "AdminPass123!")
+    {:ok, admin} = User.register("admin8183@test.com", "AdminPass123!")
     {:ok, admin} = User.verify_email(admin)
     {:ok, admin} = PostgreSQLUserRepository.save(admin)
 
@@ -30,6 +37,11 @@ defmodule ThalamusWeb.API.UserControllerTest do
       Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository.save(client)
 
     # Generate access token
+    {:ok, read_scope} = Scope.new("api:read")
+    {:ok, write_scope} = Scope.new("api:write")
+    {:ok, admin_scope} = Scope.new("api:admin")
+    scopes = [read_scope, write_scope, admin_scope]
+
     {:ok, access_token} =
       AccessToken.generate(
         [
@@ -40,6 +52,10 @@ defmodule ThalamusWeb.API.UserControllerTest do
         admin.id,
         3600
       )
+
+    # Extract client ID without "client_" prefix for DB storage
+    client_id_string = Thalamus.Domain.ValueObjects.ClientId.to_string(client.id)
+    client_uuid = String.replace_prefix(client_id_string, "client_", "")
 
     token_data = %{
       token: access_token.token,
@@ -284,7 +300,7 @@ defmodule ThalamusWeb.API.UserControllerTest do
       assert %{
                "data" => %{
                  "id" => id,
-                 "email" => "admin@test.com",
+                 "email" => "admin8183@test.com",
                  "verified" => true
                }
              } = json_response(conn, 200)

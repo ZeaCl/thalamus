@@ -51,6 +51,20 @@ defmodule Thalamus.Domain.ValueObjects.UserId do
   end
 
   @doc """
+  Generates a new unique UserId, raising on error.
+
+  ## Examples
+
+      iex> %Thalamus.Domain.ValueObjects.UserId{value: value} = Thalamus.Domain.ValueObjects.UserId.generate!()
+      iex> String.starts_with?(value, "user_")
+      true
+  """
+  def generate! do
+    {:ok, user_id} = generate()
+    user_id
+  end
+
+  @doc """
   Converts UserId to string for database storage or API responses.
 
   ## Examples

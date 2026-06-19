@@ -1,5 +1,5 @@
 defmodule ThalamusWeb.API.RegistrationControllerTest do
-  use ThalamusWeb.ConnCase, async: true
+  use ThalamusWeb.ConnCase, async: false
 
   alias Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository
 
@@ -150,7 +150,7 @@ defmodule ThalamusWeb.API.RegistrationControllerTest do
         # Check user is verified
         {:ok, email_vo} = Thalamus.Domain.ValueObjects.Email.new("verify@test.com")
         {:ok, user} = PostgreSQLUserRepository.find_by_email(email_vo)
-        assert user.verified == true
+        assert !is_nil(user.verified_at)
         assert user.status == :active
       end
     end

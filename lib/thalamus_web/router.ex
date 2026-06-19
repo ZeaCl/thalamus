@@ -8,8 +8,15 @@ defmodule ThalamusWeb.Router do
     plug :put_root_layout, html: {ThalamusWeb.Layouts, :root}
     plug :protect_from_forgery
     plug :put_secure_browser_headers
+    plug ThalamusWeb.Plugs.SecurityHeaders
   end
 
+  # Registration pipeline — rate limited to prevent abuse
+  pipeline :registration do
+    plug ThalamusWeb.Plugs.RateLimiter, limit: 5, window: 60_000, key: :ip_address
+  end
+
+  # API pipeline
   pipeline :api do
     plug :accepts, ["json"]
     plug ThalamusWeb.Plugs.CORS
@@ -35,7 +42,7 @@ defmodule ThalamusWeb.Router do
     plug :accepts, ["json"]
     plug ThalamusWeb.Plugs.CORS
     plug ThalamusWeb.Plugs.SecurityHeaders
-    plug ThalamusWeb.Plugs.RateLimiter, limit: 100, window: 60_000, key: :ip_address
+    plug ThalamusWeb.Plugs.RateLimiter, limit: 1000, window: 60_000, key: :ip_address
   end
 
   # Authenticated API pipeline (JWT only)
@@ -66,15 +73,11 @@ defmodule ThalamusWeb.Router do
     plug ThalamusWeb.Plugs.RateLimiter, limit: 1000, window: 60_000, key: :user_id
   end
 
-  # Dashboard pipeline - authenticated browser access
-  pipeline :dashboard do
-    plug :browser
-    plug :fetch_session
-    plug :fetch_live_flash
-    plug :put_root_layout, html: {ThalamusWeb.Layouts, :app}
-    plug :protect_from_forgery
-    plug :put_secure_browser_headers
-    plug ThalamusWeb.Plugs.RequireAuth
+  # Internal API for Microservices (e.g., Glia)
+  pipeline :internal_api do
+    plug :accepts, ["json"]
+    # In production, this would be protected by mTLS or a static internal token.
+    # For now, we allow it internally.
   end
 
   scope "/auth/saml", ThalamusWeb do
@@ -92,6 +95,7 @@ defmodule ThalamusWeb.Router do
     # Session management
     get "/login", SessionController, :new
     post "/login", SessionController, :create
+    get "/logout", SessionController, :delete
     post "/logout", SessionController, :delete
 
     # Registration
@@ -161,6 +165,17 @@ defmodule ThalamusWeb.Router do
     post "/authorize", AuthorizationController, :create
   end
 
+  # OpenID Connect Discovery (public, no auth required)
+  scope "/.well-known", ThalamusWeb.OAuth2 do
+    pipe_through :api
+
+    # OpenID Connect Discovery endpoint
+    get "/openid-configuration", DiscoveryController, :show
+
+    # JWKS endpoint for JWT signature verification
+    get "/jwks.json", JwksController, :show
+  end
+
   # OAuth2 Token Endpoints (API-based, NO CSRF protection)
   scope "/oauth", ThalamusWeb.OAuth2 do
     pipe_through :oauth2_api
@@ -179,6 +194,15 @@ defmodule ThalamusWeb.Router do
 
     # Token revocation endpoint (RFC 7009)
     post "/revoke", RevocationController, :create
+  end
+
+  # SAML SSO Authentication — public endpoints
+  scope "/auth/saml", ThalamusWeb do
+    pipe_through :oauth2_api
+
+    get "/init", SamlController, :init
+    post "/acs", SamlController, :acs
+    get "/metadata/:id", SamlController, :metadata
   end
 
   # Public API - no authentication required
@@ -205,14 +229,36 @@ defmodule ThalamusWeb.Router do
   scope "/api", ThalamusWeb.API do
     pipe_through :authenticated_api
 
+    # Personal Access Tokens management
+    resources "/personal-access-tokens", PersonalAccessTokenController,
+      only: [:index, :create, :delete]
+
     # User management
     resources "/users", UserController, except: [:new, :edit]
 
     # Organization management
     resources "/organizations", OrganizationController, except: [:new, :edit]
 
+    # Secrets management (UI)
+    resources "/secrets", SecretController, only: [:index, :create, :delete]
+
+    # Organization member management
+    post "/organizations/:id/members", OrganizationController, :add_member
+    delete "/organizations/:id/members/:user_id", OrganizationController, :remove_member
+
+    # Domain management (generic, domain-agnostic)
+    get "/domains", DomainController, :index
+    post "/domains/register", DomainController, :register
+    post "/domains/roles/grant", DomainController, :grant_role
+    delete "/domains/roles/revoke", DomainController, :revoke_role
+    get "/domains/roles", DomainController, :list_roles
+
     # Password change (requires authentication)
     put "/password/change", PasswordController, :change
+
+    # Avatar management (requires authentication)
+    post "/avatar", AvatarController, :upload
+    delete "/avatar", AvatarController, :delete
 
     # MFA (Multi-Factor Authentication) management
     post "/mfa/totp/setup", MFAController, :setup_totp
@@ -249,6 +295,15 @@ defmodule ThalamusWeb.Router do
     # Admin API Key management
     resources "/api-keys", AdminApiKeyController, only: [:index, :create, :show, :delete]
     post "/api-keys/:id/rotate", AdminApiKeyController, :rotate
+  end
+
+  # Internal Microservices API
+  scope "/api/internal", ThalamusWeb.API do
+    pipe_through :internal_api
+
+    get "/secrets/resolve", SecretController, :resolve
+    post "/agent-token", AgentTokenController, :create
+    get "/users/:id/agent-config", InternalAgentConfigController, :show
   end
 
   # Enable LiveDashboard in development
