@@ -8,7 +8,7 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.ProjectContextSchema do
     field :file_name, :string
     field :content, :string
     field :priority, :integer, default: 0
-    
+
     belongs_to :project, Thalamus.Infrastructure.Persistence.Schemas.ProjectSchema
 
     timestamps()

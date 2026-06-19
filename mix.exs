@@ -79,6 +79,9 @@ defmodule Thalamus.MixProject do
       # TOTP for MFA
       {:pot, "~> 1.0"},
 
+      # SAML SSO
+      {:samly, "~> 1.4"},
+
       # HTTP Client
       {:req, "~> 0.4"},
       {:finch, "~> 0.18"},

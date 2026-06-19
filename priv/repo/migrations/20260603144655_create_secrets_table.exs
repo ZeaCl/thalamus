@@ -4,10 +4,13 @@ defmodule Thalamus.Repo.Migrations.CreateSecretsTable do
   def change do
     create table(:secrets, primary_key: false) do
       add :id, :uuid, primary_key: true, default: fragment("gen_random_uuid()")
-      add :owner_type, :string, null: false # 'user' or 'organization'
+      # 'user' or 'organization'
+      add :owner_type, :string, null: false
       add :owner_id, :uuid, null: false
-      add :provider, :string, null: false   # e.g., 'google_stitch', 'openai'
-      add :name, :string, null: false       # User-friendly name
+      # e.g., 'google_stitch', 'openai'
+      add :provider, :string, null: false
+      # User-friendly name
+      add :name, :string, null: false
       add :encrypted_value, :binary, null: false
 
       timestamps(type: :utc_datetime)

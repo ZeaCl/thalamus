@@ -29,8 +29,9 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLSecretRepository do
   end
 
   def get_by_owner_and_provider(owner_type, owner_id, provider) do
-    query = from s in Secret,
-      where: s.owner_type == ^owner_type and s.owner_id == ^owner_id and s.provider == ^provider
+    query =
+      from s in Secret,
+        where: s.owner_type == ^owner_type and s.owner_id == ^owner_id and s.provider == ^provider
 
     case Repo.one(query) do
       nil -> {:error, :not_found}
@@ -40,9 +41,10 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLSecretRepository do
 
   @impl true
   def list_by_owner(owner_type, owner_id) do
-    query = from s in Secret,
-      where: s.owner_type == ^owner_type and s.owner_id == ^owner_id,
-      order_by: [desc: s.inserted_at]
+    query =
+      from s in Secret,
+        where: s.owner_type == ^owner_type and s.owner_id == ^owner_id,
+        order_by: [desc: s.inserted_at]
 
     Repo.all(query)
   end

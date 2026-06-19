@@ -188,8 +188,10 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository 
           Thalamus.Domain.ValueObjects.ClientSecret.from_hash(schema.client_secret)
         else
           hashed = Bcrypt.hash_pwd_salt(schema.client_secret)
+
           Ecto.Changeset.change(schema, client_secret: hashed)
           |> Thalamus.Repo.update!()
+
           Thalamus.Domain.ValueObjects.ClientSecret.from_hash(hashed)
         end
       else

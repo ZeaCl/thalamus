@@ -18,13 +18,14 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.ProjectSchemaTest do
 
     test "changeset/2 enforces unique name" do
       attrs = %{name: "Zea Platform"}
+
       %ProjectSchema{}
       |> ProjectSchema.changeset(attrs)
       |> Repo.insert!()
 
       changeset = ProjectSchema.changeset(%ProjectSchema{}, attrs)
       {:error, changeset} = Repo.insert(changeset)
-      
+
       refute changeset.valid?
       assert "has already been taken" in errors_on(changeset).name
     end

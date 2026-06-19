@@ -111,8 +111,18 @@ defmodule ThalamusWeb.API.UserController do
   def create(conn, params) do
     with {:ok, email_string} <- get_required_param(params, "email"),
          {:ok, password} <- get_required_param(params, "password"),
-         is_agent = (params["is_agent"] == true || params["is_agent"] == "true"),
-         create_result = if(is_agent, do: User.register_agent(params["name"] || "Agent User", email_string, password, params["agent_config"] || %{}), else: User.register(email_string, password)),
+         is_agent = params["is_agent"] == true || params["is_agent"] == "true",
+         create_result =
+           if(is_agent,
+             do:
+               User.register_agent(
+                 params["name"] || "Agent User",
+                 email_string,
+                 password,
+                 params["agent_config"] || %{}
+               ),
+             else: User.register(email_string, password)
+           ),
          {:ok, user} <- create_result,
          {:ok, saved_user} <- PostgreSQLUserRepository.save(user) do
       conn

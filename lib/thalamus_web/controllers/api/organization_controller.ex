@@ -19,7 +19,9 @@ defmodule ThalamusWeb.API.OrganizationController do
 
   alias Thalamus.Infrastructure.Repositories.PostgreSQLOrganizationRepository
   alias Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository
+  alias Thalamus.Infrastructure.Repositories.PostgreSQLSamlIdentityProviderRepository
   alias Thalamus.Domain.Entities.Organization
+  alias Thalamus.Domain.Entities.SamlIdentityProvider
   alias Thalamus.Domain.ValueObjects.{OrganizationId, UserId, Email}
 
   @doc """
@@ -487,6 +489,137 @@ defmodule ThalamusWeb.API.OrganizationController do
     conn
     |> put_status(:bad_request)
     |> json(%{error: "Missing required parameter: user_id"})
+  end
+
+  # ─── SAML Configuration ────────────────────────────────────
+
+  @doc """
+  GET /api/organizations/:id/saml-config
+
+  Returns the SAML IdP configuration for the organization.
+  """
+  def show_saml_config(conn, %{"id" => id}) do
+    with {:ok, org_id} <- OrganizationId.from_string(id),
+         {:ok, idp_config} <-
+           PostgreSQLSamlIdentityProviderRepository.find_by_organization_id(org_id) do
+      json(conn, %{data: serialize_saml_config(idp_config)})
+    else
+      {:error, :not_found} ->
+        conn
+        |> put_status(:not_found)
+        |> json(%{error: "No SAML configuration found for this organization"})
+
+      {:error, reason} ->
+        conn
+        |> put_status(:internal_server_error)
+        |> json(%{error: "Failed to load SAML config", details: inspect(reason)})
+    end
+  end
+
+  @doc """
+  PUT /api/organizations/:id/saml-config
+
+  Creates or updates the SAML IdP configuration for the organization.
+
+  Request body:
+  {
+    "saml": {
+      "name": "Azure AD - Contoso",
+      "idp_entity_id": "https://sts.windows.net/tenant-id/",
+      "idp_sso_url": "https://login.microsoftonline.com/tenant-id/saml2",
+      "idp_certificate": "MIID...",
+      "idp_metadata_xml": "<xml>...</xml>",
+      "enabled": true,
+      "force_saml": false,
+      "jit_provisioning": true,
+      "allowed_domains": ["contoso.com"],
+      "attribute_mapping": {"email": "emailaddress", "name": "displayname"}
+    }
+  }
+  """
+  def update_saml_config(conn, %{"id" => id} = params) do
+    saml_params = params["saml"] || %{}
+
+    with {:ok, org_id} <- OrganizationId.from_string(id),
+         {:ok, idp_config} <- build_saml_entity(saml_params, org_id),
+         {:ok, saved} <- PostgreSQLSamlIdentityProviderRepository.save(idp_config) do
+      json(conn |> put_status(:ok), %{data: serialize_saml_config(saved)})
+    else
+      {:error, %Ecto.Changeset{} = changeset} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: "Validation failed", details: format_changeset_errors(changeset)})
+
+      {:error, reason} when is_atom(reason) ->
+        conn
+        |> put_status(:bad_request)
+        |> json(%{error: "Invalid SAML configuration", details: to_string(reason)})
+
+      {:error, reason} ->
+        conn
+        |> put_status(:internal_server_error)
+        |> json(%{error: "Failed to save SAML config", details: inspect(reason)})
+    end
+  end
+
+  @doc """
+  DELETE /api/organizations/:id/saml-config
+
+  Removes the SAML configuration for the organization.
+  """
+  def delete_saml_config(conn, %{"id" => id}) do
+    with {:ok, org_id} <- OrganizationId.from_string(id),
+         :ok <- PostgreSQLSamlIdentityProviderRepository.delete(org_id) do
+      json(conn, %{message: "SAML configuration removed"})
+    else
+      {:error, :not_found} ->
+        conn
+        |> put_status(:not_found)
+        |> json(%{error: "No SAML configuration found"})
+
+      {:error, reason} ->
+        conn
+        |> put_status(:internal_server_error)
+        |> json(%{error: "Failed to remove SAML config", details: inspect(reason)})
+    end
+  end
+
+  defp build_saml_entity(saml_params, org_id) do
+    SamlIdentityProvider.new(
+      Map.put(saml_params, "organization_id", org_id)
+      |> atomize_keys()
+    )
+  end
+
+  defp atomize_keys(map) when is_map(map) do
+    Map.new(map, fn
+      {key, value} when is_binary(key) -> {String.to_atom(key), value}
+      {key, value} -> {key, value}
+    end)
+  end
+
+  defp serialize_saml_config(idp) do
+    attr_mapping =
+      if is_struct(idp.attribute_mapping),
+        do: idp.attribute_mapping.mappings,
+        else: idp.attribute_mapping
+
+    %{
+      id: idp.id,
+      organization_id: OrganizationId.to_string(idp.organization_id),
+      name: idp.name,
+      idp_entity_id: to_string(idp.idp_entity_id),
+      idp_sso_url: idp.idp_sso_url,
+      idp_slo_url: idp.idp_slo_url,
+      sp_entity_id: idp.sp_entity_id,
+      enabled: idp.enabled,
+      force_saml: idp.force_saml,
+      jit_provisioning: idp.jit_provisioning,
+      allowed_domains: idp.allowed_domains,
+      attribute_mapping: attr_mapping,
+      inserted_at: idp.inserted_at,
+      updated_at: idp.updated_at
+    }
   end
 
   defp format_changeset_errors(changeset) do

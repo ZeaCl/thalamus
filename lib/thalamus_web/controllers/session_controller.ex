@@ -3,6 +3,7 @@ defmodule ThalamusWeb.SessionController do
 
   alias Thalamus.Repo
   alias Thalamus.Infrastructure.Persistence.Schemas.UserSchema
+  alias Thalamus.Infrastructure.Repositories.PostgreSQLSamlIdentityProviderRepository
 
   def new(conn, params) do
     # Preserve return_to parameter in session for OAuth2 authorization flow
@@ -16,24 +17,40 @@ defmodule ThalamusWeb.SessionController do
   end
 
   def create(conn, %{"session" => %{"email" => email, "password" => password}}) do
-    case authenticate_user(email, password) do
-      {:ok, user} ->
-        # Check if there's an OAuth2 authorization request in session
-        authorization_request = get_session(conn, :authorization_request)
+    # SAML SSO detection: if no password provided or org forces SAML, redirect to IdP
+    cond do
+      password == "" ->
+        redirect(conn, to: "/auth/saml/init?email=#{URI.encode_www_form(email)}")
 
-        conn
-        |> put_flash(:info, "Welcome back!")
-        |> put_session(:user_id, user.id)
-        # Clear return_to after reading it
-        |> delete_session(:return_to)
-        # Clear authorization request
-        |> delete_session(:authorization_request)
-        |> redirect_after_login(authorization_request)
+      saml_force_enabled_for_email?(email) ->
+        redirect(conn, to: "/auth/saml/init?email=#{URI.encode_www_form(email)}")
 
-      {:error, _reason} ->
-        conn
-        |> put_flash(:error, "Invalid email or password")
-        |> render(:new, layout: false)
+      true ->
+        case authenticate_user(email, password) do
+          {:ok, user} ->
+            # Check if there's an OAuth2 authorization request in session
+            authorization_request = get_session(conn, :authorization_request)
+
+            conn
+            |> put_flash(:info, "Welcome back!")
+            |> put_session(:user_id, user.id)
+            # Clear return_to after reading it
+            |> delete_session(:return_to)
+            # Clear authorization request
+            |> delete_session(:authorization_request)
+            |> redirect_after_login(authorization_request)
+
+          {:error, _reason} ->
+            # NEW: check if this email might have SAML available
+            maybe_saml_hint =
+              if saml_available_for_email?(email),
+                do: " (or try signing in without a password to use SSO)",
+                else: ""
+
+            conn
+            |> put_flash(:error, "Invalid email or password.#{maybe_saml_hint}")
+            |> render(:new, layout: false)
+        end
     end
   end
 
@@ -101,6 +118,33 @@ defmodule ThalamusWeb.SessionController do
     else
       Bcrypt.no_user_verify()
       {:error, :invalid_credentials}
+    end
+  end
+
+  # ─── SAML Detection Helpers ──────────────────────────────────
+
+  defp saml_force_enabled_for_email?(email) do
+    domain = extract_domain(email)
+
+    case PostgreSQLSamlIdentityProviderRepository.find_by_email_domain(domain) do
+      {:ok, idp} -> Thalamus.Domain.Entities.SamlIdentityProvider.force_saml?(idp)
+      _ -> false
+    end
+  end
+
+  defp saml_available_for_email?(email) do
+    domain = extract_domain(email)
+
+    case PostgreSQLSamlIdentityProviderRepository.find_by_email_domain(domain) do
+      {:ok, _idp} -> true
+      _ -> false
+    end
+  end
+
+  defp extract_domain(email) do
+    case String.split(email, "@") do
+      [_, domain] -> String.downcase(domain)
+      _ -> ""
     end
   end
 
