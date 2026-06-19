@@ -4,7 +4,7 @@ defmodule Thalamus.TestHelpers do
   """
 
   alias Thalamus.Domain.Entities.OAuth2Client
-  alias Thalamus.Domain.ValueObjects.{ClientId, OrganizationId, GrantType, RedirectUri, Scope}
+  alias Thalamus.Domain.ValueObjects.{ClientId, GrantType, RedirectUri, Scope}
 
   @doc """
   Creates an OAuth2 client for testing with a simplified API.
