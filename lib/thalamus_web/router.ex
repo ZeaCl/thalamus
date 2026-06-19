@@ -80,13 +80,6 @@ defmodule ThalamusWeb.Router do
     # For now, we allow it internally.
   end
 
-  scope "/auth/saml", ThalamusWeb do
-    get "/init", SamlController, :init
-    get "/callback", SamlController, :callback
-    post "/callback", SamlController, :callback
-    get "/metadata/:id", SamlController, :metadata
-  end
-
   scope "/", ThalamusWeb do
     pipe_through :browser
 
@@ -114,46 +107,6 @@ defmodule ThalamusWeb.Router do
     get "/api-reference", DocsController, :api_reference
     get "/deployment", DocsController, :deployment
     get "/agent-tokens", DocsController, :agent_tokens
-  end
-
-  # Dashboard (Admin Panel)
-  scope "/dashboard", ThalamusWeb.Dashboard do
-    pipe_through :dashboard
-  end
-
-  # OAuth2 Clients Management
-  scope "/dashboard", ThalamusWeb do
-    pipe_through :dashboard
-  end
-
-  # Users Management
-  scope "/dashboard", ThalamusWeb do
-    pipe_through :dashboard
-  end
-
-  # Organizations Management
-  scope "/dashboard", ThalamusWeb do
-    pipe_through :dashboard
-  end
-
-  # Token Management
-  scope "/dashboard", ThalamusWeb do
-    pipe_through :dashboard
-  end
-
-  # Audit Logs
-  scope "/dashboard", ThalamusWeb do
-    pipe_through :dashboard
-  end
-
-  # API Keys Management
-  scope "/dashboard", ThalamusWeb do
-    pipe_through :dashboard
-  end
-
-  # Settings
-  scope "/dashboard", ThalamusWeb do
-    pipe_through :dashboard
   end
 
   # OAuth2 Authorization Endpoints (Browser-based, needs CSRF protection)
@@ -239,9 +192,6 @@ defmodule ThalamusWeb.Router do
     # Organization management
     resources "/organizations", OrganizationController, except: [:new, :edit]
 
-    # Secrets management (UI)
-    resources "/secrets", SecretController, only: [:index, :create, :delete]
-
     # Organization member management
     post "/organizations/:id/members", OrganizationController, :add_member
     delete "/organizations/:id/members/:user_id", OrganizationController, :remove_member
@@ -271,12 +221,6 @@ defmodule ThalamusWeb.Router do
     post "/authorization/validate-step", AuthorizationController, :validate_step
   end
 
-  # OAuth2 Client Management API - accepts both JWT and API Keys
-  scope "/api/internal", ThalamusWeb.API do
-    pipe_through :api_auth
-    get "/secrets/resolve", SecretController, :resolve
-  end
-
   scope "/api", ThalamusWeb.API do
     pipe_through :api_auth
 
@@ -285,7 +229,7 @@ defmodule ThalamusWeb.Router do
 
     # Rotate OAuth2 client secret
     post "/clients/:client_id/rotate-secret", OAuth2ClientController, :rotate_secret
-    resources "/secrets", SecretController, except: [:new, :edit]
+    resources "/secrets", SecretController, only: [:index, :create, :delete]
   end
 
   # Admin API - requires super_admin role

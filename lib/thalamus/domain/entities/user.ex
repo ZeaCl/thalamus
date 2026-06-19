@@ -131,26 +131,6 @@ defmodule Thalamus.Domain.Entities.User do
     end
   end
 
-  def register_agent(name, email_string, password, agent_config) do
-    with {:ok, user_id} <- UserId.generate(),
-         {:ok, email} <- Email.new(email_string),
-         {:ok, password_hash} <- PasswordHash.from_password(password) do
-      new(%{
-        id: user_id,
-        name: name,
-        email: email,
-        password_hash: password_hash,
-        is_agent: true,
-        agent_config: agent_config,
-        status: :active,
-        # Agents are auto-verified
-        verified_at: DateTime.truncate(DateTime.utc_now(), :second)
-      })
-    else
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
   def register(_, _), do: {:error, :invalid_registration_data}
 
   def register_agent(name, email_string, password, agent_config) do

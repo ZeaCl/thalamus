@@ -23,6 +23,13 @@ export interface IntrospectionResponse {
   email?: string
   organization_id?: string
   sub?: string
+  token_type?: string
+  exp?: number
+  iat?: number
+  nbf?: number
+  aud?: string
+  iss?: string
+  jti?: string
 }
 
 export interface UserInfo {

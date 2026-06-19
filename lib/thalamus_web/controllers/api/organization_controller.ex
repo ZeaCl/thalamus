@@ -282,7 +282,7 @@ defmodule ThalamusWeb.API.OrganizationController do
     %{
       id: OrganizationId.to_string(org.id),
       name: org.name,
-      owner_email: if(org.owner_email, do: Email.to_string(org.owner_email), else: nil),
+      owner_email: owner_email,
       status: org.status,
       verified: !is_nil(org.verified_at),
       verified_at: org.verified_at,

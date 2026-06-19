@@ -30,6 +30,7 @@ defmodule ThalamusWeb.SessionController do
           {:ok, user} ->
             # Check if there's an OAuth2 authorization request in session
             authorization_request = get_session(conn, :authorization_request)
+            return_to = get_session(conn, :return_to)
 
             conn
             |> put_flash(:info, "Welcome back!")
@@ -38,7 +39,7 @@ defmodule ThalamusWeb.SessionController do
             |> delete_session(:return_to)
             # Clear authorization request
             |> delete_session(:authorization_request)
-            |> redirect_after_login(authorization_request)
+            |> redirect_after_login(authorization_request, return_to)
 
           {:error, _reason} ->
             # NEW: check if this email might have SAML available
@@ -101,13 +102,14 @@ defmodule ThalamusWeb.SessionController do
       end
 
     authorization_request = get_session(conn, :authorization_request)
+    return_to = get_session(conn, :return_to)
 
     conn
     |> put_flash(:info, "Successfully authenticated with #{String.capitalize(provider)}!")
     |> put_session(:user_id, user.id)
     |> delete_session(:return_to)
     |> delete_session(:authorization_request)
-    |> redirect_after_login(authorization_request)
+    |> redirect_after_login(authorization_request, return_to)
   end
 
   defp authenticate_user(email, password) do

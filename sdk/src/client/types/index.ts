@@ -37,7 +37,11 @@ export interface IntrospectionResponse {
   token_type?: string
   exp?: number
   iat?: number
+  nbf?: number
   sub?: string
+  aud?: string
+  iss?: string
+  jti?: string
   // Agent-specific fields
   agent_type?: 'autonomous' | 'supervised' | 'ephemeral'
   delegated_by?: string

@@ -354,6 +354,7 @@ defmodule ThalamusWeb.API.OAuth2ClientController do
 
   defp create_client(name, org_id, params) do
     client_type = String.to_existing_atom(params["client_type"] || "confidential")
+    redirect_uri_strings = params["redirect_uris"] || []
 
     # Convert redirect URI strings to RedirectUri value objects
     redirect_uris_result =
@@ -400,13 +401,6 @@ defmodule ThalamusWeb.API.OAuth2ClientController do
 
       grant_types ->
         grant_types = Enum.reverse(grant_types)
-
-        redirect_uris =
-          (params["redirect_uris"] || [])
-          |> Enum.map(fn uri ->
-            {:ok, redirect_uri} = Thalamus.Domain.ValueObjects.RedirectUri.new(uri)
-            redirect_uri
-          end)
 
         # Convert scope strings to Scope value objects
         scopes =

@@ -91,8 +91,7 @@ defmodule ThalamusWeb.Plugs.RateLimiter do
   end
 
   defp do_call(conn, opts) do
-    # Generate rate limit key
-    rate_limit_key = generate_key(conn, opts.key_strategy)
+    rate_limiting_enabled = Application.get_env(:thalamus, :rate_limiting_enabled, true)
 
     if rate_limiting_enabled do
       # Generate rate limit key

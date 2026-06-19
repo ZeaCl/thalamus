@@ -532,6 +532,12 @@ defmodule Thalamus.Domain.Entities.Organization do
     if is_nil(max_users), do: true, else: length(members) <= max_users
   end
 
+  defp plan_max_users(:free), do: 5
+  defp plan_max_users(:basic), do: 25
+  defp plan_max_users(:standard), do: 100
+  defp plan_max_users(:enterprise), do: nil
+  defp plan_max_users(_), do: nil
+
   # Role hierarchy: owner > admin > billing > member
   defp role_level(:owner), do: 4
   defp role_level(:admin), do: 3

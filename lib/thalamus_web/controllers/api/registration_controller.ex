@@ -13,8 +13,7 @@ defmodule ThalamusWeb.API.RegistrationController do
 
   alias Thalamus.Infrastructure.Repositories.{
     PostgreSQLUserRepository,
-    PostgreSQLOrganizationRepository,
-    PostgreSQLTokenRepository
+    PostgreSQLOrganizationRepository
   }
 
   alias Thalamus.Domain.Entities.{User, Organization}

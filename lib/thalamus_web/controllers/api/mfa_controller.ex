@@ -13,7 +13,6 @@ defmodule ThalamusWeb.API.MFAController do
 
   use ThalamusWeb, :controller
 
-  alias Thalamus.Domain.Entities.User
   alias Thalamus.Domain.ValueObjects.{UserId, MFAMethod}
   alias Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository
   alias Thalamus.Infrastructure.Adapters.AuditLoggerImpl

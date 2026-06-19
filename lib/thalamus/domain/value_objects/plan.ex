@@ -98,13 +98,13 @@ defmodule Thalamus.Domain.ValueObjects.Plan do
     end
   end
 
+  def new(_), do: {:error, :invalid_plan_type}
+
   def new(type, config) when is_atom(type) and is_map(config) do
     with :ok <- validate_plan_config(config) do
       {:ok, build_custom_plan(type, config)}
     end
   end
-
-  def new(_), do: {:error, :invalid_plan_type}
 
   @doc """
   Returns the default plan type from configuration.

@@ -71,12 +71,14 @@ describe('Types', () => {
 
   it('should validate ThalamusError structure', () => {
     const error: ThalamusError = {
+      name: 'Error',
+      message: 'Missing required parameter',
       error: 'invalid_request',
       error_description: 'Missing required parameter',
-      status: 400,
+      statusCode: 400,
     }
 
     expect(error.error).toBe('invalid_request')
-    expect(error.status).toBe(400)
+    expect(error.statusCode).toBe(400)
   })
 })

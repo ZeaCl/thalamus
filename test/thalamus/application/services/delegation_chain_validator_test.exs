@@ -1,335 +1,175 @@
 defmodule Thalamus.Application.Services.DelegationChainValidatorTest do
-  use ExUnit.Case, async: false
+  use ExUnit.Case, async: true
   import Mox
 
   alias Thalamus.Application.Services.DelegationChainValidator
   alias Thalamus.Domain.ValueObjects.DelegationChain
-
-  # Define mock for UserRepository
-  Mox.defmock(MockUserRepository, for: Thalamus.Application.Ports.UserRepository)
+  alias Thalamus.Domain.Entities.AgentToken
+  alias Thalamus.Domain.ValueObjects.{AgentType, TaskId}
 
   setup :verify_on_exit!
 
-  describe "validate_depth/1" do
-    test "returns :ok for chain within depth limit" do
-      user_ids = Enum.map(1..5, fn _ -> Ecto.UUID.generate() end)
-      {:ok, chain} = DelegationChain.new(user_ids)
+  describe "validate/3 - root delegation" do
+    test "succeeds with nil parent_id" do
+      deps = %{agent_token_repository: MockAgentTokenRepository}
 
-      assert :ok = DelegationChainValidator.validate_depth(chain)
-    end
+      assert {:ok, %DelegationChain{} = chain} =
+               DelegationChainValidator.validate(nil, ["read:data"], deps)
 
-    test "returns :ok for chain at maximum depth (10)" do
-      user_ids = Enum.map(1..10, fn _ -> Ecto.UUID.generate() end)
-      {:ok, chain} = DelegationChain.new(user_ids)
-
-      assert :ok = DelegationChainValidator.validate_depth(chain)
-    end
-
-    test "returns error for chain exceeding depth limit" do
-      user_ids = Enum.map(1..11, fn _ -> Ecto.UUID.generate() end)
-
-      # DelegationChain.new itself validates depth, so this will fail
-      assert {:error, :delegation_chain_too_deep} = DelegationChain.new(user_ids)
-    end
-
-    test "returns :ok for root (empty) chain" do
-      {:ok, chain} = DelegationChain.root()
-
-      assert :ok = DelegationChainValidator.validate_depth(chain)
+      assert chain.parent_token_id == nil
+      assert chain.depth == 0
+      assert chain.path == []
     end
   end
 
-  describe "validate_no_circular_delegation/1" do
-    test "returns :ok for chain with unique users" do
-      user_id_1 = Ecto.UUID.generate()
-      user_id_2 = Ecto.UUID.generate()
-      user_id_3 = Ecto.UUID.generate()
+  describe "validate/3 - delegated validation" do
+    test "succeeds when parent exists, is active, scopes match, and depth is allowed" do
+      parent_id = Ecto.UUID.generate()
 
-      {:ok, chain} = DelegationChain.new([user_id_1, user_id_2, user_id_3])
+      parent_token =
+        build_saved_agent_token(%{
+          id: parent_id,
+          scopes: ["read:data", "write:data"],
+          delegation_depth: 1,
+          path: [Ecto.UUID.generate()]
+        })
 
-      assert :ok = DelegationChainValidator.validate_no_circular_delegation(chain)
+      MockAgentTokenRepository
+      |> expect(:find_by_id, fn ^parent_id ->
+        {:ok, parent_token}
+      end)
+
+      deps = %{agent_token_repository: MockAgentTokenRepository}
+
+      assert {:ok, %DelegationChain{} = chain} =
+               DelegationChainValidator.validate(parent_id, ["read:data"], deps)
+
+      assert chain.parent_token_id == parent_id
+      assert chain.depth == 2
+      assert chain.path == parent_token.delegation_chain.path ++ [parent_id]
     end
 
-    test "returns error for chain with duplicate user" do
-      user_id_1 = Ecto.UUID.generate()
-      user_id_2 = Ecto.UUID.generate()
+    test "returns error when parent token is not found" do
+      parent_id = Ecto.UUID.generate()
 
-      # Create chain with duplicate (user_id_1 appears twice)
-      {:ok, chain} = DelegationChain.new([user_id_1, user_id_2, user_id_1])
+      MockAgentTokenRepository
+      |> expect(:find_by_id, fn ^parent_id ->
+        {:error, :not_found}
+      end)
 
-      assert {:error, :circular_delegation} =
-               DelegationChainValidator.validate_no_circular_delegation(chain)
+      deps = %{agent_token_repository: MockAgentTokenRepository}
+
+      assert {:error, :parent_token_not_found} =
+               DelegationChainValidator.validate(parent_id, ["read:data"], deps)
     end
 
-    test "returns :ok for single-user chain" do
-      user_id = Ecto.UUID.generate()
-      {:ok, chain} = DelegationChain.from_delegator(user_id)
+    test "returns error when parent token is revoked" do
+      parent_id = Ecto.UUID.generate()
 
-      assert :ok = DelegationChainValidator.validate_no_circular_delegation(chain)
+      parent_token =
+        build_saved_agent_token(%{
+          id: parent_id,
+          status: :revoked
+        })
+
+      MockAgentTokenRepository
+      |> expect(:find_by_id, fn ^parent_id ->
+        {:ok, parent_token}
+      end)
+
+      deps = %{agent_token_repository: MockAgentTokenRepository}
+
+      assert {:error, :parent_token_not_active} =
+               DelegationChainValidator.validate(parent_id, ["read:data"], deps)
+    end
+
+    test "returns error when parent token is expired" do
+      parent_id = Ecto.UUID.generate()
+      # expired token (expires_in negative)
+      parent_token = %{build_saved_agent_token(%{id: parent_id}) | expires_in: -10}
+
+      MockAgentTokenRepository
+      |> expect(:find_by_id, fn ^parent_id ->
+        {:ok, parent_token}
+      end)
+
+      deps = %{agent_token_repository: MockAgentTokenRepository}
+
+      assert {:error, :parent_token_not_active} =
+               DelegationChainValidator.validate(parent_id, ["read:data"], deps)
+    end
+
+    test "returns error when requested scopes exceed parent scopes" do
+      parent_id = Ecto.UUID.generate()
+
+      parent_token =
+        build_saved_agent_token(%{
+          id: parent_id,
+          scopes: ["read:data"]
+        })
+
+      MockAgentTokenRepository
+      |> expect(:find_by_id, fn ^parent_id ->
+        {:ok, parent_token}
+      end)
+
+      deps = %{agent_token_repository: MockAgentTokenRepository}
+
+      assert {:error, :scopes_exceed_parent} =
+               DelegationChainValidator.validate(parent_id, ["read:data", "write:data"], deps)
+    end
+
+    test "returns error when max delegation depth is exceeded" do
+      parent_id = Ecto.UUID.generate()
+
+      parent_token =
+        build_saved_agent_token(%{
+          id: parent_id,
+          # Max allowed depth is 4
+          delegation_depth: 4,
+          path: List.duplicate(Ecto.UUID.generate(), 4)
+        })
+
+      MockAgentTokenRepository
+      |> expect(:find_by_id, fn ^parent_id ->
+        {:ok, parent_token}
+      end)
+
+      deps = %{agent_token_repository: MockAgentTokenRepository}
+
+      assert {:error, :max_delegation_depth_exceeded} =
+               DelegationChainValidator.validate(parent_id, ["read:data"], deps)
     end
   end
 
-  describe "validate_user_ids_format/1" do
-    test "returns :ok for chain with valid UUIDs" do
-      user_id_1 = Ecto.UUID.generate()
-      user_id_2 = Ecto.UUID.generate()
-
-      {:ok, chain} = DelegationChain.new([user_id_1, user_id_2])
-
-      assert :ok = DelegationChainValidator.validate_user_ids_format(chain)
-    end
-
-    test "returns :ok for root chain" do
-      {:ok, chain} = DelegationChain.root()
-
-      assert :ok = DelegationChainValidator.validate_user_ids_format(chain)
-    end
-  end
-
-  describe "validate_users_exist/2" do
-    test "returns :ok when all users exist" do
-      user_id_1 = Ecto.UUID.generate()
-      user_id_2 = Ecto.UUID.generate()
-
-      {:ok, chain} = DelegationChain.new([user_id_1, user_id_2])
-
-      # Mock batch query returning both users
-      MockUserRepository
-      |> expect(:find_by_ids, fn [^user_id_1, ^user_id_2] ->
-        {:ok,
-         %{
-           user_id_1 => %{id: user_id_1},
-           user_id_2 => %{id: user_id_2}
-         }}
-      end)
-
-      deps = %{user_repository: MockUserRepository}
-
-      assert :ok = DelegationChainValidator.validate_users_exist(chain, deps)
-    end
-
-    test "returns error when user not found" do
-      user_id_1 = Ecto.UUID.generate()
-      user_id_2 = Ecto.UUID.generate()
-
-      {:ok, chain} = DelegationChain.new([user_id_1, user_id_2])
-
-      # Mock batch query returning only user_id_1 (user_id_2 not found)
-      MockUserRepository
-      |> expect(:find_by_ids, fn [^user_id_1, ^user_id_2] ->
-        {:ok, %{user_id_1 => %{id: user_id_1}}}
-      end)
-
-      deps = %{user_repository: MockUserRepository}
-
-      assert {:error, {:user_not_found, ^user_id_2}} =
-               DelegationChainValidator.validate_users_exist(chain, deps)
-    end
-
-    test "returns :ok for empty chain" do
-      {:ok, chain} = DelegationChain.root()
-
-      deps = %{user_repository: MockUserRepository}
-
-      assert :ok = DelegationChainValidator.validate_users_exist(chain, deps)
-    end
-  end
-
-  describe "validate_users_active/2" do
-    test "returns :ok when all users are active (status field)" do
-      user_id_1 = Ecto.UUID.generate()
-      user_id_2 = Ecto.UUID.generate()
-
-      {:ok, chain} = DelegationChain.new([user_id_1, user_id_2])
-
-      # Mock batch query returning both active users
-      MockUserRepository
-      |> expect(:find_by_ids, fn [^user_id_1, ^user_id_2] ->
-        {:ok,
-         %{
-           user_id_1 => %{id: user_id_1, status: :active},
-           user_id_2 => %{id: user_id_2, status: :active}
-         }}
-      end)
-
-      deps = %{user_repository: MockUserRepository}
-
-      assert :ok = DelegationChainValidator.validate_users_active(chain, deps)
-    end
-
-    test "returns :ok when all users are active (is_active field)" do
-      user_id_1 = Ecto.UUID.generate()
-      user_id_2 = Ecto.UUID.generate()
-
-      {:ok, chain} = DelegationChain.new([user_id_1, user_id_2])
-
-      # Mock batch query returning both active users
-      MockUserRepository
-      |> expect(:find_by_ids, fn [^user_id_1, ^user_id_2] ->
-        {:ok,
-         %{
-           user_id_1 => %{id: user_id_1, is_active: true},
-           user_id_2 => %{id: user_id_2, is_active: true}
-         }}
-      end)
-
-      deps = %{user_repository: MockUserRepository}
-
-      assert :ok = DelegationChainValidator.validate_users_active(chain, deps)
-    end
-
-    test "returns error when user is inactive" do
-      user_id_1 = Ecto.UUID.generate()
-      user_id_2 = Ecto.UUID.generate()
-
-      {:ok, chain} = DelegationChain.new([user_id_1, user_id_2])
-
-      # Mock batch query with one inactive user
-      MockUserRepository
-      |> expect(:find_by_ids, fn [^user_id_1, ^user_id_2] ->
-        {:ok,
-         %{
-           user_id_1 => %{id: user_id_1, status: :active},
-           user_id_2 => %{id: user_id_2, status: :inactive}
-         }}
-      end)
-
-      deps = %{user_repository: MockUserRepository}
-
-      assert {:error, {:user_inactive, ^user_id_2}} =
-               DelegationChainValidator.validate_users_active(chain, deps)
-    end
-
-    test "returns :ok for empty chain" do
-      {:ok, chain} = DelegationChain.root()
-
-      deps = %{user_repository: MockUserRepository}
-
-      assert :ok = DelegationChainValidator.validate_users_active(chain, deps)
-    end
-  end
-
-  describe "validate/2 - full validation" do
-    test "returns :ok for valid delegation chain" do
-      user_id_1 = Ecto.UUID.generate()
-      user_id_2 = Ecto.UUID.generate()
-
-      {:ok, chain} = DelegationChain.new([user_id_1, user_id_2])
-
-      # Mock batch queries for validate_users_exist and validate_users_active
-      MockUserRepository
-      |> expect(:find_by_ids, 2, fn [^user_id_1, ^user_id_2] ->
-        {:ok,
-         %{
-           user_id_1 => %{id: user_id_1, status: :active},
-           user_id_2 => %{id: user_id_2, status: :active}
-         }}
-      end)
-
-      deps = %{user_repository: MockUserRepository}
-
-      assert :ok = DelegationChainValidator.validate(chain, deps)
-    end
-
-    test "returns error for chain exceeding depth" do
-      user_ids = Enum.map(1..11, fn _ -> Ecto.UUID.generate() end)
-
-      # DelegationChain.new itself validates depth during construction
-      assert {:error, :delegation_chain_too_deep} = DelegationChain.new(user_ids)
-    end
-
-    test "returns error for circular delegation" do
-      user_id = Ecto.UUID.generate()
-      {:ok, chain} = DelegationChain.new([user_id, user_id])
-
-      deps = %{user_repository: MockUserRepository}
-
-      assert {:error, :circular_delegation} = DelegationChainValidator.validate(chain, deps)
-    end
-
-    test "returns error when user not found" do
-      user_id_1 = Ecto.UUID.generate()
-      user_id_2 = Ecto.UUID.generate()
-
-      {:ok, chain} = DelegationChain.new([user_id_1, user_id_2])
-
-      # Mock batch query with user_id_2 missing
-      MockUserRepository
-      |> expect(:find_by_ids, fn [^user_id_1, ^user_id_2] ->
-        {:ok, %{user_id_1 => %{id: user_id_1, status: :active}}}
-      end)
-
-      deps = %{user_repository: MockUserRepository}
-
-      assert {:error, {:user_not_found, ^user_id_2}} =
-               DelegationChainValidator.validate(chain, deps)
-    end
-
-    test "returns error when user is inactive" do
-      user_id_1 = Ecto.UUID.generate()
-      user_id_2 = Ecto.UUID.generate()
-
-      {:ok, chain} = DelegationChain.new([user_id_1, user_id_2])
-
-      # First batch query for validate_users_exist (both users found)
-      # Second batch query for validate_users_active (user_id_2 is inactive)
-      MockUserRepository
-      |> expect(:find_by_ids, fn [^user_id_1, ^user_id_2] ->
-        {:ok,
-         %{
-           user_id_1 => %{id: user_id_1, status: :active},
-           user_id_2 => %{id: user_id_2, status: :active}
-         }}
-      end)
-      |> expect(:find_by_ids, fn [^user_id_1, ^user_id_2] ->
-        {:ok,
-         %{
-           user_id_1 => %{id: user_id_1, status: :active},
-           user_id_2 => %{id: user_id_2, status: :inactive}
-         }}
-      end)
-
-      deps = %{user_repository: MockUserRepository}
-
-      assert {:error, {:user_inactive, ^user_id_2}} =
-               DelegationChainValidator.validate(chain, deps)
-    end
-  end
-
-  describe "build_chain/2" do
-    test "builds a valid delegation chain from user ID" do
-      user_id = Ecto.UUID.generate()
-
-      assert {:ok, chain} = DelegationChainValidator.build_chain(user_id, nil)
-      assert chain.chain == [user_id]
-    end
-
-    test "builds and validates chain when deps provided" do
-      user_id = Ecto.UUID.generate()
-
-      # Mock batch queries for validate_users_exist and validate_users_active
-      MockUserRepository
-      |> expect(:find_by_ids, 2, fn [^user_id] ->
-        {:ok, %{user_id => %{id: user_id, status: :active}}}
-      end)
-
-      deps = %{user_repository: MockUserRepository}
-
-      assert {:ok, chain} = DelegationChainValidator.build_chain(user_id, deps)
-      assert chain.chain == [user_id]
-    end
-
-    test "returns error when validation fails" do
-      user_id = Ecto.UUID.generate()
-
-      # Mock batch query with user not found
-      MockUserRepository
-      |> expect(:find_by_ids, fn [^user_id] -> {:ok, %{}} end)
-
-      deps = %{user_repository: MockUserRepository}
-
-      assert {:error, {:user_not_found, ^user_id}} =
-               DelegationChainValidator.build_chain(user_id, deps)
-    end
+  # Helper to build mock AgentToken for testing
+  defp build_saved_agent_token(overrides) do
+    {:ok, agent_type} = AgentType.new(:autonomous)
+    {:ok, task_id} = TaskId.new(Ecto.UUID.generate())
+
+    {:ok, delegation_chain} =
+      DelegationChain.new(%{
+        parent_token_id: Map.get(overrides, :parent_token_id),
+        depth: Map.get(overrides, :delegation_depth, 0),
+        path: Map.get(overrides, :path, [])
+      })
+
+    %AgentToken{
+      id: Map.get(overrides, :id, Ecto.UUID.generate()),
+      client_id: Ecto.UUID.generate(),
+      organization_id: Ecto.UUID.generate(),
+      agent_type: agent_type,
+      task_id: task_id,
+      task_description: "Test task",
+      scopes: Map.get(overrides, :scopes, ["read:data"]),
+      delegation_chain: delegation_chain,
+      delegator_user_id: Ecto.UUID.generate(),
+      expires_in: 3600,
+      status: Map.get(overrides, :status, :active),
+      revoked_at: nil,
+      revoke_reason: nil,
+      reason: nil,
+      created_at: DateTime.utc_now()
+    }
   end
 end

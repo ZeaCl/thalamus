@@ -13,7 +13,7 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
   # Ports are referenced via deps parameter, not direct aliases
 
   alias Thalamus.Domain.Entities.OAuth2Client
-  alias Thalamus.Domain.ValueObjects.{UserId, Email}
+  alias Thalamus.Domain.ValueObjects.{UserId, Email, PasswordHash}
 
   @type deps :: %{
           oauth2_client_repository: module(),
@@ -131,13 +131,6 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
     end
   end
 
-  defp is_service_client?(client) do
-    grants = client.grant_types || []
-    # Service clients only have client_credentials grant, no user-facing grants
-    grant_atoms = Enum.map(grants, fn g -> g.type end)
-    grant_atoms == [:client_credentials]
-  end
-
   defp generate_for_grant_type(
          %TokenRequest{grant_type: :authorization_code} = request,
          client,
@@ -221,7 +214,7 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
     end
   end
 
-  defp generate_for_grant_type(%TokenRequest{grant_type: :password} = request, _client, deps) do
+  defp generate_for_grant_type(%TokenRequest{grant_type: :password} = request, client, deps) do
     # Resource Owner Password Credentials grant (RFC 6749 Section 4.3)
     %{username: email, password: password, scope: scope} = request
 
@@ -235,10 +228,10 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
       access_token =
         generate_jwt_access_token(%{
           user_id: user.id,
-          client_id: client_id_string(_client),
+          client_id: client_id_string(client),
           scope: Enum.join(scopes, " "),
           expires_in: @access_token_ttl,
-          aud: client_id_string(_client),
+          aud: client_id_string(client),
           sub: UserId.to_string(user.id),
           name: user.name,
           email: Email.to_string(user.email),
@@ -254,7 +247,7 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
          refresh_token: refresh_token,
          scope: Enum.join(scopes, " "),
          user_id: user.id,
-         client_id: client_id_string(_client)
+         client_id: client_id_string(client)
        }}
     end
   end
@@ -265,6 +258,32 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
     grant_atoms = Enum.map(grants, fn g -> g.type end)
     grant_atoms == [:client_credentials]
   end
+
+  defp authenticate_user(nil, _password, _deps), do: {:error, :invalid_grant}
+  defp authenticate_user(_email, nil, _deps), do: {:error, :invalid_grant}
+
+  defp authenticate_user(email, password, %{user_repository: repo}) when is_binary(email) do
+    case Email.new(email) do
+      {:ok, email_vo} ->
+        case repo.find_by_email(email_vo) do
+          {:ok, user} ->
+            case PasswordHash.verify(user.password_hash, password) do
+              :ok -> {:ok, user}
+              {:error, _} -> {:error, :invalid_grant}
+            end
+
+          {:error, :not_found} ->
+            Bcrypt.no_user_verify()
+            {:error, :invalid_grant}
+        end
+
+      {:error, _} ->
+        {:error, :invalid_grant}
+    end
+  end
+
+  defp validate_user_active(%{status: :active}), do: :ok
+  defp validate_user_active(_), do: {:error, :invalid_grant}
 
   defp validate_redirect_uri(_client, nil), do: :ok
 
