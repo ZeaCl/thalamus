@@ -3,22 +3,8 @@ name: CI
 on:
   push:
     branches: [ main, develop ]
-    paths:
-      - 'lib/**'
-      - 'test/**'
-      - 'priv/**'
-      - 'mix.exs'
-      - 'mix.lock'
-      - '.github/workflows/ci-backend.yml'
   pull_request:
     branches: [ main, develop ]
-    paths:
-      - 'lib/**'
-      - 'test/**'
-      - 'priv/**'
-      - 'mix.exs'
-      - 'mix.lock'
-      - '.github/workflows/ci-backend.yml'
 
 env:
   MIX_ENV: test
@@ -62,11 +48,11 @@ jobs:
         run: mix credo --strict
         continue-on-error: true
 
-      - name: Compile
-        run: mix compile
+      - name: Compile (warnings as errors)
+        run: mix compile --warnings-as-errors
 
   # ==========================================================================
-  # Unit & Integration Tests
+  # Unit & Integration Tests (Backend)
   # ==========================================================================
   test:
     name: Tests
@@ -244,12 +230,43 @@ jobs:
           cache-to: type=gha,mode=max
 
   # ==========================================================================
+  # SDK Tests
+  # ==========================================================================
+  sdk-test:
+    name: SDK Tests
+    runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        working-directory: ./sdk
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: './sdk/package-lock.json'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check types
+        run: npm run typecheck
+
+      - name: Run unit tests
+        run: npm run test:unit
+
+  # ==========================================================================
   # Results Summary
   # ==========================================================================
   summary:
     name: CI Summary
     runs-on: ubuntu-latest
-    needs: [quality, test, security, dialyzer, docker]
+    needs: [quality, test, security, dialyzer, docker, sdk-test]
     if: always()
 
     steps:
@@ -260,10 +277,12 @@ jobs:
           echo "Security: ${{ needs.security.result }}"
           echo "Dialyzer: ${{ needs.dialyzer.result }}"
           echo "Docker: ${{ needs.docker.result }}"
+          echo "SDK-Test: ${{ needs.sdk-test.result }}"
 
       - name: Fail if required jobs failed
         if: |
           needs.quality.result == 'failure' ||
           needs.test.result == 'failure' ||
-          needs.docker.result == 'failure'
+          needs.docker.result == 'failure' ||
+          needs.sdk-test.result == 'failure'
         run: exit 1
