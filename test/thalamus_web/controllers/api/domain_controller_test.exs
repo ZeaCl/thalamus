@@ -13,7 +13,7 @@ defmodule ThalamusWeb.API.DomainControllerTest do
   setup %{conn: conn} do
     {conn, user, org, token} = authenticate_api(conn)
     user_id = user.id.value |> String.replace_prefix("user_", "")
-    org_id = org.id.value
+    org_id = org.id.value |> String.replace_prefix("org_", "")
 
     {:ok,
      conn: put_req_header(conn, "accept", "application/json"),

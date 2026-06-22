@@ -122,6 +122,7 @@ config :thalamus, :oauth2_scopes, %{
     "billing:write",
     "zea:read",
     "zea:write",
+    "zea:admin",
     "venture:fund.read",
     "venture:fund.write",
     "venture:capital_call.read",

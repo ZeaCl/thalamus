@@ -5,7 +5,7 @@ defmodule Thalamus.Application.UseCases.GenerateAgentTokenTest do
   alias Thalamus.Application.UseCases.GenerateAgentToken
   alias Thalamus.Application.DTOs.{AgentTokenRequest, AgentTokenResponse}
   alias Thalamus.Domain.Entities.AgentToken
-  alias Thalamus.Domain.ValueObjects.{AgentType, TaskId, DelegationChain}
+  alias Thalamus.Domain.ValueObjects.{AgentType, TaskId, DelegationChain, ClientSecret}
 
   # Setup Mox to verify expectations
   setup :verify_on_exit!
@@ -218,7 +218,7 @@ defmodule Thalamus.Application.UseCases.GenerateAgentTokenTest do
 
       deps = build_deps()
 
-      assert {:error, :invalid_scopes} = GenerateAgentToken.execute(request, deps)
+      assert {:error, {:invalid_scopes, _}} = GenerateAgentToken.execute(request, deps)
     end
   end
 
@@ -338,7 +338,7 @@ defmodule Thalamus.Application.UseCases.GenerateAgentTokenTest do
       id: Ecto.UUID.generate(),
       client_id_string: "client_123",
       organization_id: org,
-      client_secret: Bcrypt.hash_pwd_salt("secret_password"),
+      client_secret: %ClientSecret{hash: Bcrypt.hash_pwd_salt("secret_password")},
       is_active: true,
       allowed_scopes: ["read:data", "write:results", "admin:read"]
     }

@@ -164,11 +164,15 @@ defmodule Thalamus.Infrastructure.Repositories.PostgresqlAgentTokenRepository do
     end)
   end
 
-  # Converts domain entity to Ecto changeset for insert
   defp to_insert_changeset(%AgentToken{} = token) do
     attrs = %{
-      client_id: token.client_id,
-      organization_id: token.organization_id,
+      client_id:
+        if(token.client_id, do: String.replace_prefix(token.client_id, "client_", ""), else: nil),
+      organization_id:
+        if(token.organization_id,
+          do: String.replace_prefix(token.organization_id, "org_", ""),
+          else: nil
+        ),
       access_token: generate_access_token(),
       agent_type: AgentType.to_string(token.agent_type),
       task_id: TaskId.to_string(token.task_id),
@@ -177,7 +181,11 @@ defmodule Thalamus.Infrastructure.Repositories.PostgresqlAgentTokenRepository do
       parent_agent_id: token.delegation_chain.parent_token_id,
       delegation_chain: delegation_chain_to_map(token.delegation_chain),
       delegation_depth: token.delegation_chain.depth,
-      delegator_user_id: token.delegator_user_id,
+      delegator_user_id:
+        if(token.delegator_user_id,
+          do: String.replace_prefix(token.delegator_user_id, "user_", ""),
+          else: nil
+        ),
       expires_in: token.expires_in,
       expires_at: DateTime.truncate(AgentToken.expires_at(token), :second),
       revoked_at: truncate_datetime(token.revoked_at),
@@ -218,7 +226,8 @@ defmodule Thalamus.Infrastructure.Repositories.PostgresqlAgentTokenRepository do
     %AgentToken{
       id: schema.id,
       client_id: schema.client_id,
-      organization_id: schema.organization_id,
+      organization_id:
+        if(schema.organization_id, do: "org_" <> schema.organization_id, else: nil),
       agent_type: agent_type,
       task_id: task_id,
       task_description: schema.task_description,

@@ -216,17 +216,7 @@ defmodule ThalamusWeb.API.UserRoleControllerTest do
 
   defp insert_user(org, status \\ :active) do
     # Handle both Organization entity (from authenticate_api) and OrganizationSchema
-    org_id =
-      case org do
-        %{id: %Thalamus.Domain.ValueObjects.OrganizationId{} = org_id_vo} ->
-          Thalamus.Domain.ValueObjects.OrganizationId.to_string(org_id_vo)
-
-        %{id: id} when is_binary(id) ->
-          id
-
-        _ ->
-          org.id
-      end
+    org_id = org_uuid(org)
 
     Repo.insert!(%UserSchema{
       id: Ecto.UUID.generate(),
@@ -241,17 +231,7 @@ defmodule ThalamusWeb.API.UserRoleControllerTest do
 
   defp insert_role(org, name, scopes) do
     # Handle both Organization entity (from authenticate_api) and OrganizationSchema
-    org_id =
-      case org do
-        %{id: %Thalamus.Domain.ValueObjects.OrganizationId{} = org_id_vo} ->
-          Thalamus.Domain.ValueObjects.OrganizationId.to_string(org_id_vo)
-
-        %{id: id} when is_binary(id) ->
-          id
-
-        _ ->
-          org.id
-      end
+    org_id = org_uuid(org)
 
     Repo.insert!(%RoleSchema{
       id: Ecto.UUID.generate(),

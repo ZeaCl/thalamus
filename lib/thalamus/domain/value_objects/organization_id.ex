@@ -82,7 +82,16 @@ defmodule Thalamus.Domain.ValueObjects.OrganizationId do
       iex> OrganizationId.from_string("org_12345")
       {:ok, %OrganizationId{value: "org_12345"}}
   """
-  def from_string(value), do: new(value)
+  def from_string(value) when is_binary(value) do
+    normalized =
+      if String.starts_with?(value, "org_") do
+        value
+      else
+        "org_#{value}"
+      end
+
+    new(normalized)
+  end
 
   # Private functions
 

@@ -183,10 +183,14 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLTokenRepository do
   defp prepare_organization_id(nil), do: nil
 
   defp prepare_organization_id(%Thalamus.Domain.ValueObjects.OrganizationId{} = org_id) do
-    Thalamus.Domain.ValueObjects.OrganizationId.to_string(org_id)
+    org_id
+    |> Thalamus.Domain.ValueObjects.OrganizationId.to_string()
+    |> String.replace_prefix("org_", "")
   end
 
-  defp prepare_organization_id(org_id) when is_binary(org_id), do: org_id
+  defp prepare_organization_id(org_id) when is_binary(org_id) do
+    String.replace_prefix(org_id, "org_", "")
+  end
 
   defp prepare_delegation_chain(chain) when is_list(chain) do
     Enum.map(chain, fn user_id ->

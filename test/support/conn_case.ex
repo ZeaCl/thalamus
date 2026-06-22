@@ -134,6 +134,23 @@ defmodule ThalamusWeb.ConnCase do
     {authenticated_conn, user_with_org_string, org, access_token.token}
   end
 
+  @doc """
+  Extracts a bare UUID from an organization id, stripping the "org_" prefix if present.
+  Works with %OrganizationId{} structs, "org_uuid" strings, and plain UUID strings.
+  """
+  def org_uuid(org) do
+    id_string =
+      case org do
+        %{id: %Thalamus.Domain.ValueObjects.OrganizationId{} = vo} ->
+          Thalamus.Domain.ValueObjects.OrganizationId.to_string(vo)
+        %{id: id} when is_binary(id) -> id
+        id when is_binary(id) -> id
+        _ -> to_string(org)
+      end
+
+    String.replace_prefix(id_string, "org_", "")
+  end
+
   defp create_test_user do
     alias Thalamus.Repo
     alias Thalamus.Infrastructure.Persistence.Schemas.{UserSchema, OrganizationSchema}

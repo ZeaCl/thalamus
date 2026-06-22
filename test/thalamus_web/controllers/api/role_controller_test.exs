@@ -289,9 +289,10 @@ defmodule ThalamusWeb.API.RoleControllerTest do
       case org do
         %{id: %Thalamus.Domain.ValueObjects.OrganizationId{} = org_id_vo} ->
           Thalamus.Domain.ValueObjects.OrganizationId.to_string(org_id_vo)
+          |> String.replace_prefix("org_", "")
 
         %{id: id} when is_binary(id) ->
-          id
+          String.replace_prefix(id, "org_", "")
 
         _ ->
           org.id
@@ -313,11 +314,12 @@ defmodule ThalamusWeb.API.RoleControllerTest do
     org_id =
       case org do
         %{id: %Thalamus.Domain.ValueObjects.OrganizationId{} = org_id_vo} ->
-          # Extract UUID from OrganizationId value object
+          # Extract UUID from OrganizationId value object (strip "org_" prefix)
           Thalamus.Domain.ValueObjects.OrganizationId.to_string(org_id_vo)
+          |> String.replace_prefix("org_", "")
 
         %{id: id} when is_binary(id) ->
-          id
+          String.replace_prefix(id, "org_", "")
 
         _ ->
           org.id

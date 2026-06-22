@@ -141,7 +141,10 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository 
 
   @impl true
   def find_by_organization(%OrganizationId{} = org_id) do
-    org_id_string = OrganizationId.to_string(org_id)
+    org_id_string =
+      org_id
+      |> OrganizationId.to_string()
+      |> String.replace_prefix("org_", "")
 
     OAuth2ClientSchema
     |> where([c], c.organization_id == ^org_id_string)
@@ -158,7 +161,10 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository 
 
   @impl true
   def count_by_organization(%OrganizationId{} = org_id) do
-    org_id_string = OrganizationId.to_string(org_id)
+    org_id_string =
+      org_id
+      |> OrganizationId.to_string()
+      |> String.replace_prefix("org_", "")
 
     count =
       OAuth2ClientSchema
@@ -240,7 +246,9 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository 
     # Extract organization_id string (could have "org_" prefix or be pure UUID)
     org_id_string =
       if client.organization_id do
-        OrganizationId.to_string(client.organization_id)
+        client.organization_id
+        |> OrganizationId.to_string()
+        |> String.replace_prefix("org_", "")
       else
         nil
       end
@@ -374,7 +382,8 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository 
   defp filter_by_organization(query, nil), do: query
 
   defp filter_by_organization(query, org_id) when is_binary(org_id) do
-    where(query, [c], c.organization_id == ^org_id)
+    org_uuid = String.replace_prefix(org_id, "org_", "")
+    where(query, [c], c.organization_id == ^org_uuid)
   end
 
   defp order_by_field(query, nil), do: order_by(query, [c], desc: c.inserted_at)

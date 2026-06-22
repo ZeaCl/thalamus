@@ -95,7 +95,8 @@ defmodule ThalamusWeb.API.RoleController do
 
     case @deps.role_repository.find_by_id(id) do
       {:ok, role} ->
-        if role.organization_id == organization_id do
+        if String.replace_prefix(to_string(role.organization_id), "org_", "") ==
+             String.replace_prefix(to_string(organization_id), "org_", "") do
           json(conn, %{data: role})
         else
           conn
@@ -188,7 +189,10 @@ defmodule ThalamusWeb.API.RoleController do
   end
 
   defp validate_organization(role, organization_id) do
-    if role.organization_id == organization_id do
+    role_org = String.replace_prefix(to_string(role.organization_id), "org_", "")
+    conn_org = String.replace_prefix(to_string(organization_id), "org_", "")
+
+    if role_org == conn_org do
       :ok
     else
       {:error, :forbidden}

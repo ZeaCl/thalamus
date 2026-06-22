@@ -33,13 +33,16 @@ defmodule ThalamusWeb.API.PasswordControllerTest do
         ["zea:read", "zea:write"]
       )
 
+    {:ok, client} =
+      Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository.save(client)
+
     # Generate access token for authenticated requests
     {:ok, read_scope} = Scope.new("api:read")
     {:ok, write_scope} = Scope.new("api:write")
     scopes = [read_scope, write_scope]
 
     {:ok, access_token} =
-      AccessToken.generate(["zea:read", "zea:write"], user.id, 3600)
+      AccessToken.generate(scopes, user.id, 3600)
 
     # Extract client ID without "client_" prefix for DB storage
     client_id_string = Thalamus.Domain.ValueObjects.ClientId.to_string(client.id)

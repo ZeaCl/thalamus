@@ -28,7 +28,7 @@ defmodule Thalamus.Application.UseCases.GenerateAgentToken do
 
   alias Thalamus.Application.DTOs.{AgentTokenRequest, AgentTokenResponse}
   alias Thalamus.Domain.Entities.AgentToken
-  alias Thalamus.Domain.ValueObjects.{AgentType, TaskId, DelegationChain}
+  alias Thalamus.Domain.ValueObjects.{AgentType, TaskId, DelegationChain, OrganizationId}
   alias Thalamus.Utils.InputSanitizer
 
   @type deps :: %{
@@ -70,7 +70,7 @@ defmodule Thalamus.Application.UseCases.GenerateAgentToken do
       {:ok, %AgentTokenResponse{access_token: "at_...", ...}}
   """
   @spec execute(AgentTokenRequest.t(), deps()) ::
-          {:ok, AgentTokenResponse.t()} | {:error, atom()}
+          {:ok, AgentTokenResponse.t()} | {:error, atom() | {atom(), any()}}
   def execute(%AgentTokenRequest{} = request, deps) do
     with :ok <- AgentTokenRequest.validate(request),
          {:ok, client} <- authenticate_client(request, deps),
@@ -105,7 +105,8 @@ defmodule Thalamus.Application.UseCases.GenerateAgentToken do
            verify_client_secret(request.client_secret, client.client_secret) ||
              {:error, :invalid_client_credentials},
          true <-
-           to_string(client.organization_id) == request.organization_id || {:error, :organization_mismatch} do
+           to_string(client.organization_id) == request.organization_id ||
+             {:error, :organization_mismatch} do
       {:ok, client}
     else
       {:error, :not_found} -> {:error, :invalid_client_credentials}
@@ -115,7 +116,10 @@ defmodule Thalamus.Application.UseCases.GenerateAgentToken do
   end
 
   # Verifies client secret using constant-time comparison
-  defp verify_client_secret(provided_secret, %Thalamus.Domain.ValueObjects.ClientSecret{} = stored_secret) do
+  defp verify_client_secret(
+         provided_secret,
+         %Thalamus.Domain.ValueObjects.ClientSecret{} = stored_secret
+       ) do
     Thalamus.Domain.ValueObjects.ClientSecret.verify(stored_secret, provided_secret)
   end
 
@@ -123,7 +127,6 @@ defmodule Thalamus.Application.UseCases.GenerateAgentToken do
   defp validate_delegator(%AgentTokenRequest{} = request, deps) do
     with {:ok, user} <- deps.user_repository.find_by_id(request.delegator_user_id),
          true <- user.status == :active || {:error, :delegator_not_active},
-         _ = IO.inspect({to_string(user.organization_id), request.organization_id}, label: "DELEGATOR ORG CHECK"),
          true <-
            to_string(user.organization_id) == request.organization_id ||
              {:error, :delegator_organization_mismatch},
@@ -166,12 +169,12 @@ defmodule Thalamus.Application.UseCases.GenerateAgentToken do
     :ok
   end
 
-  # Validates organization exists and is active
   defp validate_organization(%AgentTokenRequest{} = request, deps) do
     # If organization_repository is not provided, skip validation
     # (for backwards compatibility or testing)
     if Map.has_key?(deps, :organization_repository) do
-      with {:ok, org} <- deps.organization_repository.find_by_id(request.organization_id),
+      with {:ok, org_id} <- OrganizationId.from_string(request.organization_id),
+           {:ok, org} <- deps.organization_repository.find_by_id(org_id),
            true <- org.status == :active || {:error, :organization_not_active},
            :ok <- validate_compliance_rules(request, org) do
         {:ok, org}
@@ -246,12 +249,15 @@ defmodule Thalamus.Application.UseCases.GenerateAgentToken do
   # Validates that requested scopes are a subset of client's allowed scopes
   defp validate_scopes_subset(requested_scopes, allowed_scopes) do
     requested_set = MapSet.new(requested_scopes)
-    allowed_set = MapSet.new(allowed_scopes)
+    allowed_strings = Enum.map(allowed_scopes, &to_string/1)
+    allowed_set = MapSet.new(allowed_strings)
 
-    if MapSet.subset?(requested_set, allowed_set) do
+    invalid_scopes = MapSet.difference(requested_set, allowed_set) |> MapSet.to_list()
+
+    if Enum.empty?(invalid_scopes) do
       :ok
     else
-      {:error, :invalid_scopes}
+      {:error, {:invalid_scopes, invalid_scopes}}
     end
   end
 
@@ -314,14 +320,14 @@ defmodule Thalamus.Application.UseCases.GenerateAgentToken do
   # Creates AgentToken domain entity
   defp create_agent_token(request, client, delegator, agent_type, task_id, delegation_chain) do
     params = %{
-      client_id: client.id,
+      client_id: to_string(client.id),
       organization_id: request.organization_id,
       agent_type: agent_type,
       task_id: task_id,
       task_description: InputSanitizer.sanitize_text(request.task_description),
       scopes: request.scopes,
       delegation_chain: delegation_chain,
-      delegator_user_id: delegator.id,
+      delegator_user_id: to_string(delegator.id),
       expires_in: AgentTokenRequest.get_expires_in(request),
       reason: InputSanitizer.sanitize_text(request.reason)
     }

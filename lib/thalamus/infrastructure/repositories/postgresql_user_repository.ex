@@ -185,7 +185,8 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository do
          {:ok, mfa_methods} <- convert_mfa_methods_from_db(schema.mfa_methods) do
       user = %User{
         id: user_id,
-        organization_id: if(schema.organization_id, do: "org_" <> schema.organization_id, else: nil),
+        organization_id:
+          if(schema.organization_id, do: "org_" <> schema.organization_id, else: nil),
         email: email,
         name: schema.name,
         avatar_url: schema.avatar_url,
