@@ -408,7 +408,7 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
         conn
         |> put_req_header("authorization", "Bearer #{token}")
         |> patch(~p"/api/clients/#{to_string(client.id)}", %{
-          allowed_scopes: ["zea:read", "write", "admin"]
+          scopes: ["zea:read", "zea:write", "api:admin"]
         })
 
       assert %{
