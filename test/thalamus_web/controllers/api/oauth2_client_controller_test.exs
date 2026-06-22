@@ -180,7 +180,7 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
       assert %{
                "data" => %{
                  "grant_types" => grant_types,
-                 "allowed_scopes" => scopes
+                 "scopes" => scopes
                }
              } = json_response(conn, 201)
 
@@ -196,8 +196,8 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
           name: "Bad URI Client",
           organization_id: to_string(org.id),
           redirect_uris: ["not-a-valid-uri"],
-          allowed_grant_types: ["authorization_code"],
-          allowed_scopes: ["zea:read"]
+          grant_types: ["authorization_code"],
+          scopes: ["zea:read"]
         })
 
       assert %{
@@ -213,8 +213,8 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
           name: "Bad Grant Client",
           organization_id: to_string(org.id),
           redirect_uris: ["http://localhost:3000/callback"],
-          allowed_grant_types: ["invalid_grant"],
-          allowed_scopes: ["zea:read"]
+          grant_types: ["invalid_grant"],
+          scopes: ["zea:read"]
         })
 
       assert %{
