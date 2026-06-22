@@ -248,7 +248,7 @@ defmodule ThalamusWeb.API.UserControllerTest do
 
       assert %{
                "error" => _
-             } = json_response(conn, 400)
+             } = json_response(conn, 409)
     end
 
     test "returns error with invalid email", %{conn: conn, access_token: token} do
