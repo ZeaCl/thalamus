@@ -139,8 +139,8 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
           name: "New Client",
           organization_id: to_string(org.id),
           redirect_uris: ["http://localhost:3000/callback", "http://localhost:3000/auth"],
-          allowed_grant_types: ["authorization_code", "refresh_token"],
-          allowed_scopes: ["zea:read", "write"]
+          grant_types: ["authorization_code", "refresh_token"],
+          scopes: ["zea:read", "zea:write"]
         })
 
       assert %{
@@ -150,8 +150,8 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
                  "organization_id" => org_id,
                  "redirect_uris" => redirect_uris,
                  "grant_types" => grant_types,
-                 "allowed_scopes" => scopes,
-                 "secret" => secret
+                 "scopes" => scopes,
+                 "client_secret" => secret
                }
              } = json_response(conn, 201)
 
