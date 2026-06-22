@@ -78,12 +78,13 @@ defmodule ThalamusWeb.API.PersonalAccessTokenControllerTest do
         })
 
       user_uuid = String.replace_prefix(user_id, "user_", "")
+      org_uuid = String.replace_prefix(org_id, "org_", "")
 
       assert %{
                "data" => %{
                  "name" => "My Token",
                  "user_id" => ^user_uuid,
-                 "organization_id" => ^org_id,
+                 "organization_id" => ^org_uuid,
                  "scopes" => ["zea:read"]
                },
                "token" => token
