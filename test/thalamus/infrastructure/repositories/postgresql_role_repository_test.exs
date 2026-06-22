@@ -30,7 +30,7 @@ defmodule Thalamus.Infrastructure.Repositories.PostgresqlRoleRepositoryTest do
       assert saved_role.name == "Developer"
       assert saved_role.description == "Development team role"
       assert saved_role.scopes == ["read:code", "write:code"]
-      assert saved_role.organization_id == org.id
+      assert saved_role.organization_id == "org_" <> org.id
     end
 
     test "updates existing role when id is present" do
