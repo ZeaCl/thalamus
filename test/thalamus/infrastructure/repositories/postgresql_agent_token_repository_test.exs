@@ -25,7 +25,7 @@ defmodule Thalamus.Infrastructure.Repositories.PostgresqlAgentTokenRepositoryTes
       assert %AgentToken{} = saved_token
       assert saved_token.id == token.id
       assert saved_token.client_id == client.id
-      assert saved_token.organization_id == org.id
+      assert saved_token.organization_id == "org_" <> org.id
       assert saved_token.agent_type == token.agent_type
       assert saved_token.task_id == token.task_id
       assert saved_token.task_description == token.task_description
@@ -139,7 +139,7 @@ defmodule Thalamus.Infrastructure.Repositories.PostgresqlAgentTokenRepositoryTes
       assert %AgentToken{} = found_token
       assert found_token.id == token.id
       assert found_token.client_id == client.id
-      assert found_token.organization_id == org.id
+      assert found_token.organization_id == "org_" <> org.id
       assert found_token.status == :active
     end
 
@@ -221,7 +221,7 @@ defmodule Thalamus.Infrastructure.Repositories.PostgresqlAgentTokenRepositoryTes
       assert {:ok, tokens} = PostgresqlAgentTokenRepository.find_by_organization(org.id)
 
       assert length(tokens) == 3
-      assert Enum.all?(tokens, &(&1.organization_id == org.id))
+      assert Enum.all?(tokens, &(&1.organization_id == "org_" <> org.id))
       assert Enum.all?(tokens, &(&1.status == :active))
     end
 
@@ -317,12 +317,12 @@ defmodule Thalamus.Infrastructure.Repositories.PostgresqlAgentTokenRepositoryTes
       # Query org1 - should only see org1 tokens
       {:ok, org1_tokens} = PostgresqlAgentTokenRepository.find_by_organization(org1.id)
       assert length(org1_tokens) == 1
-      assert Enum.all?(org1_tokens, &(&1.organization_id == org1.id))
+      assert Enum.all?(org1_tokens, &(&1.organization_id == "org_" <> org1.id))
 
       # Query org2 - should only see org2 tokens
       {:ok, org2_tokens} = PostgresqlAgentTokenRepository.find_by_organization(org2.id)
       assert length(org2_tokens) == 1
-      assert Enum.all?(org2_tokens, &(&1.organization_id == org2.id))
+      assert Enum.all?(org2_tokens, &(&1.organization_id == "org_" <> org2.id))
     end
 
     test "returns empty list for organization with no tokens" do

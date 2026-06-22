@@ -455,7 +455,7 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepositoryT
       assert length(org1_clients) >= 1
 
       assert Enum.all?(org1_clients, fn c ->
-               OrganizationId.to_string(c.organization_id) == org_id1
+               OrganizationId.to_string(c.organization_id) == "org_" <> org_id1
              end)
     end
 
@@ -558,7 +558,7 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepositoryT
       assert length(org_clients) >= 2
 
       assert Enum.all?(org_clients, fn c ->
-               OrganizationId.to_string(c.organization_id) == org_id
+               OrganizationId.to_string(c.organization_id) == "org_" <> org_id
              end)
     end
 

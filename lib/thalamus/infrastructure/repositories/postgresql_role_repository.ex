@@ -51,9 +51,11 @@ defmodule Thalamus.Infrastructure.Repositories.PostgresqlRoleRepository do
 
   @impl true
   def find_by_name(organization_id, name) do
+    org_uuid = String.replace_prefix(to_string(organization_id), "org_", "")
+
     query =
       from r in RoleSchema,
-        where: r.organization_id == ^organization_id,
+        where: r.organization_id == ^org_uuid,
         where: fragment("lower(?) = lower(?)", r.name, ^name)
 
     case Repo.one(query) do
@@ -64,9 +66,11 @@ defmodule Thalamus.Infrastructure.Repositories.PostgresqlRoleRepository do
 
   @impl true
   def list_by_organization(organization_id) do
+    org_uuid = String.replace_prefix(to_string(organization_id), "org_", "")
+
     query =
       from r in RoleSchema,
-        where: r.organization_id == ^organization_id,
+        where: r.organization_id == ^org_uuid,
         order_by: [asc: r.name]
 
     roles =
@@ -167,7 +171,7 @@ defmodule Thalamus.Infrastructure.Repositories.PostgresqlRoleRepository do
   defp to_domain(%RoleSchema{} = schema) do
     %Role{
       id: schema.id,
-      organization_id: schema.organization_id,
+      organization_id: if(schema.organization_id, do: "org_" <> schema.organization_id, else: nil),
       name: schema.name,
       description: schema.description,
       scopes: schema.scopes || [],
@@ -177,9 +181,11 @@ defmodule Thalamus.Infrastructure.Repositories.PostgresqlRoleRepository do
   end
 
   defp to_map(%Role{} = role) do
+    org_id = role.organization_id && String.replace_prefix(to_string(role.organization_id), "org_", "")
+
     %{
       id: role.id,
-      organization_id: role.organization_id,
+      organization_id: org_id,
       name: role.name,
       description: role.description,
       scopes: role.scopes
