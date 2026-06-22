@@ -51,3 +51,6 @@ config :thalamus, Oban,
   testing: :manual,
   queues: false,
   plugins: false
+
+# Reduce Bcrypt cost for faster tests (production uses log_rounds: 12)
+config :bcrypt_elixir, log_rounds: 4

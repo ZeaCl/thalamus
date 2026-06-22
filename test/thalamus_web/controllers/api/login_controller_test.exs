@@ -16,10 +16,6 @@ defmodule ThalamusWeb.API.LoginControllerTest do
       # Save the verified user
       {:ok, saved_user} = PostgreSQLUserRepository.save(verified_user)
 
-      # Debug: verify the user was saved correctly
-      IO.puts("Setup: saved_user status = #{saved_user.status}")
-      IO.puts("Setup: saved_user verified_at = #{inspect(saved_user.verified_at)}")
-
       %{user: saved_user}
     end
 
