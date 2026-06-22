@@ -184,7 +184,7 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
         type: :authorization_code,
         user_id: user.id,
         client_id: client.id,
-        scope: [:openid],
+        scope: ["openid"],
         redirect_uri: "http://localhost:3000/callback",
         expires_at: DateTime.add(DateTime.utc_now(), 600, :second)
       }
