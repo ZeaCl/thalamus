@@ -2,7 +2,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
   use ThalamusWeb.ConnCase, async: false
 
   alias Thalamus.Domain.Entities.{User, Organization}
-  alias Thalamus.Domain.ValueObjects.{ClientId, GrantType, Scope, RedirectUri}
+  
   alias Thalamus.TestHelpers
 
   alias Thalamus.Infrastructure.Repositories.{
@@ -42,11 +42,6 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
   end
 
   # Helper function to set session with proper initialization
-  defp put_user_session(conn, user_id) do
-    conn
-    |> Plug.Test.init_test_session(%{})
-    |> put_session(:user_id, user_id)
-  end
 
   describe "GET /oauth/authorize - authorization request" do
     test "shows consent screen with valid parameters", %{conn: conn, client: client} do

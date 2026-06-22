@@ -3,7 +3,6 @@ defmodule ThalamusWeb.API.OrganizationControllerTest do
 
   alias Thalamus.Domain.Entities.{User, Organization}
   alias Thalamus.Domain.ValueObjects.{AccessToken, Scope}
-  alias Thalamus.TestHelpers
 
   alias Thalamus.Infrastructure.Repositories.{
     PostgreSQLUserRepository,
@@ -15,7 +14,7 @@ defmodule ThalamusWeb.API.OrganizationControllerTest do
   setup do
     # Create organization for OAuth2 client
     {:ok, org} = Organization.new("Test Corp", "owner@test.com", :standard)
-    {:ok, org} = PostgreSQLOrganizationRepository.save(org)
+    {:ok, _org} = PostgreSQLOrganizationRepository.save(org)
 
     # Create admin user with access token
     {:ok, admin} = User.register("admin8183@test.com", "AdminPass123!")
@@ -24,7 +23,7 @@ defmodule ThalamusWeb.API.OrganizationControllerTest do
 
     # Create organization and client
     {:ok, org} = Thalamus.Domain.Entities.Organization.new("Test Org", "admin@test.com")
-    {:ok, org} = Thalamus.Infrastructure.Repositories.PostgreSQLOrganizationRepository.save(org)
+    {:ok, _org} = Thalamus.Infrastructure.Repositories.PostgreSQLOrganizationRepository.save(org)
 
     {:ok, client} =
       Thalamus.TestHelpers.create_test_client(
@@ -40,7 +39,7 @@ defmodule ThalamusWeb.API.OrganizationControllerTest do
     {:ok, read_scope} = Scope.new("api:read")
     {:ok, write_scope} = Scope.new("api:write")
     {:ok, admin_scope} = Scope.new("api:admin")
-    scopes = [read_scope, write_scope, admin_scope]
+    _scopes = [read_scope, write_scope, admin_scope]
 
     {:ok, access_token} =
       AccessToken.generate(
@@ -55,7 +54,7 @@ defmodule ThalamusWeb.API.OrganizationControllerTest do
 
     # Extract client ID without "client_" prefix for DB storage
     client_id_string = Thalamus.Domain.ValueObjects.ClientId.to_string(client.id)
-    client_uuid = String.replace_prefix(client_id_string, "client_", "")
+    _client_uuid = String.replace_prefix(client_id_string, "client_", "")
 
     token_data = %{
       token: access_token.token,
@@ -226,7 +225,7 @@ defmodule ThalamusWeb.API.OrganizationControllerTest do
   describe "GET /api/organizations/:id" do
     test "returns organization by id", %{conn: conn, access_token: token} do
       {:ok, org} = Organization.new("Get Corp", "owner@getcorp.com", :standard)
-      {:ok, org} = PostgreSQLOrganizationRepository.save(org)
+      {:ok, _org} = PostgreSQLOrganizationRepository.save(org)
 
       conn =
         conn
@@ -289,7 +288,7 @@ defmodule ThalamusWeb.API.OrganizationControllerTest do
 
     test "requires authentication", %{conn: conn} do
       {:ok, org} = Organization.new("Auth Corp", "owner@auth.com", :free)
-      {:ok, org} = PostgreSQLOrganizationRepository.save(org)
+      {:ok, _org} = PostgreSQLOrganizationRepository.save(org)
 
       conn = get(conn, ~p"/api/organizations/#{org.id}")
 
@@ -300,7 +299,7 @@ defmodule ThalamusWeb.API.OrganizationControllerTest do
   describe "PATCH /api/organizations/:id" do
     test "updates organization name", %{conn: conn, access_token: token} do
       {:ok, org} = Organization.new("Old Name", "owner@test.com", :basic)
-      {:ok, org} = PostgreSQLOrganizationRepository.save(org)
+      {:ok, _org} = PostgreSQLOrganizationRepository.save(org)
 
       conn =
         conn
@@ -319,7 +318,7 @@ defmodule ThalamusWeb.API.OrganizationControllerTest do
 
     test "updates organization plan", %{conn: conn, access_token: token} do
       {:ok, org} = Organization.new("Upgrade Corp", "owner@test.com", :free)
-      {:ok, org} = PostgreSQLOrganizationRepository.save(org)
+      {:ok, _org} = PostgreSQLOrganizationRepository.save(org)
 
       conn =
         conn
@@ -337,7 +336,7 @@ defmodule ThalamusWeb.API.OrganizationControllerTest do
 
     test "updates organization status", %{conn: conn, access_token: token} do
       {:ok, org} = Organization.new("Status Corp", "owner@test.com", :basic)
-      {:ok, org} = PostgreSQLOrganizationRepository.save(org)
+      {:ok, _org} = PostgreSQLOrganizationRepository.save(org)
 
       conn =
         conn
@@ -368,7 +367,7 @@ defmodule ThalamusWeb.API.OrganizationControllerTest do
 
     test "requires authentication", %{conn: conn} do
       {:ok, org} = Organization.new("No Auth", "owner@test.com", :free)
-      {:ok, org} = PostgreSQLOrganizationRepository.save(org)
+      {:ok, _org} = PostgreSQLOrganizationRepository.save(org)
 
       conn =
         patch(conn, ~p"/api/organizations/#{org.id}", %{
@@ -382,7 +381,7 @@ defmodule ThalamusWeb.API.OrganizationControllerTest do
   describe "DELETE /api/organizations/:id" do
     test "deletes organization", %{conn: conn, access_token: token} do
       {:ok, org} = Organization.new("Delete Corp", "owner@delete.com", :free)
-      {:ok, org} = PostgreSQLOrganizationRepository.save(org)
+      {:ok, _org} = PostgreSQLOrganizationRepository.save(org)
 
       conn =
         conn
@@ -409,7 +408,7 @@ defmodule ThalamusWeb.API.OrganizationControllerTest do
 
     test "requires authentication", %{conn: conn} do
       {:ok, org} = Organization.new("Auth Delete", "owner@test.com", :free)
-      {:ok, org} = PostgreSQLOrganizationRepository.save(org)
+      {:ok, _org} = PostgreSQLOrganizationRepository.save(org)
 
       conn = delete(conn, ~p"/api/organizations/#{org.id}")
 

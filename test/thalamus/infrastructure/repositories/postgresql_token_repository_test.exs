@@ -727,7 +727,7 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLTokenRepositoryTest do
   end
 
   # Helper to insert expired tokens directly into the database (bypassing validation)
-  defp insert_expired_token(overrides \\ []) do
+  defp insert_expired_token(overrides) do
     alias Thalamus.Infrastructure.Persistence.Schemas.TokenSchema
 
     # Create database records for foreign key constraints

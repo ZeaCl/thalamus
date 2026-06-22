@@ -3,7 +3,6 @@ defmodule ThalamusWeb.API.PasswordControllerTest do
 
   alias Thalamus.Domain.Entities.{User, Organization}
   alias Thalamus.Domain.ValueObjects.{AccessToken, Scope}
-  alias Thalamus.TestHelpers
 
   alias Thalamus.Infrastructure.Repositories.{
     PostgreSQLUserRepository,
@@ -15,7 +14,7 @@ defmodule ThalamusWeb.API.PasswordControllerTest do
   setup do
     # Create organization for OAuth2 client
     {:ok, org} = Organization.new("Test Corp", "owner@test.com", :standard)
-    {:ok, org} = PostgreSQLOrganizationRepository.save(org)
+    {:ok, _org} = PostgreSQLOrganizationRepository.save(org)
 
     # Create and verify user
     {:ok, user} = User.register("user@test.com", "OldPassword123!")
@@ -24,7 +23,7 @@ defmodule ThalamusWeb.API.PasswordControllerTest do
 
     # Create organization and client
     {:ok, org} = Thalamus.Domain.Entities.Organization.new("Test Org", "admin@test.com")
-    {:ok, org} = Thalamus.Infrastructure.Repositories.PostgreSQLOrganizationRepository.save(org)
+    {:ok, _org} = Thalamus.Infrastructure.Repositories.PostgreSQLOrganizationRepository.save(org)
 
     {:ok, client} =
       Thalamus.TestHelpers.create_test_client(
@@ -46,7 +45,7 @@ defmodule ThalamusWeb.API.PasswordControllerTest do
 
     # Extract client ID without "client_" prefix for DB storage
     client_id_string = Thalamus.Domain.ValueObjects.ClientId.to_string(client.id)
-    client_uuid = String.replace_prefix(client_id_string, "client_", "")
+    _client_uuid = String.replace_prefix(client_id_string, "client_", "")
 
     token_data = %{
       token: access_token.token,

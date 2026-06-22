@@ -85,7 +85,7 @@ defmodule Thalamus.Application.UseCases.AssignRoleTest do
       org_id = Ecto.UUID.generate()
 
       user = build_user(user_id, org_id, :suspended)
-      role = build_role(role_id, org_id, "Admin", ["admin:all"])
+      _role = build_role(role_id, org_id, "Admin", ["admin:all"])
 
       Thalamus.MockUserRepository
       |> expect(:find_by_id, fn ^user_id -> {:ok, user} end)

@@ -141,7 +141,9 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLPersonalAccessTokenRepo
       expires_at: entity.expires_at,
       last_used_at: entity.last_used_at,
       user_id: entity.user_id,
-      organization_id: entity.organization_id && String.replace_prefix(to_string(entity.organization_id), "org_", "")
+      organization_id:
+        entity.organization_id &&
+          String.replace_prefix(to_string(entity.organization_id), "org_", "")
     }
   end
 end

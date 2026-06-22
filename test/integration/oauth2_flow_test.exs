@@ -31,13 +31,13 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
     {:ok, user} = PostgreSQLUserRepository.save(user)
 
     # Create OAuth2 client with new API
-    {:ok, client_id} = ClientId.generate()
-    {:ok, auth_code_grant} = GrantType.authorization_code()
-    {:ok, refresh_grant} = GrantType.refresh_token()
-    {:ok, client_creds_grant} = GrantType.client_credentials()
-    {:ok, read_scope} = Scope.new("api:read")
-    {:ok, write_scope} = Scope.new("api:write")
-    {:ok, redirect_uri} = RedirectUri.new("http://localhost:3000/callback")
+    {:ok, _client_id} = ClientId.generate()
+    {:ok, _auth_code_grant} = GrantType.authorization_code()
+    {:ok, _refresh_grant} = GrantType.refresh_token()
+    {:ok, _client_creds_grant} = GrantType.client_credentials()
+    {:ok, _read_scope} = Scope.new("api:read")
+    {:ok, _write_scope} = Scope.new("api:write")
+    {:ok, _redirect_uri} = RedirectUri.new("http://localhost:3000/callback")
 
     # Generate plain text secret to use in tests
     plain_secret = :crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false)
@@ -60,11 +60,6 @@ defmodule Thalamus.Integration.OAuth2FlowTest do
   end
 
   # Helper function to set session with proper initialization
-  defp put_user_session(conn, user_id) do
-    conn
-    |> Plug.Test.init_test_session(%{})
-    |> put_session(:user_id, user_id)
-  end
 
   describe "Complete Authorization Code Flow" do
     test "completes full flow: authorize → approve → exchange → use token", %{

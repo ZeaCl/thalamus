@@ -2,7 +2,7 @@ defmodule ThalamusWeb.OAuth2.RevocationControllerTest do
   use ThalamusWeb.ConnCase, async: false
 
   alias Thalamus.Domain.Entities.{User, Organization}
-  alias Thalamus.Domain.ValueObjects.{AccessToken, Scope, ClientId, GrantType, RedirectUri}
+  alias Thalamus.Domain.ValueObjects.{AccessToken, Scope}
   alias Thalamus.TestHelpers
 
   alias Thalamus.Infrastructure.Repositories.{

@@ -171,7 +171,8 @@ defmodule Thalamus.Infrastructure.Repositories.PostgresqlRoleRepository do
   defp to_domain(%RoleSchema{} = schema) do
     %Role{
       id: schema.id,
-      organization_id: if(schema.organization_id, do: "org_" <> schema.organization_id, else: nil),
+      organization_id:
+        if(schema.organization_id, do: "org_" <> schema.organization_id, else: nil),
       name: schema.name,
       description: schema.description,
       scopes: schema.scopes || [],
@@ -181,7 +182,8 @@ defmodule Thalamus.Infrastructure.Repositories.PostgresqlRoleRepository do
   end
 
   defp to_map(%Role{} = role) do
-    org_id = role.organization_id && String.replace_prefix(to_string(role.organization_id), "org_", "")
+    org_id =
+      role.organization_id && String.replace_prefix(to_string(role.organization_id), "org_", "")
 
     %{
       id: role.id,

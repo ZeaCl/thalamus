@@ -143,9 +143,15 @@ defmodule ThalamusWeb.ConnCase do
       case org do
         %{id: %Thalamus.Domain.ValueObjects.OrganizationId{} = vo} ->
           Thalamus.Domain.ValueObjects.OrganizationId.to_string(vo)
-        %{id: id} when is_binary(id) -> id
-        id when is_binary(id) -> id
-        _ -> to_string(org)
+
+        %{id: id} when is_binary(id) ->
+          id
+
+        id when is_binary(id) ->
+          id
+
+        _ ->
+          to_string(org)
       end
 
     String.replace_prefix(id_string, "org_", "")

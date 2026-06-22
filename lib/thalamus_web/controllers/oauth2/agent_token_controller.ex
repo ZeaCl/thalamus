@@ -286,7 +286,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenController do
     error_response(conn, :bad_request, "invalid_request", "task_id must be a valid UUID")
   end
 
-  defp handle_error(conn, error) do
+  defp handle_error(conn, _error) do
     error_response(conn, :internal_server_error, "server_error", "an internal error occurred")
   end
 

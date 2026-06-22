@@ -3,7 +3,6 @@ defmodule ThalamusWeb.API.MFAControllerTest do
 
   alias Thalamus.Domain.Entities.{User, Organization}
   alias Thalamus.Domain.ValueObjects.{AccessToken, Scope}
-  alias Thalamus.TestHelpers
 
   alias Thalamus.Infrastructure.Repositories.{
     PostgreSQLUserRepository,
@@ -12,12 +11,11 @@ defmodule ThalamusWeb.API.MFAControllerTest do
     PostgreSQLTokenRepository
   }
 
-  alias Thalamus.Infrastructure.Adapters.RedisCacheAdapter
 
   setup do
     # Create organization for OAuth2 client
     {:ok, org} = Organization.new("Test Corp", "owner@test.com", :standard)
-    {:ok, org} = PostgreSQLOrganizationRepository.save(org)
+    {:ok, _org} = PostgreSQLOrganizationRepository.save(org)
 
     # Create and verify user
     {:ok, user} = User.register("user@test.com", "Password123!")
@@ -26,7 +24,7 @@ defmodule ThalamusWeb.API.MFAControllerTest do
 
     # Create organization and client
     {:ok, org} = Thalamus.Domain.Entities.Organization.new("Test Org", "admin@test.com")
-    {:ok, org} = Thalamus.Infrastructure.Repositories.PostgreSQLOrganizationRepository.save(org)
+    {:ok, _org} = Thalamus.Infrastructure.Repositories.PostgreSQLOrganizationRepository.save(org)
 
     {:ok, client} =
       Thalamus.TestHelpers.create_test_client(
@@ -41,7 +39,7 @@ defmodule ThalamusWeb.API.MFAControllerTest do
     # Generate access token for authenticated requests
     {:ok, read_scope} = Scope.new("api:read")
     {:ok, write_scope} = Scope.new("api:write")
-    scopes = [read_scope, write_scope]
+    _scopes = [read_scope, write_scope]
 
     {:ok, access_token} =
       AccessToken.generate(
@@ -55,7 +53,7 @@ defmodule ThalamusWeb.API.MFAControllerTest do
 
     # Extract client ID without "client_" prefix for DB storage
     client_id_string = Thalamus.Domain.ValueObjects.ClientId.to_string(client.id)
-    client_uuid = String.replace_prefix(client_id_string, "client_", "")
+    _client_uuid = String.replace_prefix(client_id_string, "client_", "")
 
     token_data = %{
       token: access_token.token,

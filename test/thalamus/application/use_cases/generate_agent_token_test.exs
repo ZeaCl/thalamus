@@ -331,7 +331,7 @@ defmodule Thalamus.Application.UseCases.GenerateAgentTokenTest do
     }
   end
 
-  defp build_client(org_id \\ nil) do
+  defp build_client(org_id) do
     org = org_id || Ecto.UUID.generate()
 
     %{
@@ -344,7 +344,7 @@ defmodule Thalamus.Application.UseCases.GenerateAgentTokenTest do
     }
   end
 
-  defp build_user(org_id \\ nil) do
+  defp build_user(org_id) do
     org = org_id || Ecto.UUID.generate()
 
     %{
@@ -354,7 +354,7 @@ defmodule Thalamus.Application.UseCases.GenerateAgentTokenTest do
     }
   end
 
-  defp build_saved_agent_token(overrides \\ %{}) do
+  defp build_saved_agent_token(overrides) do
     {:ok, agent_type} = AgentType.new(:autonomous)
     {:ok, task_id} = TaskId.new(Ecto.UUID.generate())
 
@@ -393,7 +393,7 @@ defmodule Thalamus.Application.UseCases.GenerateAgentTokenTest do
     }
   end
 
-  defp setup_successful_mocks(org_id \\ nil) do
+  defp setup_successful_mocks(org_id) do
     client = build_client(org_id)
     user = %{build_user(org_id) | organization_id: client.organization_id}
 

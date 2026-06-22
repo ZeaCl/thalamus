@@ -2,7 +2,7 @@ defmodule Thalamus.Domain.Entities.OAuth2ClientTest do
   use ExUnit.Case, async: false
 
   alias Thalamus.Domain.Entities.OAuth2Client
-  alias Thalamus.Domain.ValueObjects.{ClientId, OrganizationId, GrantType, RedirectUri, Scope}
+  alias Thalamus.Domain.ValueObjects.{OrganizationId, GrantType, RedirectUri, Scope}
 
   describe "create_confidential/2" do
     test "creates confidential client with secret" do
@@ -160,7 +160,7 @@ defmodule Thalamus.Domain.Entities.OAuth2ClientTest do
       {:ok, org_id} = OrganizationId.generate()
       {:ok, client} = OAuth2Client.create_confidential("App", org_id)
       {:ok, uri1} = RedirectUri.new("https://app.example.com/callback")
-      {:ok, uri2} = RedirectUri.new("https://app.example.com/callback2")
+      {:ok, _uri2} = RedirectUri.new("https://app.example.com/callback2")
 
       {:ok, client} = OAuth2Client.add_redirect_uri(client, uri1.value)
 
@@ -209,7 +209,7 @@ defmodule Thalamus.Domain.Entities.OAuth2ClientTest do
       {:ok, org_id} = OrganizationId.generate()
       {:ok, client} = OAuth2Client.create_confidential("App", org_id)
       {:ok, profile} = Scope.new("profile")
-      {:ok, email} = Scope.new("email")
+      {:ok, _email} = Scope.new("email")
 
       {:ok, client} = OAuth2Client.add_scope(client, profile.value)
 

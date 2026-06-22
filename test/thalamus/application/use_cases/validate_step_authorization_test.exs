@@ -215,7 +215,7 @@ defmodule Thalamus.Application.UseCases.ValidateStepAuthorizationTest do
 
   # Helper functions
 
-  defp build_agent_token(overrides \\ []) do
+  defp build_agent_token(overrides) do
     {:ok, agent_type} = AgentType.new(:autonomous)
     {:ok, task_id} = TaskId.new(Ecto.UUID.generate())
     {:ok, delegation_chain} = DelegationChain.new(%{parent_token_id: nil, depth: 0, path: []})

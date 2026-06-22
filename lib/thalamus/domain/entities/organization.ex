@@ -222,8 +222,11 @@ defmodule Thalamus.Domain.Entities.Organization do
     add_member(org, user_id, nil, role)
   end
 
+  def add_member(_, _, _), do: {:error, :invalid_member_data}
+
   def add_member(%__MODULE__{} = org, %UserId{} = user_id, email, role)
-      when role in @valid_roles and (is_nil(email) or is_struct(email, Thalamus.Domain.ValueObjects.Email)) do
+      when role in @valid_roles and
+             (is_nil(email) or is_struct(email, Thalamus.Domain.ValueObjects.Email)) do
     cond do
       member_exists?(org, user_id) ->
         {:error, :member_already_exists}
@@ -247,7 +250,6 @@ defmodule Thalamus.Domain.Entities.Organization do
   end
 
   def add_member(_, _, _, _), do: {:error, :invalid_member_data}
-  def add_member(_, _, _), do: {:error, :invalid_member_data}
 
   @doc """
   Removes a member from the organization.
@@ -532,12 +534,15 @@ defmodule Thalamus.Domain.Entities.Organization do
     length(members) + 1 <= max_users
   end
 
-  defp can_downgrade_to_plan?(%__MODULE__{members: members}, %Thalamus.Domain.ValueObjects.Plan{type: plan_type}) do
+  defp can_downgrade_to_plan?(%__MODULE__{members: members}, %Thalamus.Domain.ValueObjects.Plan{
+         type: plan_type
+       }) do
     max_users = plan_max_users(plan_type)
     if is_nil(max_users), do: true, else: length(members) <= max_users
   end
 
-  defp can_downgrade_to_plan?(%__MODULE__{members: members}, new_plan_type) when is_atom(new_plan_type) do
+  defp can_downgrade_to_plan?(%__MODULE__{members: members}, new_plan_type)
+       when is_atom(new_plan_type) do
     max_users = plan_max_users(new_plan_type)
     if is_nil(max_users), do: true, else: length(members) <= max_users
   end

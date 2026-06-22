@@ -349,7 +349,7 @@ defmodule Thalamus.Infrastructure.Adapters.RedisCacheAdapterTest do
     test "parses default Redis URL" do
       # Test with default configuration
       spec = RedisCacheAdapter.child_spec([])
-      assert spec != nil
+      assert spec
     end
   end
 
@@ -360,7 +360,7 @@ defmodule Thalamus.Infrastructure.Adapters.RedisCacheAdapterTest do
 
       Application.put_env(:thalamus, :redis_url, redis_url)
       spec = RedisCacheAdapter.child_spec([])
-      assert spec != nil
+      assert spec
 
       if original_url do
         Application.put_env(:thalamus, :redis_url, original_url)
@@ -375,7 +375,7 @@ defmodule Thalamus.Infrastructure.Adapters.RedisCacheAdapterTest do
 
       Application.put_env(:thalamus, :redis_url, redis_url)
       spec = RedisCacheAdapter.child_spec([])
-      assert spec != nil
+      assert spec
 
       if original_url do
         Application.put_env(:thalamus, :redis_url, original_url)
@@ -389,7 +389,7 @@ defmodule Thalamus.Infrastructure.Adapters.RedisCacheAdapterTest do
       Application.delete_env(:thalamus, :redis_url)
 
       spec = RedisCacheAdapter.child_spec([])
-      assert spec != nil
+      assert spec
 
       if original_url do
         Application.put_env(:thalamus, :redis_url, original_url)

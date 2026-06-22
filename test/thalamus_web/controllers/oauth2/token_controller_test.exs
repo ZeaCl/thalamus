@@ -1,9 +1,9 @@
 defmodule ThalamusWeb.OAuth2.TokenControllerTest do
   use ThalamusWeb.ConnCase, async: false
 
-  alias Thalamus.Repo
+  
   alias Thalamus.Domain.Entities.{User, Organization}
-  alias Thalamus.Domain.ValueObjects.{AuthorizationCode, Scope, ClientId, GrantType, RedirectUri}
+  alias Thalamus.Domain.ValueObjects.{AuthorizationCode, Scope, RedirectUri}
   alias Thalamus.TestHelpers
 
   alias Thalamus.Infrastructure.Repositories.{
@@ -69,7 +69,7 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
     } do
       # Generate authorization code
       {:ok, redirect_uri} = RedirectUri.new("http://localhost:3000/callback")
-      {:ok, read_scope} = Scope.new("api:read")
+      {:ok, _read_scope} = Scope.new("api:read")
 
       {:ok, auth_code} =
         AuthorizationCode.generate(
@@ -138,7 +138,7 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
       client: client
     } do
       {:ok, redirect_uri} = RedirectUri.new("http://localhost:3000/callback")
-      {:ok, read_scope} = Scope.new("api:read")
+      {:ok, _read_scope} = Scope.new("api:read")
 
       {:ok, auth_code} =
         AuthorizationCode.generate(
@@ -167,7 +167,7 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
 
     test "returns error with mismatched redirect_uri", %{conn: conn, user: user, client: client} do
       {:ok, redirect_uri} = RedirectUri.new("http://localhost:3000/callback")
-      {:ok, read_scope} = Scope.new("api:read")
+      {:ok, _read_scope} = Scope.new("api:read")
 
       {:ok, auth_code} =
         AuthorizationCode.generate(
@@ -268,7 +268,7 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
     } do
       # First, get tokens via authorization code
       {:ok, redirect_uri} = RedirectUri.new("http://localhost:3000/callback")
-      {:ok, read_scope} = Scope.new("api:read")
+      {:ok, _read_scope} = Scope.new("api:read")
 
       {:ok, auth_code} =
         AuthorizationCode.generate(
@@ -394,7 +394,7 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
 
       # Generate authorization code with PKCE
       {:ok, redirect_uri} = RedirectUri.new("http://localhost:3000/callback")
-      {:ok, read_scope} = Scope.new("api:read")
+      {:ok, _read_scope} = Scope.new("api:read")
 
       {:ok, auth_code} =
         AuthorizationCode.generate(
@@ -447,7 +447,7 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
       code_challenge = pkce_challenge.value
 
       {:ok, redirect_uri} = RedirectUri.new("http://localhost:3000/callback")
-      {:ok, read_scope} = Scope.new("api:read")
+      {:ok, _read_scope} = Scope.new("api:read")
 
       {:ok, auth_code} =
         AuthorizationCode.generate(
