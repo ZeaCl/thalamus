@@ -183,6 +183,15 @@ defmodule ThalamusWeb.OAuth2.AgentTokenController do
     error_response(conn, :bad_request, "invalid_scope", "requested scopes not allowed for client")
   end
 
+  defp handle_error(conn, {:invalid_scopes, invalid_scopes}) do
+    error_response(
+      conn,
+      :bad_request,
+      "invalid_scope",
+      "invalid scopes: #{Enum.join(invalid_scopes, ", ")}"
+    )
+  end
+
   defp handle_error(conn, :ttl_exceeds_maximum) do
     error_response(
       conn,
@@ -232,7 +241,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenController do
   end
 
   defp handle_error(conn, :delegator_not_active) do
-    error_response(conn, :bad_request, "invalid_request", "delegating user is not active")
+    error_response(conn, :bad_request, "invalid_request", "delegating user is inactive")
   end
 
   defp handle_error(conn, :delegator_organization_mismatch) do
@@ -273,7 +282,11 @@ defmodule ThalamusWeb.OAuth2.AgentTokenController do
     error_response(conn, :unauthorized, "invalid_client", "client authentication failed")
   end
 
-  defp handle_error(conn, _error) do
+  defp handle_error(conn, :invalid_task_id) do
+    error_response(conn, :bad_request, "invalid_request", "task_id must be a valid UUID")
+  end
+
+  defp handle_error(conn, error) do
     error_response(conn, :internal_server_error, "server_error", "an internal error occurred")
   end
 
