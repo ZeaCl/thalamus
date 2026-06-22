@@ -185,7 +185,7 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository do
          {:ok, mfa_methods} <- convert_mfa_methods_from_db(schema.mfa_methods) do
       user = %User{
         id: user_id,
-        organization_id: schema.organization_id,
+        organization_id: if(schema.organization_id, do: "org_" <> schema.organization_id, else: nil),
         email: email,
         name: schema.name,
         avatar_url: schema.avatar_url,
@@ -220,6 +220,13 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository do
         nil
       end
 
+    org_uuid =
+      case user.organization_id do
+        nil -> nil
+        %{value: val} -> String.replace_prefix(val, "org_", "")
+        val when is_binary(val) -> String.replace_prefix(val, "org_", "")
+      end
+
     %UserSchema{
       id: user_uuid,
       email: Email.to_string(user.email),
@@ -227,6 +234,7 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository do
       avatar_url: user.avatar_url,
       password_hash: PasswordHash.to_string(user.password_hash),
       status: user.status,
+      organization_id: org_uuid,
       verified_at: user.verified_at,
       last_login_at: user.last_login_at,
       failed_login_attempts: user.failed_login_attempts,

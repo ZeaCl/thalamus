@@ -81,6 +81,7 @@ defmodule Thalamus.Domain.Entities.User do
 
     user = %__MODULE__{
       id: id,
+      organization_id: Map.get(attrs, :organization_id),
       email: email,
       name: Map.get(attrs, :name),
       avatar_url: Map.get(attrs, :avatar_url),

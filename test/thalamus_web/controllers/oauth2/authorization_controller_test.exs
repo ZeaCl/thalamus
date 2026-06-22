@@ -2,6 +2,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
   use ThalamusWeb.ConnCase, async: false
 
   alias Thalamus.Domain.Entities.{User, Organization}
+  alias Thalamus.Domain.ValueObjects.{ClientId, GrantType, Scope, RedirectUri}
   alias Thalamus.TestHelpers
 
   alias Thalamus.Infrastructure.Repositories.{
@@ -20,15 +21,6 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
     {:ok, user} = User.verify_email(user)
     {:ok, user} = PostgreSQLUserRepository.save(user)
 
-    # Create OAuth2 client with STANDARD OIDC scopes (generic, not ZEA-specific)
-    {:ok, client_id} = ClientId.generate()
-    {:ok, auth_code_grant} = GrantType.authorization_code()
-    {:ok, refresh_grant} = GrantType.refresh_token()
-    {:ok, openid_scope} = Scope.new("openid")
-    {:ok, profile_scope} = Scope.new("profile")
-    {:ok, email_scope} = Scope.new("email")
-    {:ok, redirect_uri} = RedirectUri.new("http://localhost:3000/callback")
-
     # Generate plain text secret to use in tests
     plain_secret = :crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false)
 
@@ -36,7 +28,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
       TestHelpers.create_test_client(
         "Test Client",
         org.id,
-        ["openid", "profile", "email"],
+        ["openid", "profile", "email", "api:read", "api:write"],
         redirect_uris: ["http://localhost:3000/callback"],
         grant_types: [:authorization_code, :refresh_token]
       )
@@ -67,15 +59,15 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
           response_type: "code",
           client_id: to_string(client.id),
           redirect_uri: "http://localhost:3000/callback",
-          scope: "openid profile",
+          scope: "api:read",
           state: "random_state_123"
         })
 
       # Should show consent screen (200 OK)
       assert html_response(conn, 200)
-      assert conn.resp_body =~ "Test Client"
-      assert conn.resp_body =~ "zea:read"
-      assert conn.resp_body =~ "write"
+      assert conn.resp_body =~ "Authorize Access"
+      assert conn.resp_body =~ client.name
+      assert conn.resp_body =~ "api:read"
     end
 
     test "shows consent screen with PKCE parameters", %{conn: conn, client: client} do
@@ -90,7 +82,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
           response_type: "code",
           client_id: to_string(client.id),
           redirect_uri: "http://localhost:3000/callback",
-          scope: "zea:read",
+          scope: "api:read",
           state: "state_123",
           code_challenge: code_challenge,
           code_challenge_method: "S256"
@@ -105,7 +97,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
           response_type: "code",
           client_id: to_string(client.id),
           redirect_uri: "http://localhost:3000/callback",
-          scope: "zea:read",
+          scope: "api:read",
           state: "state_123"
         })
 
@@ -165,7 +157,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
           client_id: to_string(client.id),
           # Not in allowed list
           redirect_uri: "http://evil.com/callback",
-          scope: "zea:read"
+          scope: "api:read"
         })
 
       assert response(conn, 400)
@@ -197,7 +189,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
           response_type: "code",
           client_id: to_string(client.id),
           redirect_uri: "http://localhost:3000/callback",
-          scope: "zea:read",
+          scope: "api:read",
           code_challenge: "some_challenge",
           # Invalid method (only S256 and plain are supported)
           code_challenge_method: "MD5"
@@ -221,7 +213,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
           decision: "approve",
           client_id: to_string(client.id),
           redirect_uri: "http://localhost:3000/callback",
-          scope: "zea:read",
+          scope: "api:read",
           state: "state_123"
         })
 
@@ -250,7 +242,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
           decision: "deny",
           client_id: to_string(client.id),
           redirect_uri: "http://localhost:3000/callback",
-          scope: "zea:read",
+          scope: "api:read",
           state: "state_123"
         })
 
@@ -281,7 +273,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
           decision: "approve",
           client_id: to_string(client.id),
           redirect_uri: "http://localhost:3000/callback",
-          scope: "zea:read",
+          scope: "api:read",
           state: "state_123",
           code_challenge: code_challenge,
           code_challenge_method: "S256"
@@ -307,7 +299,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
           decision: "approve",
           client_id: to_string(client.id),
           redirect_uri: "http://localhost:3000/callback",
-          scope: "zea:read",
+          scope: "api:read",
           state: random_state
         })
 
@@ -327,7 +319,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
           decision: "invalid_decision",
           client_id: to_string(client.id),
           redirect_uri: "http://localhost:3000/callback",
-          scope: "zea:read"
+          scope: "api:read"
         })
 
       assert response(conn, 400)
@@ -339,7 +331,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
           decision: "approve",
           client_id: to_string(client.id),
           redirect_uri: "http://localhost:3000/callback",
-          scope: "zea:read"
+          scope: "api:read"
         })
 
       assert response(conn, 401)
@@ -373,7 +365,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
           decision: "approve",
           client_id: to_string(client.id),
           redirect_uri: "http://localhost:3000/callback",
-          scope: "zea:read",
+          scope: "api:read",
           state: "state_123"
         })
 
@@ -395,7 +387,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
       user: user,
       client: client
     } do
-      # Client allows [%Thalamus.Domain.ValueObjects.Scope{value: "zea:read"}, %Thalamus.Domain.ValueObjects.Scope{value: "write"}], request only [:read]
+      # Client allows [%Thalamus.Domain.ValueObjects.Scope{value: "api:read"}, %Thalamus.Domain.ValueObjects.Scope{value: "write"}], request only [:read]
       conn =
         conn
         |> Plug.Test.init_test_session(%{})
@@ -405,7 +397,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
           client_id: to_string(client.id),
           redirect_uri: "http://localhost:3000/callback",
           # Subset of allowed scopes
-          scope: "zea:read",
+          scope: "api:read",
           state: "state_123"
         })
 
@@ -413,7 +405,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
     end
 
     test "rejects scopes not in client allowed list", %{conn: conn, user: user, client: client} do
-      # Client allows [%Thalamus.Domain.ValueObjects.Scope{value: "zea:read"}, %Thalamus.Domain.ValueObjects.Scope{value: "write"}], request [:admin]
+      # Client allows [%Thalamus.Domain.ValueObjects.Scope{value: "api:read"}, %Thalamus.Domain.ValueObjects.Scope{value: "write"}], request [:admin]
       conn =
         conn
         |> Plug.Test.init_test_session(%{})
@@ -459,7 +451,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
           client_id: to_string(client.id),
           # Exact match
           redirect_uri: "http://localhost:3000/callback",
-          scope: "zea:read"
+          scope: "api:read"
         })
 
       assert redirected_to(conn, 302)
@@ -478,7 +470,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
           decision: "approve",
           client_id: to_string(client.id),
           redirect_uri: "http://evil.com/steal-codes",
-          scope: "zea:read"
+          scope: "api:read"
         })
 
       assert response(conn, 400)
@@ -494,7 +486,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
           client_id: to_string(client.id),
           # https instead of http
           redirect_uri: "https://localhost:3000/callback",
-          scope: "zea:read"
+          scope: "api:read"
         })
 
       assert response(conn, 400)
@@ -513,7 +505,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
           response_type: "code",
           client_id: to_string(client.id),
           redirect_uri: "http://localhost:3000/callback",
-          scope: "zea:read"
+          scope: "api:read"
         })
       end
 
@@ -526,7 +518,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
           response_type: "code",
           client_id: to_string(client.id),
           redirect_uri: "http://localhost:3000/callback",
-          scope: "zea:read"
+          scope: "api:read"
         })
 
       # Should return 429 Too Many Requests

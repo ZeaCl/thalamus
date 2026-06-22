@@ -3,7 +3,7 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
 
   alias Thalamus.Repo
   alias Thalamus.Domain.Entities.{User, Organization}
-  alias Thalamus.Domain.ValueObjects.{AuthorizationCode, Scope}
+  alias Thalamus.Domain.ValueObjects.{AuthorizationCode, Scope, ClientId, GrantType, RedirectUri}
   alias Thalamus.TestHelpers
 
   alias Thalamus.Infrastructure.Repositories.{
@@ -40,15 +40,6 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
     {:ok, user} = User.verify_email(user)
     {:ok, user} = PostgreSQLUserRepository.save(user)
 
-    # Create OAuth2 client with new API
-    {:ok, client_id} = ClientId.generate()
-    {:ok, auth_code_grant} = GrantType.authorization_code()
-    {:ok, refresh_grant} = GrantType.refresh_token()
-    {:ok, client_creds_grant} = GrantType.client_credentials()
-    {:ok, read_scope} = Scope.new("api:read")
-    {:ok, write_scope} = Scope.new("api:write")
-    {:ok, redirect_uri} = RedirectUri.new("http://localhost:3000/callback")
-
     # Generate plain text secret to use in tests
     plain_secret = :crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false)
 
@@ -58,7 +49,8 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
         org.id,
         ["openid", "profile", "email"],
         redirect_uris: ["http://localhost:3000/callback"],
-        grant_types: [:authorization_code, :refresh_token, :client_credentials]
+        grant_types: [:authorization_code, :refresh_token, :client_credentials],
+        client_secret: plain_secret
       )
 
     {:ok, client} = PostgreSQLOAuth2ClientRepository.save(client)
@@ -83,9 +75,8 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
         AuthorizationCode.generate(
           client.id,
           user.id,
-          {:ok, redirect_uri} =
-            Thalamus.Domain.ValueObjects.RedirectURI.new("http://localhost:3000/callback"),
-          [:openid],
+          redirect_uri,
+          to_scopes([:openid]),
           nil,
           600
         )
@@ -96,7 +87,7 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
         type: :authorization_code,
         user_id: user.id,
         client_id: client.id,
-        scope: [:openid],
+        scope: ["openid"],
         expires_at: DateTime.add(DateTime.utc_now(), 600, :second)
       }
 
@@ -153,9 +144,8 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
         AuthorizationCode.generate(
           client.id,
           user.id,
-          {:ok, redirect_uri} =
-            Thalamus.Domain.ValueObjects.RedirectURI.new("http://localhost:3000/callback"),
-          [:openid],
+          redirect_uri,
+          to_scopes([:openid]),
           nil,
           600
         )
@@ -183,9 +173,8 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
         AuthorizationCode.generate(
           client.id,
           user.id,
-          {:ok, redirect_uri} =
-            Thalamus.Domain.ValueObjects.RedirectURI.new("http://localhost:3000/callback"),
-          [:openid],
+          redirect_uri,
+          to_scopes([:openid]),
           nil,
           600
         )
@@ -224,7 +213,7 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
         post(conn, ~p"/oauth/token", %{
           grant_type: "client_credentials",
           client_id: to_string(client.id),
-          client_secret: client.secret,
+          client_secret: client.plain_secret,
           scope: "openid profile email"
         })
 
@@ -285,9 +274,8 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
         AuthorizationCode.generate(
           client.id,
           user.id,
-          {:ok, redirect_uri} =
-            Thalamus.Domain.ValueObjects.RedirectURI.new("http://localhost:3000/callback"),
-          [:openid],
+          redirect_uri,
+          to_scopes([:openid]),
           nil,
           600
         )
@@ -412,9 +400,8 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
         AuthorizationCode.generate(
           client.id,
           user.id,
-          {:ok, redirect_uri} =
-            Thalamus.Domain.ValueObjects.RedirectURI.new("http://localhost:3000/callback"),
-          [:openid],
+          redirect_uri,
+          to_scopes([:openid]),
           pkce_challenge,
           600
         )
@@ -466,9 +453,8 @@ defmodule ThalamusWeb.OAuth2.TokenControllerTest do
         AuthorizationCode.generate(
           client.id,
           user.id,
-          {:ok, redirect_uri} =
-            Thalamus.Domain.ValueObjects.RedirectURI.new("http://localhost:3000/callback"),
-          [:openid],
+          redirect_uri,
+          to_scopes([:openid]),
           pkce_challenge,
           600
         )

@@ -105,7 +105,7 @@ defmodule Thalamus.Application.UseCases.GenerateAgentToken do
            verify_client_secret(request.client_secret, client.client_secret) ||
              {:error, :invalid_client_credentials},
          true <-
-           client.organization_id == request.organization_id || {:error, :organization_mismatch} do
+           to_string(client.organization_id) == request.organization_id || {:error, :organization_mismatch} do
       {:ok, client}
     else
       {:error, :not_found} -> {:error, :invalid_client_credentials}
@@ -115,16 +115,17 @@ defmodule Thalamus.Application.UseCases.GenerateAgentToken do
   end
 
   # Verifies client secret using constant-time comparison
-  defp verify_client_secret(provided_secret, stored_secret) do
-    Bcrypt.verify_pass(provided_secret, stored_secret)
+  defp verify_client_secret(provided_secret, %Thalamus.Domain.ValueObjects.ClientSecret{} = stored_secret) do
+    Thalamus.Domain.ValueObjects.ClientSecret.verify(stored_secret, provided_secret)
   end
 
   # Validates delegator user exists and is active
   defp validate_delegator(%AgentTokenRequest{} = request, deps) do
     with {:ok, user} <- deps.user_repository.find_by_id(request.delegator_user_id),
          true <- user.status == :active || {:error, :delegator_not_active},
+         _ = IO.inspect({to_string(user.organization_id), request.organization_id}, label: "DELEGATOR ORG CHECK"),
          true <-
-           user.organization_id == request.organization_id ||
+           to_string(user.organization_id) == request.organization_id ||
              {:error, :delegator_organization_mismatch},
          :ok <- validate_delegator_has_scopes(user, request.scopes, deps) do
       {:ok, user}

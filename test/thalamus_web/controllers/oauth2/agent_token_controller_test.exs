@@ -55,6 +55,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
     # Create and verify delegator user
     {:ok, delegator} = User.register("delegator@test.com", "Password123!")
     {:ok, delegator} = User.verify_email(delegator)
+    delegator = Map.put(delegator, :organization_id, to_string(org.id))
     {:ok, delegator} = PostgreSQLUserRepository.save(delegator)
 
     # Create OAuth2 client with agent-friendly scopes using helper
@@ -83,7 +84,8 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
           organization_id: to_string(client.organization_id),
           client_id: to_string(client.id),
           client_secret: @test_client_secret,
-          delegated_by_user_id: to_string(delegator.id),
+          delegator_user_id: to_string(delegator.id),
+          task_description: "Test task",
           agent_type: "autonomous",
           scope: "api:read"
         })
@@ -111,7 +113,8 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
           organization_id: to_string(client.organization_id),
           client_id: to_string(client.id),
           client_secret: @test_client_secret,
-          delegated_by_user_id: to_string(delegator.id),
+          delegator_user_id: to_string(delegator.id),
+          task_description: "Test task",
           agent_type: "supervisor",
           scope: "zea:read zea:write",
           task_id: "task_abc123",
@@ -149,9 +152,10 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
           organization_id: to_string(client.organization_id),
           client_id: to_string(client.id),
           client_secret: @test_client_secret,
-          delegated_by_user_id: to_string(delegator.id),
+          delegator_user_id: to_string(delegator.id),
+          task_description: "Test task",
           agent_type: "tool",
-          scope: "zea:read",
+          scope: "api:read",
           task_id: "ephemeral_task_001",
           max_operations: 10,
           expires_on_completion: true,
@@ -162,7 +166,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
                "access_token" => access_token,
                "token_type" => "Bearer",
                "expires_in" => 300,
-               "scope" => "zea:read",
+               "scope" => "api:read",
                "agent_type" => "tool",
                "task_id" => "ephemeral_task_001",
                "max_operations" => 10,
@@ -178,7 +182,8 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
           organization_id: to_string(client.organization_id),
           client_id: to_string(client.id),
           client_secret: @test_client_secret,
-          delegated_by_user_id: to_string(delegator.id),
+          delegator_user_id: to_string(delegator.id),
+          task_description: "Test task",
           agent_type: "autonomous",
           scope: "api:read",
           # Request 2 hours, should be capped at 1 hour
@@ -202,7 +207,8 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
       conn =
         post(conn, ~p"/oauth/agent-token", %{
           client_secret: @test_client_secret,
-          delegated_by_user_id: to_string(delegator.id),
+          delegator_user_id: to_string(delegator.id),
+          task_description: "Test task",
           agent_type: "autonomous",
           scope: "api:read"
         })
@@ -219,7 +225,8 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
         post(conn, ~p"/oauth/agent-token", %{
           organization_id: to_string(client.organization_id),
           client_id: to_string(client.id),
-          delegated_by_user_id: to_string(delegator.id),
+          delegator_user_id: to_string(delegator.id),
+          task_description: "Test task",
           agent_type: "autonomous",
           scope: "api:read"
         })
@@ -233,11 +240,12 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
           organization_id: to_string(client.organization_id),
           client_id: to_string(client.id),
           client_secret: @test_client_secret,
+          task_description: "Test task",
           agent_type: "autonomous",
           scope: "api:read"
         })
 
-      assert_stripe_error(conn, 400, "invalid_request", "delegated_by_user_id is required")
+      assert_stripe_error(conn, 400, "invalid_request", "delegator_user_id is required")
     end
 
     test "returns error with missing agent_type", %{
@@ -250,7 +258,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
           organization_id: to_string(client.organization_id),
           client_id: to_string(client.id),
           client_secret: @test_client_secret,
-          delegated_by_user_id: to_string(delegator.id),
+          delegator_user_id: to_string(delegator.id),
           scope: "api:read"
         })
 
@@ -267,7 +275,8 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
           organization_id: to_string(client.organization_id),
           client_id: to_string(client.id),
           client_secret: @test_client_secret,
-          delegated_by_user_id: to_string(delegator.id),
+          delegator_user_id: to_string(delegator.id),
+          task_description: "Test task",
           agent_type: "invalid_type",
           scope: "api:read"
         })
@@ -286,7 +295,8 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
           organization_id: to_string(client.organization_id),
           client_id: to_string(client.id),
           client_secret: @test_client_secret,
-          delegated_by_user_id: to_string(delegator.id),
+          delegator_user_id: to_string(delegator.id),
+          task_description: "Test task",
           agent_type: "autonomous",
           scope: ""
         })
@@ -304,7 +314,8 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
           organization_id: to_string(client.organization_id),
           client_id: to_string(client.id),
           client_secret: @test_client_secret,
-          delegated_by_user_id: to_string(delegator.id),
+          delegator_user_id: to_string(delegator.id),
+          task_description: "Test task",
           agent_type: "autonomous"
         })
 
@@ -322,7 +333,8 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
         post(conn, ~p"/oauth/agent-token", %{
           client_id: "00000000-0000-0000-0000-000000000000",
           client_secret: @test_client_secret,
-          delegated_by_user_id: to_string(delegator.id),
+          delegator_user_id: to_string(delegator.id),
+          task_description: "Test task",
           agent_type: "autonomous",
           scope: "api:read"
         })
@@ -340,7 +352,8 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
           organization_id: to_string(client.organization_id),
           client_id: to_string(client.id),
           client_secret: "wrong_secret",
-          delegated_by_user_id: to_string(delegator.id),
+          delegator_user_id: to_string(delegator.id),
+          task_description: "Test task",
           agent_type: "autonomous",
           scope: "api:read"
         })
@@ -354,12 +367,13 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
           organization_id: to_string(client.organization_id),
           client_id: to_string(client.id),
           client_secret: @test_client_secret,
-          delegated_by_user_id: "00000000-0000-0000-0000-000000000000",
+          delegator_user_id: "00000000-0000-0000-0000-000000000000",
+          task_description: "Test task",
           agent_type: "autonomous",
           scope: "api:read"
         })
 
-      assert_stripe_error(conn, 400, "invalid_request", "delegated_by_user_id not found")
+      assert_stripe_error(conn, 400, "invalid_request", "delegator_user_id not found")
     end
 
     test "returns error with inactive delegator", %{conn: conn, client: client, org: org} do
@@ -367,6 +381,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
       {:ok, inactive_user} = User.register("inactive@test.com", "Password123!")
       {:ok, inactive_user} = User.verify_email(inactive_user)
       {:ok, inactive_user} = User.deactivate(inactive_user)
+      inactive_user = Map.put(inactive_user, :organization_id, to_string(org.id))
       {:ok, inactive_user} = PostgreSQLUserRepository.save(inactive_user)
 
       conn =
@@ -374,7 +389,8 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
           organization_id: to_string(client.organization_id),
           client_id: to_string(client.id),
           client_secret: @test_client_secret,
-          delegated_by_user_id: to_string(inactive_user.id),
+          delegator_user_id: to_string(inactive_user.id),
+          task_description: "Test task",
           agent_type: "autonomous",
           scope: "api:read"
         })
@@ -394,7 +410,8 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
           organization_id: to_string(client.organization_id),
           client_id: to_string(client.id),
           client_secret: @test_client_secret,
-          delegated_by_user_id: to_string(delegator.id),
+          delegator_user_id: to_string(delegator.id),
+          task_description: "Test task",
           agent_type: "autonomous",
           # Not in client's allowed scopes
           scope: "admin:delete"
@@ -423,7 +440,8 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
           organization_id: to_string(client.organization_id),
           client_id: to_string(client.id),
           client_secret: @test_client_secret,
-          delegated_by_user_id: to_string(delegator.id),
+          delegator_user_id: to_string(delegator.id),
+          task_description: "Test task",
           agent_type: "autonomous",
           # Invalid scopes - not in client's allowed_scopes
           scope: "api:read admin:all webhooks:manage"
@@ -453,7 +471,8 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
           organization_id: to_string(client.organization_id),
           client_id: to_string(client.id),
           client_secret: @test_client_secret,
-          delegated_by_user_id: to_string(delegator.id),
+          delegator_user_id: to_string(delegator.id),
+          task_description: "Test task",
           agent_type: "autonomous",
           # Both are in allowed scopes
           scope: "api:read api:write"
@@ -476,7 +495,8 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
           organization_id: to_string(client.organization_id),
           client_id: to_string(client.id),
           client_secret: @test_client_secret,
-          delegated_by_user_id: to_string(delegator.id),
+          delegator_user_id: to_string(delegator.id),
+          task_description: "Test task",
           agent_type: "autonomous",
           scope: "api:read",
           # 30 minutes
@@ -499,7 +519,8 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
           organization_id: to_string(client.organization_id),
           client_id: to_string(client.id),
           client_secret: @test_client_secret,
-          delegated_by_user_id: to_string(delegator.id),
+          delegator_user_id: to_string(delegator.id),
+          task_description: "Test task",
           agent_type: "autonomous",
           scope: "api:read"
         })
@@ -522,7 +543,8 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
           organization_id: to_string(client.organization_id),
           client_id: to_string(client.id),
           client_secret: @test_client_secret,
-          delegated_by_user_id: to_string(delegator.id),
+          delegator_user_id: to_string(delegator.id),
+          task_description: "Test task",
           agent_type: "autonomous",
           scope: "api:read",
           task_id: "test_task_123",
@@ -562,9 +584,10 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
           organization_id: to_string(client.organization_id),
           client_id: to_string(client.id),
           client_secret: @test_client_secret,
-          delegated_by_user_id: to_string(delegator.id),
+          delegator_user_id: to_string(delegator.id),
+          task_description: "Test task",
           agent_type: "supervisor",
-          scope: "zea:write",
+          scope: "api:write",
           task_id: "introspection_test",
           max_operations: 25
         })

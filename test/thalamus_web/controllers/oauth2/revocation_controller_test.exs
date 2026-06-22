@@ -2,7 +2,7 @@ defmodule ThalamusWeb.OAuth2.RevocationControllerTest do
   use ThalamusWeb.ConnCase, async: false
 
   alias Thalamus.Domain.Entities.{User, Organization}
-  alias Thalamus.Domain.ValueObjects.{AccessToken, Scope}
+  alias Thalamus.Domain.ValueObjects.{AccessToken, Scope, ClientId, GrantType, RedirectUri}
   alias Thalamus.TestHelpers
 
   alias Thalamus.Infrastructure.Repositories.{
@@ -38,15 +38,6 @@ defmodule ThalamusWeb.OAuth2.RevocationControllerTest do
     {:ok, user} = User.register("user@test.com", "Password123!")
     {:ok, user} = User.verify_email(user)
     {:ok, user} = PostgreSQLUserRepository.save(user)
-
-    # Create OAuth2 client with new API
-    {:ok, client_id} = ClientId.generate()
-    {:ok, auth_code_grant} = GrantType.authorization_code()
-    {:ok, refresh_grant} = GrantType.refresh_token()
-    {:ok, client_creds_grant} = GrantType.client_credentials()
-    {:ok, read_scope} = Scope.new("api:read")
-    {:ok, write_scope} = Scope.new("zea:write")
-    {:ok, redirect_uri} = RedirectUri.new("http://localhost:3000/callback")
 
     # Generate plain text secret to use in tests
     plain_secret = :crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false)
@@ -108,31 +99,32 @@ defmodule ThalamusWeb.OAuth2.RevocationControllerTest do
     @tag :skip
     test "revokes valid refresh token", %{conn: conn, user: user, client: client} do
       # TODO: RefreshToken value object does not exist yet
-      {:ok, refresh_token} =
-        RefreshToken.generate(user.id, client.id, [:openid, :profile, :email])
+      _ = {conn, user, client}
+      # {:ok, refresh_token} =
+      #   RefreshToken.generate(user.id, client.id, [:openid, :profile, :email])
+      #
+      # token_data = %{
+      #   token: refresh_token.token,
+      #   type: :refresh_token,
+      #   user_id: user.id,
+      #   client_id: client.id,
+      #   scopes: ["openid", "profile", "email"],
+      #   expires_at: DateTime.add(DateTime.utc_now(), 2_592_000, :second)
+      # }
+      #
+      # :ok = PostgreSQLTokenRepository.store(token_data)
 
-      token_data = %{
-        token: refresh_token.token,
-        type: :refresh_token,
-        user_id: user.id,
-        client_id: client.id,
-        scopes: ["openid", "profile", "email"],
-        expires_at: DateTime.add(DateTime.utc_now(), 2_592_000, :second)
-      }
-
-      :ok = PostgreSQLTokenRepository.store(token_data)
-
-      credentials = Base.encode64("#{client.id}:#{client.plain_secret}")
-
-      conn =
-        conn
-        |> put_req_header("authorization", "Basic #{credentials}")
-        |> post(~p"/oauth/revoke", %{
-          token: refresh_token.token,
-          token_type_hint: "refresh_token"
-        })
-
-      assert response(conn, 200)
+      # credentials = Base.encode64("#{client.id}:#{client.plain_secret}")
+      #
+      # conn =
+      #   conn
+      #   |> put_req_header("authorization", "Basic #{credentials}")
+      #   |> post(~p"/oauth/revoke", %{
+      #     token: refresh_token.token,
+      #     token_type_hint: "refresh_token"
+      #   })
+      #
+      # assert response(conn, 200)
     end
 
     @tag :skip
@@ -220,12 +212,6 @@ defmodule ThalamusWeb.OAuth2.RevocationControllerTest do
 
     @tag :skip
     test "client can only revoke its own tokens", %{conn: conn, user: user, client: client} do
-      # Create another client
-      {:ok, other_client_id} = ClientId.generate()
-      {:ok, client_creds_grant} = GrantType.client_credentials()
-      {:ok, read_scope} = Scope.new("api:read")
-      {:ok, redirect_uri} = RedirectUri.new("http://other.com/callback")
-
       other_plain_secret = :crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false)
 
       {:ok, other_client} =

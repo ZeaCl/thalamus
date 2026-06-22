@@ -99,12 +99,16 @@ defmodule Thalamus.Application.DTOs.AgentTokenRequest do
   defp validate_organization(%{organization_id: nil}), do: {:error, :missing_organization_id}
   defp validate_organization(%{organization_id: ""}), do: {:error, :missing_organization_id}
 
-  defp validate_organization(%{organization_id: org_id}) do
-    case Ecto.UUID.cast(org_id) do
+  defp validate_organization(%{organization_id: org_id}) when is_binary(org_id) do
+    # Remove "org_" prefix if present before UUID cast
+    uuid_part = String.replace_prefix(org_id, "org_", "")
+    case Ecto.UUID.cast(uuid_part) do
       {:ok, _} -> :ok
       :error -> {:error, :invalid_organization_id}
     end
   end
+
+  defp validate_organization(_), do: {:error, :invalid_organization_id}
 
   defp validate_delegator(%{delegator_user_id: nil}),
     do: {:error, :missing_delegator_user_id}
@@ -112,12 +116,16 @@ defmodule Thalamus.Application.DTOs.AgentTokenRequest do
   defp validate_delegator(%{delegator_user_id: ""}),
     do: {:error, :missing_delegator_user_id}
 
-  defp validate_delegator(%{delegator_user_id: user_id}) do
-    case Ecto.UUID.cast(user_id) do
+  defp validate_delegator(%{delegator_user_id: user_id}) when is_binary(user_id) do
+    # Remove "user_" prefix if present before UUID cast
+    uuid_part = String.replace_prefix(user_id, "user_", "")
+    case Ecto.UUID.cast(uuid_part) do
       {:ok, _} -> :ok
       :error -> {:error, :invalid_delegator_user_id}
     end
   end
+
+  defp validate_delegator(_), do: {:error, :invalid_delegator_user_id}
 
   defp validate_agent_type(%{agent_type: nil}), do: {:error, :missing_agent_type}
 

@@ -2,7 +2,7 @@ defmodule ThalamusWeb.OAuth2.IntrospectionControllerTest do
   use ThalamusWeb.ConnCase, async: false
 
   alias Thalamus.Domain.Entities.{User, Organization}
-  alias Thalamus.Domain.ValueObjects.{AccessToken, Scope}
+  alias Thalamus.Domain.ValueObjects.{AccessToken, Scope, ClientId, GrantType, RedirectUri}
   alias Thalamus.TestHelpers
 
   alias Thalamus.Infrastructure.Repositories.{
@@ -38,15 +38,6 @@ defmodule ThalamusWeb.OAuth2.IntrospectionControllerTest do
     {:ok, user} = User.register("user@test.com", "Password123!")
     {:ok, user} = User.verify_email(user)
     {:ok, user} = PostgreSQLUserRepository.save(user)
-
-    # Create OAuth2 client with new API
-    {:ok, client_id} = ClientId.generate()
-    {:ok, auth_code_grant} = GrantType.authorization_code()
-    {:ok, refresh_grant} = GrantType.refresh_token()
-    {:ok, client_creds_grant} = GrantType.client_credentials()
-    {:ok, read_scope} = Scope.new("api:read")
-    {:ok, write_scope} = Scope.new("api:write")
-    {:ok, redirect_uri} = RedirectUri.new("http://localhost:3000/callback")
 
     # Generate plain text secret to use in tests
     plain_secret = :crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false)
