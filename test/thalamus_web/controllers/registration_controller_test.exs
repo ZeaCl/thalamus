@@ -45,11 +45,13 @@ defmodule ThalamusWeb.RegistrationControllerTest do
     end
 
     test "renders errors when email is already in use", %{conn: conn} do
-      # Create an existing user
+      # Create an existing user with a valid password hash
+      password_hash = Bcrypt.hash_pwd_salt("password123!@1aA")
+
       UserSchema.create_changeset(%{
         email: "existing@example.com",
         name: "Existing User",
-        password_hash: "hashed",
+        password_hash: password_hash,
         status: :active
       })
       |> Repo.insert!()
@@ -61,7 +63,8 @@ defmodule ThalamusWeb.RegistrationControllerTest do
       }
 
       conn = post(conn, "/register", %{"registration" => attrs})
-      assert html_response(conn, 200) =~ "Email address already registered"
+      assert html_response(conn, 200) =~ "Create your account"
+      assert Phoenix.Flash.get(conn.assigns.flash, :error) =~ "Email address already registered"
     end
   end
 end
