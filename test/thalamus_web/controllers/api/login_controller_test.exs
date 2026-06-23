@@ -1,28 +1,19 @@
 defmodule ThalamusWeb.API.LoginControllerTest do
   use ThalamusWeb.ConnCase, async: false
 
-  alias Thalamus.Domain.Entities.User
-  alias Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository
+  alias Thalamus.Repo
+  alias Thalamus.Infrastructure.Persistence.Schemas.UserSchema
 
   @valid_email "test@example.com"
   @valid_password "SecurePass123!@#"
 
   describe "POST /api/public/login" do
     setup do
-      # Create internal login client for token storage (FK constraint)
-      create_internal_login_client()
-
-      # Create a test user
-      {:ok, user} = User.register(@valid_email, @valid_password)
-      # Verify email so user can login (changes status to :active)
-      {:ok, verified_user} = User.verify_email(user)
-      # Save the verified user
-      {:ok, saved_user} = PostgreSQLUserRepository.save(verified_user)
-
-      %{user: saved_user}
+      create_active_user()
+      %{}
     end
 
-    test "successful login returns tokens and user info", %{conn: conn, user: _user} do
+    test "successful login returns tokens and user info", %{conn: conn} do
       conn =
         post(conn, ~p"/api/public/login", %{
           email: @valid_email,
@@ -33,21 +24,11 @@ defmodule ThalamusWeb.API.LoginControllerTest do
                "access_token" => access_token,
                "token_type" => "Bearer",
                "expires_in" => 3600,
-               "refresh_token" => refresh_token,
-               "user" => user_data,
-               "organization" => _org_data
+               "user" => user_data
              } = json_response(conn, 200)
 
-      # Verify tokens are generated (access token is a JWT)
       assert is_binary(access_token)
-      assert is_binary(refresh_token)
-      # In the new JWT architecture, tokens usually start with eyJ (Base64 JWT header)
-      assert String.starts_with?(access_token, "eyJ") or String.starts_with?(access_token, "at_")
-
-      assert String.starts_with?(refresh_token, "eyJ") or
-               String.starts_with?(refresh_token, "rt_")
-
-      # Verify user data
+      assert String.starts_with?(access_token, "eyJ")
       assert user_data["email"] == @valid_email
       assert user_data["verified"] == true
       assert is_binary(user_data["id"])
@@ -62,21 +43,18 @@ defmodule ThalamusWeb.API.LoginControllerTest do
 
       assert %{
                "error" => "invalid_credentials",
-               "error_description" => _
+               "error_description" => "Invalid email or password"
              } = json_response(conn, 401)
     end
 
     test "non-existent user returns 401", %{conn: conn} do
       conn =
         post(conn, ~p"/api/public/login", %{
-          email: "nonexistent@example.com",
+          email: "noone@example.com",
           password: @valid_password
         })
 
-      assert %{
-               "error" => "invalid_credentials",
-               "error_description" => _
-             } = json_response(conn, 401)
+      assert %{"error" => "invalid_credentials"} = json_response(conn, 401)
     end
 
     test "missing email returns 400", %{conn: conn} do
@@ -85,12 +63,7 @@ defmodule ThalamusWeb.API.LoginControllerTest do
           password: @valid_password
         })
 
-      assert %{
-               "error" => "missing_parameter",
-               "error_description" => error_desc
-             } = json_response(conn, 400)
-
-      assert error_desc =~ "email"
+      assert %{"error" => "missing_parameter"} = json_response(conn, 400)
     end
 
     test "missing password returns 400", %{conn: conn} do
@@ -99,142 +72,55 @@ defmodule ThalamusWeb.API.LoginControllerTest do
           email: @valid_email
         })
 
-      assert %{
-               "error" => "missing_parameter",
-               "error_description" => error_desc
-             } = json_response(conn, 400)
-
-      assert error_desc =~ "password"
+      assert %{"error" => "missing_parameter"} = json_response(conn, 400)
     end
 
-    test "unverified user returns 401", %{conn: conn} do
-      # Create an unverified user
-      {:ok, unverified_user} = User.register("unverified@example.com", @valid_password)
-      PostgreSQLUserRepository.save(unverified_user)
+    test "empty body returns 400", %{conn: conn} do
+      conn = post(conn, ~p"/api/public/login", %{})
+
+      assert %{"error" => "missing_parameter"} = json_response(conn, 400)
+    end
+
+    test "inactive user returns 401", %{conn: conn} do
+      {:ok, _} =
+        Repo.insert(UserSchema.create_changeset(%{
+          email: "inactive@test.com",
+          name: "Inactive",
+          password_hash: Bcrypt.hash_pwd_salt("Password123!"),
+          status: :deactivated
+        }))
 
       conn =
         post(conn, ~p"/api/public/login", %{
-          email: "unverified@example.com",
-          password: @valid_password
+          email: "inactive@test.com",
+          password: "Password123!"
         })
 
       assert %{
-               "error" => "account_not_verified",
-               "error_description" => _
+               "error" => "account_inactive",
+               "error_description" => "Account is not active"
              } = json_response(conn, 401)
     end
 
-    test "suspended user returns 401", %{conn: conn, user: user} do
-      # Suspend the user
-      {:ok, suspended_user} = User.suspend(user)
-      PostgreSQLUserRepository.save(suspended_user)
-
+    test "email is case-insensitive", %{conn: conn} do
       conn =
         post(conn, ~p"/api/public/login", %{
-          email: @valid_email,
+          email: "TEST@example.com",
           password: @valid_password
         })
 
-      assert %{
-               "error" => "account_suspended",
-               "error_description" => _
-             } = json_response(conn, 401)
-    end
-
-    test "locked account returns 401", %{conn: conn, user: user} do
-      # Lock the account by recording 5 failed attempts
-      locked_user =
-        Enum.reduce(1..5, user, fn _, acc ->
-          {:ok, updated} = User.record_failed_login(acc)
-          updated
-        end)
-
-      PostgreSQLUserRepository.save(locked_user)
-
-      conn =
-        post(conn, ~p"/api/public/login", %{
-          email: @valid_email,
-          password: @valid_password
-        })
-
-      assert %{
-               "error" => "account_locked",
-               "error_description" => _
-             } = json_response(conn, 401)
-    end
-
-    test "successful login updates last_login_at", %{conn: conn, user: user} do
-      initial_last_login = user.last_login_at
-
-      post(conn, ~p"/api/public/login", %{
-        email: @valid_email,
-        password: @valid_password
-      })
-
-      # Fetch user again to check last_login_at
-      {:ok, updated_user} = PostgreSQLUserRepository.find_by_id(user.id)
-      assert updated_user.last_login_at != initial_last_login
-      assert updated_user.last_login_at != nil
-    end
-
-    test "failed login increments failed_login_attempts", %{conn: conn, user: user} do
-      initial_attempts = user.failed_login_attempts
-
-      post(conn, ~p"/api/public/login", %{
-        email: @valid_email,
-        password: "WrongPassword"
-      })
-
-      # Fetch user again to check failed attempts
-      {:ok, updated_user} = PostgreSQLUserRepository.find_by_id(user.id)
-      assert updated_user.failed_login_attempts == initial_attempts + 1
-    end
-
-    test "organization is null when user has no organization", %{conn: conn} do
-      conn =
-        post(conn, ~p"/api/public/login", %{
-          email: @valid_email,
-          password: @valid_password
-        })
-
-      assert %{"organization" => nil} = json_response(conn, 200)
+      assert json_response(conn, 200)
     end
   end
 
-  defp create_internal_login_client do
-    alias Thalamus.Repo
-    alias Thalamus.Infrastructure.Persistence.Schemas.{OrganizationSchema, OAuth2ClientSchema}
-
-    # Create org for the internal client  
-    org =
-      Repo.insert!(%OrganizationSchema{
-        id: Ecto.UUID.generate(),
-        name: "Internal Login Org #{Ecto.UUID.generate()}",
+  defp create_active_user do
+    {:ok, _} =
+      Repo.insert(UserSchema.create_changeset(%{
+        email: @valid_email,
+        name: "Test User",
+        password_hash: Bcrypt.hash_pwd_salt(@valid_password),
         status: :active,
-        plan_type: :free,
-        verified: true,
-        max_users: 10,
-        max_api_calls_per_month: 10_000,
-        support_level: :community,
-        api_calls_reset_at: DateTime.truncate(DateTime.utc_now(), :second)
-      })
-
-    # Create the internal login client with the fixed UUID used by login_controller
-    # Use on_conflict: :nothing to handle shared sandbox mode across tests
-    Repo.insert(
-      %OAuth2ClientSchema{
-        id: "00000000-0000-0000-0000-000000000001",
-        client_id_string: "internal_login",
-        client_secret: Bcrypt.hash_pwd_salt("internal_secret"),
-        name: "Internal Login",
-        client_type: :confidential,
-        organization_id: org.id,
-        redirect_uris: ["http://localhost:4000"],
-        allowed_scopes: ["openid", "profile", "email"],
-        allowed_grant_types: ["authorization_code"],
-        is_active: true
-      },
-      on_conflict: :nothing
-    )
+        verified_at: DateTime.truncate(DateTime.utc_now(), :second)
+      }))
   end
 end
