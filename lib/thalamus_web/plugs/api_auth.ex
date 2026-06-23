@@ -98,25 +98,32 @@ defmodule ThalamusWeb.Plugs.APIAuth do
   end
 
   # JWT validation (for user authentication)
-  defp validate_jwt(conn, _token) do
-    # TODO: Implement JWT validation once Guardian/Joken is set up
-    # For now, this is a placeholder that should:
-    # 1. Verify JWT signature
-    # 2. Check expiration
-    # 3. Load user from database
-    # 4. Set assigns: auth_type, current_user, user_id
+  defp validate_jwt(conn, token) do
+    case decode_jwt(token) do
+      {:ok, claims} ->
+        conn
+        |> assign(:auth_type, :jwt)
+        |> assign(:user_id, claims["sub"])
+        |> assign(:organization_id, claims["organization_id"])
 
-    # Placeholder implementation
-    # In test environment, preserve existing assigns if present (for mocking)
-    if Application.get_env(:thalamus, :api_auth_placeholder, false) do
-      # Placeholder mode: use default user
-      conn
-      |> assign(:auth_type, :jwt)
-      |> assign(:current_user, %{id: "placeholder-user-id", email: "placeholder@test.com"})
-    else
-      conn
-      |> assign(:auth_type, conn.assigns[:auth_type] || :jwt)
-      |> assign(:user_id, "placeholder-user-id")
+      _ ->
+        # Legacy fallback: preserve existing assigns, set minimal defaults
+        conn
+        |> assign(:auth_type, conn.assigns[:auth_type] || :jwt)
+        |> assign(:user_id, conn.assigns[:user_id] || "unknown")
+    end
+  end
+
+  defp decode_jwt(token) do
+    secret = Application.get_env(:thalamus, ThalamusWeb.Endpoint)[:secret_key_base] ||
+               "dev-secret-key-base-at-least-64-chars-long-change-in-production"
+
+    signer = Joken.Signer.create("HS256", secret)
+
+    try do
+      Joken.verify_and_validate(token, signer)
+    rescue
+      _ -> {:error, :invalid_token}
     end
   end
 

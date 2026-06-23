@@ -88,6 +88,7 @@ defmodule ThalamusWeb.API.LoginController do
       "sub" => user.id,
       "email" => user.email,
       "name" => user.name,
+      "organization_id" => user.organization_id,
       "iat" => DateTime.utc_now() |> DateTime.to_unix(),
       "exp" => DateTime.utc_now() |> DateTime.to_unix() |> Kernel.+(3600)
     }
