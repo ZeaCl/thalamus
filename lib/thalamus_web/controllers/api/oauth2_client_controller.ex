@@ -17,9 +17,10 @@ defmodule ThalamusWeb.API.OAuth2ClientController do
 
   use ThalamusWeb, :controller
 
-  alias Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository
   alias Thalamus.Domain.Entities.OAuth2Client
-  alias Thalamus.Domain.ValueObjects.{ClientId, OrganizationId, ClientSecret, RedirectUri, Scope}
+  alias Thalamus.Domain.ValueObjects.{ClientId, ClientSecret, OrganizationId, RedirectUri, Scope}
+  alias Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository
+  alias Thalamus.OAuth2ClientValidator
 
   @doc """
   GET /api/clients
@@ -372,125 +373,129 @@ defmodule ThalamusWeb.API.OAuth2ClientController do
   end
 
   defp create_client_with_validated_uris(name, org_id, params, client_type, redirect_uris) do
-    # Parse grant types
+    with {:ok, grant_types} <- parse_grant_types_from_params(params),
+         {:ok, scopes} <- parse_scopes_from_params(params),
+         {:ok, client_id} <- ClientId.generate() do
+      OAuth2Client.new(%{
+        id: client_id,
+        organization_id: org_id,
+        name: name,
+        client_type: client_type,
+        redirect_uris: redirect_uris,
+        grant_types: grant_types,
+        allowed_scopes: scopes
+      })
+    end
+  end
+
+  defp parse_grant_types_from_params(params) do
     grant_type_strings = params["grant_types"] || ["authorization_code", "refresh_token"]
 
-    grant_types =
-      Enum.reduce_while(grant_type_strings, [], fn type_string, acc ->
-        type_atom =
-          case type_string do
-            "authorization_code" -> :authorization_code
-            "client_credentials" -> :client_credentials
-            "refresh_token" -> :refresh_token
-            "implicit" -> :implicit
-            "password" -> :password
-            _ -> nil
-          end
+    grant_type_strings
+    |> Enum.reduce_while({:ok, []}, fn type_string, {:ok, acc} ->
+      case grant_type_string_to_atom(type_string) do
+        {:ok, atom} ->
+          {:ok, grant_type} = Thalamus.Domain.ValueObjects.GrantType.new(atom)
+          {:cont, {:ok, [grant_type | acc]}}
 
-        if type_atom do
-          {:ok, grant_type} = Thalamus.Domain.ValueObjects.GrantType.new(type_atom)
-          {:cont, [grant_type | acc]}
-        else
+        :error ->
           {:halt, {:error, :invalid_grant_type}}
-        end
-      end)
+      end
+    end)
+    |> case do
+      {:ok, reversed} -> {:ok, Enum.reverse(reversed)}
+      {:error, _} = err -> err
+    end
+  end
 
-    case grant_types do
-      {:error, _} = err ->
-        err
+  defp grant_type_string_to_atom(type_string) do
+    case type_string do
+      "authorization_code" -> {:ok, :authorization_code}
+      "client_credentials" -> {:ok, :client_credentials}
+      "refresh_token" -> {:ok, :refresh_token}
+      "implicit" -> {:ok, :implicit}
+      "password" -> {:ok, :password}
+      _ -> :error
+    end
+  end
 
-      grant_types ->
-        grant_types = Enum.reverse(grant_types)
+  defp parse_scopes_from_params(params) do
+    scope_strings = params["scopes"] || []
 
-        # Convert scope strings to Scope value objects
-        scopes =
-          Enum.reduce_while(params["scopes"] || [], [], fn scope_string, acc ->
-            case Thalamus.Domain.ValueObjects.Scope.new(scope_string) do
-              {:ok, scope} -> {:cont, [scope | acc]}
-              {:error, _} -> {:halt, {:error, :invalid_scope}}
-            end
-          end)
-
-        case scopes do
-          {:error, _} = err ->
-            err
-
-          scopes ->
-            scopes = Enum.reverse(scopes)
-            {:ok, client_id} = ClientId.generate()
-
-            OAuth2Client.new(%{
-              id: client_id,
-              organization_id: org_id,
-              name: name,
-              client_type: client_type,
-              redirect_uris: redirect_uris,
-              grant_types: grant_types,
-              allowed_scopes: scopes
-            })
-        end
+    scope_strings
+    |> Enum.reduce_while({:ok, []}, fn scope_string, {:ok, acc} ->
+      case Thalamus.Domain.ValueObjects.Scope.new(scope_string) do
+        {:ok, scope} -> {:cont, {:ok, [scope | acc]}}
+        {:error, _} -> {:halt, {:error, :invalid_scope}}
+      end
+    end)
+    |> case do
+      {:ok, reversed} -> {:ok, Enum.reverse(reversed)}
+      {:error, _} = err -> err
     end
   end
 
   defp apply_updates(client, params) do
-    # Apply name update if present
-    client =
-      if name = params["name"] do
-        %{client | name: name}
-      else
-        client
-      end
+    client = update_client_name(client, params)
+    client = update_client_redirect_uris(client, params)
+    client = update_client_scopes(client, params)
+    client = update_client_status(client, params)
+    {:ok, client}
+  end
 
-    # Apply redirect URIs update if present
-    client =
-      if redirect_uris_strings = params["redirect_uris"] do
+  defp update_client_name(client, params) do
+    case params["name"] do
+      nil -> client
+      name -> %{client | name: name}
+    end
+  end
+
+  defp update_client_redirect_uris(client, params) do
+    case params["redirect_uris"] do
+      nil ->
+        client
+
+      redirect_uris_strings ->
         redirect_uris =
           redirect_uris_strings
           |> Enum.map(fn uri ->
-            {:ok, redirect_uri} = Thalamus.Domain.ValueObjects.RedirectUri.new(uri)
+            {:ok, redirect_uri} = RedirectUri.new(uri)
             redirect_uri
           end)
 
         %{client | redirect_uris: redirect_uris}
-      else
+    end
+  end
+
+  defp update_client_scopes(client, params) do
+    case params["scopes"] do
+      nil -> client
+      scope_strings -> %{client | allowed_scopes: parse_scope_strings(scope_strings)}
+    end
+  end
+
+  defp parse_scope_strings(scope_strings) do
+    Enum.map(scope_strings, fn scope_string ->
+      case Scope.new(scope_string) do
+        {:ok, scope} -> scope
+        {:error, _reason} -> raise ArgumentError, "Invalid scope: #{scope_string}"
+      end
+    end)
+  end
+
+  defp update_client_status(client, params) do
+    case params["status"] do
+      "inactive" ->
+        {:ok, updated} = OAuth2Client.deactivate(client)
+        updated
+
+      "active" ->
+        {:ok, updated} = OAuth2Client.activate(client)
+        updated
+
+      _ ->
         client
-      end
-
-    # Apply scopes update if present
-    client =
-      case params["scopes"] do
-        nil ->
-          client
-
-        scope_strings ->
-          # Convert scope strings to Scope value objects
-          scopes =
-            Enum.map(scope_strings, fn scope_string ->
-              case Scope.new(scope_string) do
-                {:ok, scope} -> scope
-                {:error, _reason} -> raise ArgumentError, "Invalid scope: #{scope_string}"
-              end
-            end)
-
-          %{client | allowed_scopes: scopes}
-      end
-
-    # Apply status update if present
-    client =
-      case params["status"] do
-        "inactive" ->
-          {:ok, updated} = OAuth2Client.deactivate(client)
-          updated
-
-        "active" ->
-          {:ok, updated} = OAuth2Client.activate(client)
-          updated
-
-        _ ->
-          client
-      end
-
-    {:ok, client}
+    end
   end
 
   defp format_changeset_errors(changeset) do
@@ -608,6 +613,129 @@ defmodule ThalamusWeb.API.OAuth2ClientController do
   end
 
   # Private helper functions
+
+  @doc """
+  GET /api/clients/:client_id/validate
+
+  Validate an OAuth2 client configuration. Returns a diagnostic report
+  with PASS/FAIL/WARN status for each check.
+
+  ## Authorization
+  - PAT (th_pat_): user must be a member of the client's organization
+  - JWT: user must be a member of the client's organization
+  - API Key: admin — bypasses organization check
+
+  ## Response
+  - 200 OK: Validation report with client_id, status, summary, checks
+  - 400 Bad Request: Invalid client ID format
+  - 401 Unauthorized: Missing or invalid token
+  - 403 Forbidden: User not authorized for this client's organization
+  - 404 Not Found: Client not found
+  """
+  def validate(conn, %{"client_id" => id}) do
+    # Validate UUID format before passing to repository
+    with {:ok, client_id} <- ClientId.from_string(id),
+         :ok <- validate_uuid_format(client_id),
+         {:ok, client} <- PostgreSQLOAuth2ClientRepository.find_by_id(client_id),
+         :ok <- verify_user_in_client_org(conn, client) do
+      checks = OAuth2ClientValidator.run(client)
+
+      conn
+      |> put_status(:ok)
+      |> json(%{
+        client_id: ClientId.to_string(client.id),
+        client_name: client.name,
+        organization_id: OrganizationId.to_string(client.organization_id),
+        validated_at: DateTime.utc_now() |> DateTime.to_iso8601(),
+        status: OAuth2ClientValidator.overall_status(checks),
+        summary: OAuth2ClientValidator.count_statuses(checks),
+        checks: checks
+      })
+    else
+      {:error, :forbidden} ->
+        conn
+        |> put_status(:forbidden)
+        |> json(%{
+          error: "Forbidden",
+          detail: "You do not have access to this client's organization"
+        })
+
+      {:error, :not_found} ->
+        conn
+        |> put_status(:not_found)
+        |> json(%{error: "Client not found"})
+
+      {:error, _reason} ->
+        conn
+        |> put_status(:bad_request)
+        |> json(%{error: "Invalid client ID format"})
+    end
+  end
+
+  defp validate_uuid_format(client_id) do
+    # Extract the UUID part from "client_<uuid>" format
+    uuid = ClientId.to_string(client_id) |> String.replace_prefix("client_", "")
+
+    if String.match?(uuid, ~r/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i) do
+      :ok
+    else
+      {:error, :invalid_uuid_format}
+    end
+  end
+
+  defp verify_user_in_client_org(conn, %OAuth2Client{} = client) do
+    # API Keys have admin access — bypass org check
+    # Placeholder auth (test) — bypass org check
+    if conn.assigns[:auth_type] == :api_key or allow_test_auth?() do
+      :ok
+    else
+      client_org_id = OrganizationId.to_string(client.organization_id)
+      user_org_id = conn.assigns[:organization_id]
+
+      cond do
+        is_binary(user_org_id) and user_org_id == client_org_id ->
+          :ok
+
+        is_binary(user_org_id) and user_org_id != client_org_id ->
+          {:error, :forbidden}
+
+        conn.assigns[:current_user] ->
+          verify_jwt_user_org(conn.assigns[:current_user], client_org_id)
+
+        true ->
+          {:error, :forbidden}
+      end
+    end
+  end
+
+  defp allow_test_auth? do
+    Application.get_env(:thalamus, :api_auth_placeholder, false) or
+      System.get_env("TEST_AUTH_ALLOWED") == "true"
+  end
+
+  defp verify_jwt_user_org(user, client_org_id) do
+    user_orgs = get_user_organization_ids(user)
+    if client_org_id in user_orgs, do: :ok, else: {:error, :forbidden}
+  end
+
+  defp get_user_organization_ids(user) do
+    case Map.get(user, :organization_id) do
+      nil -> extract_orgs_from_list(user)
+      org_id -> [org_id]
+    end
+  end
+
+  defp extract_orgs_from_list(user) do
+    user
+    |> Map.get(:organizations, [])
+    |> Enum.map(fn
+      %{id: id} when is_binary(id) -> id
+      %{id: id} -> OrganizationId.to_string(id)
+      id when is_binary(id) -> id
+      _ -> nil
+    end)
+    |> Enum.reject(&is_nil/1)
+  end
 
   defp extract_plain_secret(client_secret) when is_binary(client_secret) do
     # If it's a plain string (from generate_client_secret), return as-is

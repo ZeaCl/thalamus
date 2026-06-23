@@ -32,6 +32,8 @@ defmodule ThalamusWeb.Telemetry do
     Supervisor.init(children, strategy: :one_for_one)
   end
 
+  @dialyzer {:nowarn_function, metrics: 0}
+  @spec metrics :: [any()]
   def metrics do
     [
       # Phoenix Metrics

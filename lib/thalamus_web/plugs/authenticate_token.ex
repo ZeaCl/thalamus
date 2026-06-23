@@ -115,9 +115,6 @@ defmodule ThalamusWeb.Plugs.AuthenticateToken do
 
       {:error, :invalid_token_format} ->
         unauthorized(conn, "Invalid token format")
-
-      {:error, reason} ->
-        unauthorized(conn, "Authentication failed: #{inspect(reason)}")
     end
   end
 
