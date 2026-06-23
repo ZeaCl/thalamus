@@ -9,6 +9,9 @@ defmodule ThalamusWeb.API.LoginControllerTest do
 
   describe "POST /api/public/login" do
     setup do
+      # Create internal login client for token storage (FK constraint)
+      create_internal_login_client()
+
       # Create a test user
       {:ok, user} = User.register(@valid_email, @valid_password)
       # Verify email so user can login (changes status to :active)
@@ -196,5 +199,38 @@ defmodule ThalamusWeb.API.LoginControllerTest do
 
       assert %{"organization" => nil} = json_response(conn, 200)
     end
+  end
+
+  defp create_internal_login_client do
+    alias Thalamus.Repo
+    alias Thalamus.Infrastructure.Persistence.Schemas.{OrganizationSchema, OAuth2ClientSchema}
+
+    # Create org for the internal client  
+    org = Repo.insert!(%OrganizationSchema{
+      id: Ecto.UUID.generate(),
+      name: "Internal Login Org #{Ecto.UUID.generate()}",
+      status: :active,
+      plan_type: :free,
+      verified: true,
+      max_users: 10,
+      max_api_calls_per_month: 10_000,
+      support_level: :community,
+      api_calls_reset_at: DateTime.truncate(DateTime.utc_now(), :second)
+    })
+
+    # Create the internal login client with the fixed UUID used by login_controller
+    # Use on_conflict: :nothing to handle shared sandbox mode across tests
+    Repo.insert(%OAuth2ClientSchema{
+      id: "00000000-0000-0000-0000-000000000001",
+      client_id_string: "internal_login",
+      client_secret: Bcrypt.hash_pwd_salt("internal_secret"),
+      name: "Internal Login",
+      client_type: :confidential,
+      organization_id: org.id,
+      redirect_uris: ["http://localhost:4000"],
+      allowed_scopes: ["openid", "profile", "email"],
+      allowed_grant_types: ["authorization_code"],
+      is_active: true
+    }, on_conflict: :nothing)
   end
 end
