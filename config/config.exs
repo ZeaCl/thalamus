@@ -46,7 +46,19 @@ config :tailwind,
 # Configures Elixir's Logger
 config :logger, :default_formatter,
   format: "$time $metadata[$level] $message\n",
-  metadata: [:request_id]
+  metadata: [
+    :request_id,
+    # Agent token metadata
+    :token_id,
+    :organization_id,
+    :error,
+    :failed_count,
+    :total_count,
+    :failed_token_ids,
+    # Audit logging metadata
+    :event_type,
+    :data
+  ]
 
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
@@ -55,14 +67,78 @@ config :phoenix, :json_library, Jason
 config :thalamus, Thalamus.Infrastructure.Adapters.EmailServiceImpl,
   mode: :development,
   from_email: "noreply@localhost",
-  from_name: "ZEA Thalamus (Dev)",
+  from_name: "Thalamus (Dev)",
   base_url: "http://localhost:4000"
+
+# MFA configuration
+config :thalamus,
+  # Issuer name displayed in authenticator apps (Google Authenticator, Authy, etc.)
+  mfa_issuer_name: "Thalamus"
 
 # Security tokens configuration
 config :thalamus,
   verification_token_secret: "change_me_in_production_verification",
   password_reset_secret: "change_me_in_production_password_reset",
   session_secret: "change_me_in_production_session"
+
+# SAML SSO Configuration
+config :thalamus, :saml,
+  sp_entity_id: "https://auth.zea.cl",
+  sp_private_key_path: "priv/saml/sp_private_key.pem",
+  sp_certificate_path: "priv/saml/sp_certificate.pem",
+  acs_url: "https://auth.zea.cl/auth/saml/acs",
+  slo_url: "https://auth.zea.cl/auth/saml/slo",
+  metadata_url: "https://auth.zea.cl/auth/saml/metadata"
+
+# SAML Certificate configuration for samly
+config :samly,
+  idle_timeout_ms: 15_000
+
+# Cloak Vault Configuration
+config :thalamus, Thalamus.Vault,
+  ciphers: [
+    default:
+      {Cloak.Ciphers.AES.GCM,
+       tag: "AES.GCM.V1", key: Base.decode64!("x09jB24+l8J45jM83H+g/sT4uI0Hh88aA+1/c/J9gQk=")}
+  ]
+
+# JWT Signing Configuration (RS256 asymmetric)
+config :thalamus, :jwt,
+  issuer: "https://auth.zea.cl",
+  private_key_path: Path.join(File.cwd!(), "priv/jwt_private_key.pem"),
+  public_key_path: Path.join(File.cwd!(), "priv/jwt_public_key.pem")
+
+# OAuth2 scope configuration (extensible per domain)
+config :thalamus, :oauth2_scopes, %{
+  standard_scopes: ["openid", "profile", "email", "address", "phone", "offline_access"],
+  custom_scopes: [
+    "api:read",
+    "api:write",
+    "api:admin",
+    "data:read",
+    "data:write",
+    "webhooks:manage",
+    "billing:read",
+    "billing:write",
+    "zea:read",
+    "zea:write",
+    "zea:admin",
+    "venture:fund.read",
+    "venture:fund.write",
+    "venture:capital_call.read",
+    "venture:capital_call.write",
+    "venture:investor.read",
+    "venture:investor.write",
+    "venture:distribution.read",
+    "venture:distribution.write",
+    "venture:dashboard",
+    "venture:transaction.read",
+    "venture:transaction.write",
+    "sport:read",
+    "sport:write"
+  ],
+  restricted_scopes: ["api:admin", "billing:write", "offline_access"]
+}
 
 # CORS configuration
 config :thalamus, ThalamusWeb.Plugs.CORS,
@@ -73,8 +149,10 @@ config :thalamus, ThalamusWeb.Plugs.CORS,
 
 # Security headers configuration
 config :thalamus, ThalamusWeb.Plugs.SecurityHeaders,
-  frame_options: "DENY",
-  hsts_max_age: 31_536_000
+  frame_options: "SAMEORIGIN",
+  hsts_max_age: 31_536_000,
+  csp_policy:
+    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' ws://localhost:* wss://localhost:*; frame-src 'self'; frame-ancestors 'self' https://sudlich.zea.localhost https://zea.cl https://*.zea.cl; base-uri 'self'; form-action 'self' http://localhost:* http://auth.zea.localhost:* http://soma.zea.localhost:* http://cranium.zea.localhost:* http://sudlich.zea.localhost:* http://*.zea.localhost:* https://zea.cl https://*.zea.cl"
 
 # Hammer rate limiting configuration
 config :hammer,
@@ -91,6 +169,22 @@ config :thalamus,
 config :thalamus, Thalamus.Mailer,
   # Default to Local adapter, override in env configs
   adapter: Swoosh.Adapters.Local
+
+# Oban background job processing configuration
+config :thalamus, Oban,
+  repo: Thalamus.Repo,
+  plugins: [
+    # Periodic job pruning (keeps completed jobs for 60 seconds)
+    {Oban.Plugins.Pruner, max_age: 60}
+  ],
+  queues: [
+    # Default queue for general background jobs
+    default: 10,
+    # Email sending queue
+    emails: 20,
+    # Cleanup and maintenance tasks
+    maintenance: 5
+  ]
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.

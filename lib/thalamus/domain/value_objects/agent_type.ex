@@ -16,7 +16,7 @@ defmodule Thalamus.Domain.ValueObjects.AgentType do
   @doc """
   Creates a new AgentType value object.
 
-  ## Valid Types
+  ## Valid Types (per 03-tasks.md spec)
 
   - `:autonomous` - Fully autonomous agents that make independent decisions
   - `:supervisor` - Agents that coordinate and oversee other agents

@@ -1,8 +1,8 @@
 defmodule Thalamus.Domain.Entities.OAuth2ClientTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias Thalamus.Domain.Entities.OAuth2Client
-  alias Thalamus.Domain.ValueObjects.{ClientId, OrganizationId, GrantType, RedirectUri, Scope}
+  alias Thalamus.Domain.ValueObjects.{OrganizationId, GrantType, RedirectUri, Scope}
 
   describe "create_confidential/2" do
     test "creates confidential client with secret" do
@@ -128,7 +128,7 @@ defmodule Thalamus.Domain.Entities.OAuth2ClientTest do
       {:ok, client} = OAuth2Client.create_confidential("App", org_id)
       {:ok, uri} = RedirectUri.new("https://app.example.com/callback")
 
-      assert {:ok, updated} = OAuth2Client.add_redirect_uri(client, uri)
+      assert {:ok, updated} = OAuth2Client.add_redirect_uri(client, uri.value)
       assert OAuth2Client.valid_redirect_uri?(updated, "https://app.example.com/callback")
     end
 
@@ -137,9 +137,10 @@ defmodule Thalamus.Domain.Entities.OAuth2ClientTest do
       {:ok, client} = OAuth2Client.create_confidential("App", org_id)
       {:ok, uri} = RedirectUri.new("https://app.example.com/callback")
 
-      {:ok, client} = OAuth2Client.add_redirect_uri(client, uri)
+      {:ok, client} = OAuth2Client.add_redirect_uri(client, uri.value)
 
-      assert {:error, :redirect_uri_already_exists} = OAuth2Client.add_redirect_uri(client, uri)
+      assert {:error, :redirect_uri_already_exists} =
+               OAuth2Client.add_redirect_uri(client, uri.value)
     end
 
     test "removes redirect URI successfully" do
@@ -147,7 +148,7 @@ defmodule Thalamus.Domain.Entities.OAuth2ClientTest do
       {:ok, client} = OAuth2Client.create_confidential("App", org_id)
       {:ok, uri} = RedirectUri.new("https://app.example.com/callback")
 
-      {:ok, client} = OAuth2Client.add_redirect_uri(client, uri)
+      {:ok, client} = OAuth2Client.add_redirect_uri(client, uri.value)
 
       assert {:ok, updated} =
                OAuth2Client.remove_redirect_uri(client, "https://app.example.com/callback")
@@ -159,9 +160,9 @@ defmodule Thalamus.Domain.Entities.OAuth2ClientTest do
       {:ok, org_id} = OrganizationId.generate()
       {:ok, client} = OAuth2Client.create_confidential("App", org_id)
       {:ok, uri1} = RedirectUri.new("https://app.example.com/callback")
-      {:ok, uri2} = RedirectUri.new("https://app.example.com/callback2")
+      {:ok, _uri2} = RedirectUri.new("https://app.example.com/callback2")
 
-      {:ok, client} = OAuth2Client.add_redirect_uri(client, uri1)
+      {:ok, client} = OAuth2Client.add_redirect_uri(client, uri1.value)
 
       assert OAuth2Client.valid_redirect_uri?(client, "https://app.example.com/callback")
       refute OAuth2Client.valid_redirect_uri?(client, "https://app.example.com/callback2")
@@ -174,7 +175,7 @@ defmodule Thalamus.Domain.Entities.OAuth2ClientTest do
       {:ok, client} = OAuth2Client.create_confidential("App", org_id)
       {:ok, profile_scope} = Scope.new("profile")
 
-      assert {:ok, updated} = OAuth2Client.add_scope(client, profile_scope)
+      assert {:ok, updated} = OAuth2Client.add_scope(client, profile_scope.value)
       assert OAuth2Client.valid_scopes?(updated, ["openid", "profile"])
     end
 
@@ -184,7 +185,7 @@ defmodule Thalamus.Domain.Entities.OAuth2ClientTest do
       {:ok, openid_scope} = Scope.new("openid")
 
       # openid is added by default
-      assert {:error, :scope_already_exists} = OAuth2Client.add_scope(client, openid_scope)
+      assert {:error, :scope_already_exists} = OAuth2Client.add_scope(client, openid_scope.value)
     end
 
     test "removes scope successfully" do
@@ -192,7 +193,7 @@ defmodule Thalamus.Domain.Entities.OAuth2ClientTest do
       {:ok, client} = OAuth2Client.create_confidential("App", org_id)
       {:ok, profile_scope} = Scope.new("profile")
 
-      {:ok, client} = OAuth2Client.add_scope(client, profile_scope)
+      {:ok, client} = OAuth2Client.add_scope(client, profile_scope.value)
       assert {:ok, updated} = OAuth2Client.remove_scope(client, "profile")
       refute OAuth2Client.valid_scopes?(updated, ["openid", "profile"])
     end
@@ -208,9 +209,9 @@ defmodule Thalamus.Domain.Entities.OAuth2ClientTest do
       {:ok, org_id} = OrganizationId.generate()
       {:ok, client} = OAuth2Client.create_confidential("App", org_id)
       {:ok, profile} = Scope.new("profile")
-      {:ok, email} = Scope.new("email")
+      {:ok, _email} = Scope.new("email")
 
-      {:ok, client} = OAuth2Client.add_scope(client, profile)
+      {:ok, client} = OAuth2Client.add_scope(client, profile.value)
 
       assert OAuth2Client.valid_scopes?(client, ["openid"])
       assert OAuth2Client.valid_scopes?(client, ["openid", "profile"])

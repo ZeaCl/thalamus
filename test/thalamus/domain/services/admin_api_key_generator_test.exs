@@ -1,5 +1,5 @@
 defmodule Thalamus.Domain.Services.AdminApiKeyGeneratorTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias Thalamus.Domain.Services.AdminApiKeyGenerator
 

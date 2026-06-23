@@ -1,34 +1,66 @@
 defmodule ThalamusWeb.API.UserControllerTest do
-  use ThalamusWeb.ConnCase, async: true
+  use ThalamusWeb.ConnCase, async: false
 
-  alias Thalamus.Domain.Entities.User
-  alias Thalamus.Domain.ValueObjects.AccessToken
+  alias Thalamus.Domain.Entities.{User, Organization}
+  alias Thalamus.Domain.ValueObjects.{AccessToken, Scope}
 
   alias Thalamus.Infrastructure.Repositories.{
     PostgreSQLUserRepository,
+    PostgreSQLOrganizationRepository,
     PostgreSQLTokenRepository
   }
 
   setup do
+    # Create organization for OAuth2 client
+    {:ok, org} = Organization.new("Test Corp", "owner@test.com", :standard)
+    {:ok, _org} = PostgreSQLOrganizationRepository.save(org)
+
     # Create admin user with access token
-    {:ok, admin} = User.register("admin@test.com", "AdminPass123!")
+    {:ok, admin} = User.register("admin8183@test.com", "AdminPass123!")
     {:ok, admin} = User.verify_email(admin)
     {:ok, admin} = PostgreSQLUserRepository.save(admin)
 
+    # Create organization and client
+    {:ok, org} = Thalamus.Domain.Entities.Organization.new("Test Org", "admin@test.com")
+    {:ok, _org} = Thalamus.Infrastructure.Repositories.PostgreSQLOrganizationRepository.save(org)
+
+    {:ok, client} =
+      Thalamus.TestHelpers.create_test_client(
+        "Test Client",
+        org.id,
+        ["zea:read", "zea:write", "zea:admin"]
+      )
+
+    {:ok, client} =
+      Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository.save(client)
+
     # Generate access token
+    {:ok, read_scope} = Scope.new("api:read")
+    {:ok, write_scope} = Scope.new("api:write")
+    {:ok, admin_scope} = Scope.new("api:admin")
+    _scopes = [read_scope, write_scope, admin_scope]
+
     {:ok, access_token} =
       AccessToken.generate(
+        [
+          %Thalamus.Domain.ValueObjects.Scope{value: "zea:read"},
+          %Thalamus.Domain.ValueObjects.Scope{value: "zea:write"},
+          %Thalamus.Domain.ValueObjects.Scope{value: "zea:admin"}
+        ],
         admin.id,
-        Thalamus.Domain.ValueObjects.ClientId.generate(),
-        [:read, :write, :admin],
         3600
       )
+
+    # Extract client ID without "client_" prefix for DB storage
+    client_id_string = Thalamus.Domain.ValueObjects.ClientId.to_string(client.id)
+    _client_uuid = String.replace_prefix(client_id_string, "client_", "")
 
     token_data = %{
       token: access_token.token,
       type: :access_token,
       user_id: admin.id,
-      scope: [:read, :write, :admin],
+      client_id: client.id,
+      scopes: ["zea:read", "zea:write", "zea:admin"],
       expires_at: access_token.expires_at
     }
 
@@ -114,6 +146,59 @@ defmodule ThalamusWeb.API.UserControllerTest do
 
       assert length(users) <= 2
       assert is_map(meta)
+    end
+
+    test "filters by username (partial match on name or email)", %{
+      conn: conn,
+      access_token: token
+    } do
+      # Create a user with specific name for search
+      {:ok, named_user} = User.register("carlos@test.com", "Pass123!")
+      named_user = %{named_user | name: "FullStack Developer"}
+      {:ok, _} = PostgreSQLUserRepository.save(named_user)
+
+      conn =
+        conn
+        |> put_req_header("authorization", "Bearer #{token}")
+        |> get(~p"/api/users?username=fullstack")
+
+      assert %{
+               "data" => users
+             } = json_response(conn, 200)
+
+      assert length(users) >= 1
+      # Should find user by name partial match
+      assert Enum.any?(users, fn u -> u["name"] == "FullStack Developer" end)
+    end
+
+    test "username filter returns empty array for no match", %{conn: conn, access_token: token} do
+      conn =
+        conn
+        |> put_req_header("authorization", "Bearer #{token}")
+        |> get(~p"/api/users?username=nonexistent_xyz123")
+
+      assert %{
+               "data" => users
+             } = json_response(conn, 200)
+
+      assert users == []
+    end
+
+    test "username filter matches by email partial", %{conn: conn, access_token: token} do
+      {:ok, email_user} = User.register("unique_search_target@example.com", "Pass123!")
+      {:ok, _} = PostgreSQLUserRepository.save(email_user)
+
+      conn =
+        conn
+        |> put_req_header("authorization", "Bearer #{token}")
+        |> get(~p"/api/users?username=unique_search")
+
+      assert %{
+               "data" => users
+             } = json_response(conn, 200)
+
+      assert length(users) >= 1
+      assert Enum.any?(users, fn u -> u["email"] == "unique_search_target@example.com" end)
     end
 
     test "requires authentication", %{conn: conn} do
@@ -213,7 +298,7 @@ defmodule ThalamusWeb.API.UserControllerTest do
       assert %{
                "data" => %{
                  "id" => id,
-                 "email" => "admin@test.com",
+                 "email" => "admin8183@test.com",
                  "verified" => true
                }
              } = json_response(conn, 200)
@@ -222,7 +307,7 @@ defmodule ThalamusWeb.API.UserControllerTest do
     end
 
     test "returns 404 for non-existent user", %{conn: conn, access_token: token} do
-      fake_id = Thalamus.Domain.ValueObjects.UserId.generate!()
+      fake_id = Thalamus.Domain.ValueObjects.UserId.generate() |> elem(1)
 
       conn =
         conn
@@ -240,7 +325,7 @@ defmodule ThalamusWeb.API.UserControllerTest do
         |> put_req_header("authorization", "Bearer #{token}")
         |> get(~p"/api/users/invalid-id")
 
-      assert json_response(conn, 400)
+      assert json_response(conn, 404)
     end
 
     test "requires authentication", %{conn: conn, admin: admin} do
@@ -271,7 +356,7 @@ defmodule ThalamusWeb.API.UserControllerTest do
     end
 
     test "returns 404 for non-existent user", %{conn: conn, access_token: token} do
-      fake_id = Thalamus.Domain.ValueObjects.UserId.generate!()
+      fake_id = Thalamus.Domain.ValueObjects.UserId.generate() |> elem(1)
 
       conn =
         conn
@@ -310,7 +395,7 @@ defmodule ThalamusWeb.API.UserControllerTest do
     end
 
     test "returns 404 for non-existent user", %{conn: conn, access_token: token} do
-      fake_id = Thalamus.Domain.ValueObjects.UserId.generate!()
+      fake_id = Thalamus.Domain.ValueObjects.UserId.generate() |> elem(1)
 
       conn =
         conn

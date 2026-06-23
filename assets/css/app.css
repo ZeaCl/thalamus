@@ -23,7 +23,7 @@
   on Elixir colors. Build your own at: https://daisyui.com/theme-generator/ */
 @plugin "../vendor/daisyui-theme" {
   name: "dark";
-  default: false;
+  default: true;
   prefersdark: true;
   color-scheme: "dark";
   --color-base-100: oklch(30.33% 0.016 252.42);
@@ -58,7 +58,7 @@
 
 @plugin "../vendor/daisyui-theme" {
   name: "light";
-  default: true;
+  default: false;
   prefersdark: false;
   color-scheme: "light";
   --color-base-100: oklch(98% 0 0);
@@ -127,4 +127,192 @@
 .label.cursor-pointer {
   padding-top: 0.5rem;
   padding-bottom: 0.5rem;
+}
+
+/* ==========================================================================
+   ZEA Platform Premium Dark Theme Overrides
+   ========================================================================== */
+
+/* Body background */
+body, html, .bg-base-200, .bg-base-300 {
+  background-color: #0B0D13 !important;
+  color: #f3f4f6 !important;
+}
+
+/* Global font setting */
+body, html, a, span, p, h1, h2, h3, h4, h5, h6, button, input, select, textarea {
+  font-family: 'Google Sans', sans-serif !important;
+}
+
+/* Premium Glassmorphic Cards & Stats */
+.card, .bg-base-100, .stat, .stats {
+  background-color: rgba(30, 35, 45, 0.35) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.05) !important;
+  border-radius: 1rem !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6) !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+/* Card header top line glow */
+.card::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: linear-gradient(to right, transparent, rgba(6, 182, 212, 0.25), transparent);
+  pointer-events: none;
+}
+
+/* Tables styling */
+.table {
+  border-collapse: collapse !important;
+  width: 100% !important;
+}
+
+.table th, thead th {
+  background-color: transparent !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+  color: rgba(255, 255, 255, 0.45) !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  padding: 0.85rem 1rem !important;
+}
+
+.table td, tbody td {
+  padding: 1rem !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+  color: rgba(255, 255, 255, 0.75) !important;
+  font-size: 12.5px !important;
+  background-color: transparent !important;
+}
+
+.table tr:hover td {
+  background-color: rgba(255, 255, 255, 0.02) !important;
+}
+
+/* Inputs fields (Forms) */
+.input, .textarea, .select, input[type="text"], input[type="email"], input[type="password"] {
+  background-color: rgba(20, 25, 35, 0.45) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 0.75rem !important;
+  color: #ffffff !important;
+  padding: 0.65rem 0.85rem !important;
+  font-size: 13px !important;
+  transition: all 0.25s ease-in-out !important;
+}
+
+.input:focus, .textarea:focus, .select:focus,
+input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focus {
+  outline: none !important;
+  border-color: rgba(6, 182, 212, 0.5) !important;
+  background-color: rgba(20, 25, 35, 0.65) !important;
+  box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.15) !important;
+}
+
+/* Button style uniformization */
+.btn {
+  border-radius: 0.75rem !important;
+  font-weight: 600 !important;
+  font-size: 12px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  transition: all 0.25s ease-in-out !important;
+  padding: 0.65rem 1.25rem !important;
+}
+
+.btn-primary {
+  background-color: oklch(58% 0.233 277.117) !important;
+  border-color: oklch(58% 0.233 277.117) !important;
+  color: #ffffff !important;
+  box-shadow: 0 8px 16px -3px rgba(139, 92, 246, 0.25) !important;
+}
+
+.btn-primary:hover {
+  background-color: oklch(53% 0.233 277.117) !important;
+  border-color: oklch(53% 0.233 277.117) !important;
+  box-shadow: 0 10px 20px -3px rgba(139, 92, 246, 0.35) !important;
+}
+
+.btn-secondary {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  color: #ffffff !important;
+}
+
+.btn-secondary:hover {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Labels */
+.label-text, .text-base-content\/70 {
+  color: rgba(255, 255, 255, 0.55) !important;
+  font-size: 11px !important;
+  text-transform: uppercase !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.05em !important;
+}
+
+/* Custom badges */
+.badge {
+  border-radius: 0.375rem !important;
+  font-weight: 600 !important;
+  font-size: 10px !important;
+  padding: 0.25rem 0.5rem !important;
+  letter-spacing: 0.02em !important;
+}
+
+.badge-primary {
+  background-color: rgba(139, 92, 246, 0.15) !important;
+  color: oklch(70% 0.2 277) !important;
+  border: 1px solid rgba(139, 92, 246, 0.25) !important;
+}
+
+.badge-secondary {
+  background-color: rgba(236, 72, 153, 0.15) !important;
+  color: oklch(70% 0.2 325) !important;
+  border: 1px solid rgba(236, 72, 153, 0.25) !important;
+}
+
+.badge-success {
+  background-color: rgba(16, 185, 129, 0.1) !important;
+  color: #34d399 !important;
+  border: 1px solid rgba(16, 185, 129, 0.2) !important;
+}
+
+.badge-warning {
+  background-color: rgba(245, 158, 11, 0.1) !important;
+  color: #fbbf24 !important;
+  border: 1px solid rgba(245, 158, 11, 0.2) !important;
+}
+
+.badge-error {
+  background-color: rgba(239, 68, 68, 0.1) !important;
+  color: #f87171 !important;
+  border: 1px solid rgba(239, 68, 68, 0.2) !important;
+}
+
+/* Clean Alert messages */
+.alert {
+  background-color: rgba(239, 68, 68, 0.08) !important;
+  border: 1px solid rgba(239, 68, 68, 0.2) !important;
+  color: #f87171 !important;
+  border-radius: 0.75rem !important;
+  font-size: 12px !important;
+}
+
+.alert-success {
+  background-color: rgba(16, 185, 129, 0.08) !important;
+  border: 1px solid rgba(16, 185, 129, 0.2) !important;
+  color: #34d399 !important;
+}
+
+/* Division line */
+.divider {
+  border-color: rgba(255, 255, 255, 0.05) !important;
+  color: rgba(255, 255, 255, 0.15) !important;
 }

@@ -21,6 +21,7 @@ defmodule ThalamusWeb.API.LoginController do
 
   alias Thalamus.Domain.Entities.User
   alias Thalamus.Domain.ValueObjects.{Email, UserId, OrganizationId}
+  alias Thalamus.Infrastructure.JwtSigner
 
   @doc """
   POST /api/public/login
@@ -223,8 +224,16 @@ defmodule ThalamusWeb.API.LoginController do
   end
 
   defp generate_tokens_directly(user) do
-    # Generate tokens
-    access_token = generate_access_token()
+    # Generate JWT access token
+    access_token =
+      JwtSigner.sign_access_token(%{
+        user_id: user.id,
+        client_id: "internal_login",
+        scope: Enum.join(get_default_user_scopes(), " "),
+        expires_in: 3600,
+        aud: "internal_login"
+      })
+
     refresh_token = generate_refresh_token()
 
     # Get user's organization
@@ -234,8 +243,7 @@ defmodule ThalamusWeb.API.LoginController do
         _ -> nil
       end
 
-    # Use a fixed UUID for internal client (without "client_" prefix for DB storage)
-    # The actual UUID without prefix
+    # Use a fixed UUID for internal client
     internal_client_uuid = "00000000-0000-0000-0000-000000000001"
 
     # Store access token
@@ -246,7 +254,6 @@ defmodule ThalamusWeb.API.LoginController do
       client_id: internal_client_uuid,
       organization_id: organization_id,
       scopes: get_default_user_scopes(),
-      # 1 hour
       expires_at: DateTime.add(DateTime.utc_now(), 3600),
       revoked: false
     })
@@ -259,7 +266,6 @@ defmodule ThalamusWeb.API.LoginController do
       client_id: internal_client_uuid,
       organization_id: organization_id,
       scopes: get_default_user_scopes(),
-      # 30 days
       expires_at: DateTime.add(DateTime.utc_now(), 2_592_000),
       revoked: false
     })
@@ -272,10 +278,6 @@ defmodule ThalamusWeb.API.LoginController do
        refresh_token: refresh_token,
        scope: Enum.join(get_default_user_scopes(), " ")
      }}
-  end
-
-  defp generate_access_token do
-    "at_" <> (:crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false))
   end
 
   defp generate_refresh_token do

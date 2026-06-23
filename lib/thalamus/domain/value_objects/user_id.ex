@@ -51,6 +51,20 @@ defmodule Thalamus.Domain.ValueObjects.UserId do
   end
 
   @doc """
+  Generates a new unique UserId, raising on error.
+
+  ## Examples
+
+      iex> %Thalamus.Domain.ValueObjects.UserId{value: value} = Thalamus.Domain.ValueObjects.UserId.generate!()
+      iex> String.starts_with?(value, "user_")
+      true
+  """
+  def generate! do
+    {:ok, user_id} = generate()
+    user_id
+  end
+
+  @doc """
   Converts UserId to string for database storage or API responses.
 
   ## Examples
@@ -99,5 +113,12 @@ end
 defimpl Jason.Encoder, for: Thalamus.Domain.ValueObjects.UserId do
   def encode(%Thalamus.Domain.ValueObjects.UserId{value: value}, opts) do
     Jason.Encode.string(value, opts)
+  end
+end
+
+defimpl Phoenix.Param, for: Thalamus.Domain.ValueObjects.UserId do
+  def to_param(%Thalamus.Domain.ValueObjects.UserId{value: value}) do
+    # API endpoints expect the raw UUID for Ecto casting, not "user_..."
+    String.replace_prefix(value, "user_", "")
   end
 end

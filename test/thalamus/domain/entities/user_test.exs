@@ -1,5 +1,5 @@
 defmodule Thalamus.Domain.Entities.UserTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias Thalamus.Domain.Entities.User
   alias Thalamus.Domain.ValueObjects.{UserId, Email, PasswordHash, MFAMethod}
@@ -60,7 +60,7 @@ defmodule Thalamus.Domain.Entities.UserTest do
       {:ok, email} = Email.new("user@example.com")
       {:ok, password_hash} = PasswordHash.from_password("SecureP@ssw0rd1")
 
-      assert {:error, :missing_user_id} =
+      assert {:error, :missing_required_fields} =
                User.new(%{
                  email: email,
                  password_hash: password_hash
@@ -71,7 +71,7 @@ defmodule Thalamus.Domain.Entities.UserTest do
       {:ok, user_id} = UserId.generate()
       {:ok, password_hash} = PasswordHash.from_password("SecureP@ssw0rd1")
 
-      assert {:error, :missing_email} =
+      assert {:error, :missing_required_fields} =
                User.new(%{
                  id: user_id,
                  password_hash: password_hash
@@ -82,7 +82,7 @@ defmodule Thalamus.Domain.Entities.UserTest do
       {:ok, user_id} = UserId.generate()
       {:ok, email} = Email.new("user@example.com")
 
-      assert {:error, :missing_password_hash} =
+      assert {:error, :missing_required_fields} =
                User.new(%{
                  id: user_id,
                  email: email
@@ -115,7 +115,7 @@ defmodule Thalamus.Domain.Entities.UserTest do
     end
 
     test "fails with invalid email" do
-      assert {:error, :invalid_email} = User.register("not-an-email", "SecureP@ssw0rd1")
+      assert {:error, :invalid_email_format} = User.register("not-an-email", "SecureP@ssw0rd1")
     end
 
     test "fails with weak password" do
@@ -188,7 +188,7 @@ defmodule Thalamus.Domain.Entities.UserTest do
     test "fails with incorrect current password" do
       {:ok, user} = User.register("user@example.com", "CorrectP@ssw0rd1")
 
-      assert {:error, :invalid_current_password} =
+      assert {:error, :incorrect_current_password} =
                User.change_password(user, "WrongPassword1!", "NewP@ssw0rd1")
     end
 

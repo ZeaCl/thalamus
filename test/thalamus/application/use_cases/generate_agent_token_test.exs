@@ -5,7 +5,7 @@ defmodule Thalamus.Application.UseCases.GenerateAgentTokenTest do
   alias Thalamus.Application.UseCases.GenerateAgentToken
   alias Thalamus.Application.DTOs.{AgentTokenRequest, AgentTokenResponse}
   alias Thalamus.Domain.Entities.AgentToken
-  alias Thalamus.Domain.ValueObjects.{AgentType, TaskId, DelegationChain}
+  alias Thalamus.Domain.ValueObjects.{AgentType, TaskId, DelegationChain, ClientSecret}
 
   # Setup Mox to verify expectations
   setup :verify_on_exit!
@@ -218,7 +218,7 @@ defmodule Thalamus.Application.UseCases.GenerateAgentTokenTest do
 
       deps = build_deps()
 
-      assert {:error, :invalid_scopes} = GenerateAgentToken.execute(request, deps)
+      assert {:error, {:invalid_scopes, _}} = GenerateAgentToken.execute(request, deps)
     end
   end
 
@@ -237,11 +237,13 @@ defmodule Thalamus.Application.UseCases.GenerateAgentTokenTest do
       request = %{valid_request() | parent_agent_id: parent_id, expires_in: 1800}
 
       # Parent must have all scopes that child will request (scope narrowing)
-      parent_token = build_saved_agent_token(%{
-        id: parent_id,
-        delegation_depth: 0,
-        scopes: ["read:data", "write:results"]  # Include all child scopes
-      })
+      parent_token =
+        build_saved_agent_token(%{
+          id: parent_id,
+          delegation_depth: 0,
+          # Include all child scopes
+          scopes: ["read:data", "write:results"]
+        })
 
       MockOAuth2ClientRepository
       |> expect(:find_by_client_id, fn _ -> {:ok, build_client(request.organization_id)} end)
@@ -250,7 +252,8 @@ defmodule Thalamus.Application.UseCases.GenerateAgentTokenTest do
       |> expect(:find_by_id, fn _ -> {:ok, build_user(request.organization_id)} end)
 
       MockAgentTokenRepository
-      |> expect(:find_by_id, 2, fn ^parent_id -> {:ok, parent_token} end)  # Called twice: scope validation + delegation chain
+      # Called twice: scope validation + delegation chain
+      |> expect(:find_by_id, 2, fn ^parent_id -> {:ok, parent_token} end)
       |> expect(:save, fn token -> {:ok, token} end)
 
       MockAuditLogger
@@ -285,11 +288,12 @@ defmodule Thalamus.Application.UseCases.GenerateAgentTokenTest do
       request = %{valid_request() | parent_agent_id: parent_id}
 
       # Parent must have required scopes even if revoked (scope check happens before status check)
-      parent_token = build_saved_agent_token(%{
-        id: parent_id,
-        status: :revoked,
-        scopes: ["read:data", "write:results"]
-      })
+      parent_token =
+        build_saved_agent_token(%{
+          id: parent_id,
+          status: :revoked,
+          scopes: ["read:data", "write:results"]
+        })
 
       MockOAuth2ClientRepository
       |> expect(:find_by_client_id, fn _ -> {:ok, build_client(request.organization_id)} end)
@@ -298,7 +302,8 @@ defmodule Thalamus.Application.UseCases.GenerateAgentTokenTest do
       |> expect(:find_by_id, fn _ -> {:ok, build_user(request.organization_id)} end)
 
       MockAgentTokenRepository
-      |> expect(:find_by_id, 2, fn ^parent_id -> {:ok, parent_token} end)  # Called twice: scope validation + delegation chain
+      # Called twice: scope validation + delegation chain
+      |> expect(:find_by_id, 2, fn ^parent_id -> {:ok, parent_token} end)
 
       deps = build_deps()
 
@@ -326,20 +331,20 @@ defmodule Thalamus.Application.UseCases.GenerateAgentTokenTest do
     }
   end
 
-  defp build_client(org_id \\ nil) do
+  defp build_client(org_id) do
     org = org_id || Ecto.UUID.generate()
 
     %{
       id: Ecto.UUID.generate(),
       client_id_string: "client_123",
       organization_id: org,
-      client_secret: Bcrypt.hash_pwd_salt("secret_password"),
+      client_secret: %ClientSecret{hash: Bcrypt.hash_pwd_salt("secret_password")},
       is_active: true,
       allowed_scopes: ["read:data", "write:results", "admin:read"]
     }
   end
 
-  defp build_user(org_id \\ nil) do
+  defp build_user(org_id) do
     org = org_id || Ecto.UUID.generate()
 
     %{
@@ -349,7 +354,7 @@ defmodule Thalamus.Application.UseCases.GenerateAgentTokenTest do
     }
   end
 
-  defp build_saved_agent_token(overrides \\ %{}) do
+  defp build_saved_agent_token(overrides) do
     {:ok, agent_type} = AgentType.new(:autonomous)
     {:ok, task_id} = TaskId.new(Ecto.UUID.generate())
 
@@ -388,7 +393,7 @@ defmodule Thalamus.Application.UseCases.GenerateAgentTokenTest do
     }
   end
 
-  defp setup_successful_mocks(org_id \\ nil) do
+  defp setup_successful_mocks(org_id) do
     client = build_client(org_id)
     user = %{build_user(org_id) | organization_id: client.organization_id}
 

@@ -9,9 +9,11 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
   """
 
   alias Thalamus.Application.DTOs.{TokenRequest, TokenResponse}
+  alias Thalamus.Infrastructure.JwtSigner
   # Ports are referenced via deps parameter, not direct aliases
 
   alias Thalamus.Domain.Entities.OAuth2Client
+  alias Thalamus.Domain.ValueObjects.{UserId, Email, PasswordHash}
 
   @type deps :: %{
           oauth2_client_repository: module(),
@@ -24,6 +26,8 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
   # 1 hour
   @refresh_token_ttl 2_592_000
   # 30 days
+  @service_token_ttl 604_800
+  # 7 days for service accounts (machine-to-machine)
 
   @doc """
   Executes the token generation use case.
@@ -43,10 +47,8 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
   def execute(%TokenRequest{} = request, deps) do
     with {:ok, client} <- authenticate_client(request, deps),
          :ok <- validate_grant_type(client, request.grant_type),
-         {:ok, token_data} <- generate_for_grant_type(request, client, deps) do
-      # Store tokens
-      store_tokens(token_data, deps)
-
+         {:ok, token_data} <- generate_for_grant_type(request, client, deps),
+         :ok <- store_tokens(token_data, deps) do
       # Audit log
       log_token_generation(client, token_data, deps)
 
@@ -101,17 +103,26 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
          _deps
        ) do
     # Machine-to-machine flow - no user involved
-    access_token = generate_access_token()
     scopes = parse_scopes(request.scope)
+    ttl = if is_service_client?(client), do: @service_token_ttl, else: @access_token_ttl
 
     unless OAuth2Client.valid_scopes?(client, scopes) do
       {:error, :invalid_scope}
     else
+      access_token =
+        generate_jwt_access_token(%{
+          user_id: nil,
+          client_id: client_id_string(client),
+          scope: Enum.join(scopes, " "),
+          expires_in: ttl,
+          aud: client_id_string(client)
+        })
+
       {:ok,
        %{
          access_token: access_token,
          token_type: "Bearer",
-         expires_in: @access_token_ttl,
+         expires_in: ttl,
          refresh_token: nil,
          scope: Enum.join(scopes, " "),
          user_id: nil,
@@ -130,9 +141,24 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
          {:ok, auth_code_data} <- verify_authorization_code(request.code, deps),
          :ok <- verify_pkce(request.code_verifier, auth_code_data),
          {:ok, user} <- get_user(auth_code_data.user_id, deps) do
-      access_token = generate_access_token()
-      refresh_token = generate_refresh_token()
       scopes = auth_code_data.scopes
+      refresh_token = generate_refresh_token()
+
+      access_token =
+        generate_jwt_access_token(%{
+          user_id: user.id,
+          client_id: client_id_string(client),
+          scope: Enum.join(scopes, " "),
+          expires_in: @access_token_ttl,
+          aud: client_id_string(client),
+          sub: UserId.to_string(user.id),
+          name: user.name,
+          email: Email.to_string(user.email),
+          is_agent: user.is_agent
+        })
+
+      # Revoke authorization code
+      revoke_token(request.code, deps)
 
       {:ok,
        %{
@@ -153,10 +179,24 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
          deps
        ) do
     with {:ok, stored_token} <- find_refresh_token(request.refresh_token, deps),
-         :ok <- validate_token_ownership(stored_token, client.id) do
+         :ok <- validate_token_ownership(stored_token, client.id),
+         {:ok, user} <- get_user(stored_token.user_id, deps) do
       # Generate new tokens
-      access_token = generate_access_token()
+      scopes_list = stored_token.scopes || []
       new_refresh_token = generate_refresh_token()
+
+      access_token =
+        generate_jwt_access_token(%{
+          user_id: user.id,
+          client_id: client_id_string(client),
+          scope: Enum.join(scopes_list, " "),
+          expires_in: @access_token_ttl,
+          aud: client_id_string(client),
+          sub: UserId.to_string(user.id),
+          name: user.name,
+          email: Email.to_string(user.email),
+          is_agent: user.is_agent
+        })
 
       # Revoke old refresh token (rotation)
       revoke_token(request.refresh_token, deps)
@@ -167,17 +207,83 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
          token_type: "Bearer",
          expires_in: @access_token_ttl,
          refresh_token: new_refresh_token,
-         scope: stored_token.scope,
-         user_id: stored_token.user_id,
+         scope: Enum.join(stored_token.scopes || [], " "),
+         user_id: user.id,
          client_id: client.id
        }}
     end
   end
 
-  defp generate_for_grant_type(%TokenRequest{grant_type: :password}, _client, _deps) do
-    # Password grant is deprecated and should not be used
-    {:error, :deprecated_grant_type}
+  defp generate_for_grant_type(%TokenRequest{grant_type: :password} = request, client, deps) do
+    # Resource Owner Password Credentials grant (RFC 6749 Section 4.3)
+    %{username: email, password: password, scope: scope} = request
+
+    with {:ok, user} <- authenticate_user(email, password, deps),
+         :ok <- validate_user_active(user) do
+      scopes = parse_scopes(scope)
+      # If no scopes requested, default to openid profile email
+      scopes = if scopes == [], do: ["openid", "profile", "email"], else: scopes
+      refresh_token = generate_refresh_token()
+
+      access_token =
+        generate_jwt_access_token(%{
+          user_id: user.id,
+          client_id: client_id_string(client),
+          scope: Enum.join(scopes, " "),
+          expires_in: @access_token_ttl,
+          aud: client_id_string(client),
+          sub: UserId.to_string(user.id),
+          name: user.name,
+          email: Email.to_string(user.email),
+          is_agent: user.is_agent,
+          organization_id: user.organization_id
+        })
+
+      {:ok,
+       %{
+         access_token: access_token,
+         token_type: "Bearer",
+         expires_in: @access_token_ttl,
+         refresh_token: refresh_token,
+         scope: Enum.join(scopes, " "),
+         user_id: user.id,
+         client_id: client_id_string(client)
+       }}
+    end
   end
+
+  defp is_service_client?(client) do
+    grants = client.grant_types || []
+    # Service clients only have client_credentials grant, no user-facing grants
+    grant_atoms = Enum.map(grants, fn g -> g.type end)
+    grant_atoms == [:client_credentials]
+  end
+
+  defp authenticate_user(nil, _password, _deps), do: {:error, :invalid_grant}
+  defp authenticate_user(_email, nil, _deps), do: {:error, :invalid_grant}
+
+  defp authenticate_user(email, password, %{user_repository: repo}) when is_binary(email) do
+    case Email.new(email) do
+      {:ok, email_vo} ->
+        case repo.find_by_email(email_vo) do
+          {:ok, user} ->
+            case PasswordHash.verify(user.password_hash, password) do
+              :ok -> {:ok, user}
+              {:error, _} -> {:error, :invalid_grant}
+            end
+
+          {:error, :not_found} ->
+            Bcrypt.no_user_verify()
+            {:error, :invalid_grant}
+        end
+
+      {:error, _} ->
+        {:error, :invalid_grant}
+    end
+  end
+
+  defp validate_user_active(%{status: :active}), do: :ok
+  defp validate_user_active(_), do: {:error, :invalid_grant}
 
   defp validate_redirect_uri(_client, nil), do: :ok
 
@@ -209,8 +315,7 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
                user_id: token_data.user_id,
                client_id: token_data.client_id,
                scopes: token_data.scopes,
-               # TODO: Get from token_data once schema is updated
-               pkce_challenge: nil
+               pkce_challenge: Map.get(token_data, :code_challenge)
              }}
           end
         end
@@ -260,8 +365,17 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
     repo.revoke(token)
   end
 
-  defp generate_access_token do
-    "at_" <> (:crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false))
+  defp generate_jwt_access_token(claims) do
+    JwtSigner.sign_access_token(claims)
+  end
+
+  defp client_id_string(client) do
+    if is_struct(client.id) do
+      to_string(client.id)
+    else
+      client.id
+    end
+    |> String.replace_prefix("client_", "")
   end
 
   defp generate_refresh_token do
@@ -284,29 +398,37 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
       end
 
     # Store access token
-    repo.store(%{
-      token: token_data.access_token,
-      type: :access_token,
-      user_id: token_data.user_id,
-      client_id: client_uuid,
-      scopes: parse_scopes(token_data.scope),
-      expires_at: DateTime.add(DateTime.utc_now(), token_data.expires_in),
-      revoked: false,
-      created_at: DateTime.utc_now()
-    })
+    with :ok <-
+           repo.store(%{
+             token: token_data.access_token,
+             type: :access_token,
+             user_id: token_data.user_id,
+             client_id: client_uuid,
+             scopes: parse_scopes(token_data.scope),
+             expires_at: DateTime.add(DateTime.utc_now(), token_data.expires_in),
+             revoked: false,
+             created_at: DateTime.utc_now()
+           }) do
+      # Store refresh token if present
+      if token_data.refresh_token do
+        repo.store(%{
+          token: token_data.refresh_token,
+          type: :refresh_token,
+          user_id: token_data.user_id,
+          client_id: client_uuid,
+          scopes: parse_scopes(token_data.scope),
+          expires_at: DateTime.add(DateTime.utc_now(), @refresh_token_ttl),
+          revoked: false,
+          created_at: DateTime.utc_now()
+        })
+      end
 
-    # Store refresh token if present
-    if token_data.refresh_token do
-      repo.store(%{
-        token: token_data.refresh_token,
-        type: :refresh_token,
-        user_id: token_data.user_id,
-        client_id: client_uuid,
-        scopes: parse_scopes(token_data.scope),
-        expires_at: DateTime.add(DateTime.utc_now(), @refresh_token_ttl),
-        revoked: false,
-        created_at: DateTime.utc_now()
-      })
+      :ok
+    else
+      {:error, reason} ->
+        require Logger
+        Logger.error("Failed to store access token: #{inspect(reason)}")
+        {:error, :token_storage_failed}
     end
   end
 

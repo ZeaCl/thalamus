@@ -24,6 +24,22 @@ defmodule Thalamus.Application.Ports.UserRepository do
   @callback find_by_id(UserId.t()) :: {:ok, User.t()} | {:error, :not_found}
 
   @doc """
+  Finds multiple users by their IDs in a single query.
+
+  Returns a map where keys are user IDs and values are User entities.
+  Missing users are not included in the result map.
+
+  ## Examples
+
+      iex> UserRepository.find_by_ids([user_id1, user_id2])
+      {:ok, %{user_id1 => %User{}, user_id2 => %User{}}}
+
+      iex> UserRepository.find_by_ids([])
+      {:ok, %{}}
+  """
+  @callback find_by_ids([String.t()]) :: {:ok, %{String.t() => User.t()}} | {:error, term()}
+
+  @doc """
   Finds a user by their email address.
 
   ## Examples

@@ -474,7 +474,6 @@ defmodule Thalamus.Domain.Entities.AgentTokenTest do
 
       result2 =
         case revoked_token do
-          %AgentToken{status: :active} -> :active_matched
           %AgentToken{status: :revoked} -> :revoked_matched
         end
 

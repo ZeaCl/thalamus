@@ -7,11 +7,12 @@ defmodule Thalamus.Application do
 
   @impl true
   def start(_type, _args) do
-    print_banner()
+    if Mix.env() != :test, do: print_banner()
 
     children = [
       ThalamusWeb.Telemetry,
       Thalamus.Repo,
+      Thalamus.Vault,
       {DNSCluster, query: Application.get_env(:thalamus, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Thalamus.PubSub},
       # Start a worker by calling: Thalamus.Worker.start_link(arg)

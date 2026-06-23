@@ -6,7 +6,8 @@ import Config
 # to provide built-in test partitioning in CI environment.
 # Run `mix help test` for more information.
 config :thalamus, Thalamus.Repo,
-  username: System.get_env("DB_USER") || "dev",
+  url: System.get_env("DATABASE_URL"),
+  username: System.get_env("DB_USER") || "postgres",
   password: System.get_env("DB_PASSWORD") || "",
   hostname: System.get_env("DB_HOST") || "localhost",
   database: "thalamus_test#{System.get_env("MIX_TEST_PARTITION")}",
@@ -20,8 +21,8 @@ config :thalamus, ThalamusWeb.Endpoint,
   secret_key_base: "LdKro4VE1x55xLQ08UQ9Ef8JEhpCejwSDvpmSS1TOBvjx4UHKF+2TikmFf1UeS1D",
   server: false
 
-# Print only warnings and errors during test
-config :logger, level: :warning
+# Suppress log output during tests
+config :logger, level: :none
 
 # Initialize plugs at runtime for faster test compilation
 config :phoenix, :plug_init_mode, :runtime
@@ -29,3 +30,27 @@ config :phoenix, :plug_init_mode, :runtime
 # Enable helpful, but potentially expensive runtime checks
 config :phoenix_live_view,
   enable_expensive_runtime_checks: true
+
+# Disable rate limiting during tests
+# Tests run rapidly and would hit the production limits (20 req/min for authorization)
+# This allows us to test actual functionality without rate limit interference
+config :thalamus, :rate_limiting_enabled, false
+
+# Configure Hammer with very high limits for test environment
+# This is a fallback in case rate limiting is enabled
+config :hammer,
+  backend: {Hammer.Backend.ETS, [expiry_ms: 60_000, cleanup_interval_ms: 60_000]}
+
+# Enable all feature flags in test environment
+config :thalamus, :feature_flags, %{
+  agent_tokens: true
+}
+
+# Configure Oban for test environment (disable all queues and plugins)
+config :thalamus, Oban,
+  testing: :manual,
+  queues: false,
+  plugins: false
+
+# Reduce Bcrypt cost for faster tests (production uses log_rounds: 12)
+config :bcrypt_elixir, log_rounds: 4

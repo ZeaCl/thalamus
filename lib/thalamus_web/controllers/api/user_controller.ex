@@ -35,6 +35,7 @@ defmodule ThalamusWeb.API.UserController do
   - status: Filter by status (active, suspended, etc.)
   - verified: Filter by verification status (true/false)
   - organization_id: Filter by organization
+  - username: Filter by name or email (partial ILIKE match)
   - limit: Number of results (default: 50, max: 100)
   - offset: Pagination offset
 
@@ -83,6 +84,11 @@ defmodule ThalamusWeb.API.UserController do
             conn
             |> put_status(:not_found)
             |> json(%{error: "User not found"})
+
+          {:error, :invalid_uuid} ->
+            conn
+            |> put_status(:bad_request)
+            |> json(%{error: "Invalid user ID format"})
         end
 
       {:error, _reason} ->
@@ -111,7 +117,19 @@ defmodule ThalamusWeb.API.UserController do
   def create(conn, params) do
     with {:ok, email_string} <- get_required_param(params, "email"),
          {:ok, password} <- get_required_param(params, "password"),
-         {:ok, user} <- User.register(email_string, password),
+         is_agent = params["is_agent"] == true || params["is_agent"] == "true",
+         create_result =
+           if(is_agent,
+             do:
+               User.register_agent(
+                 params["name"] || "Agent User",
+                 email_string,
+                 password,
+                 params["agent_config"] || %{}
+               ),
+             else: User.register(email_string, password)
+           ),
+         {:ok, user} <- create_result,
          {:ok, saved_user} <- PostgreSQLUserRepository.save(user) do
       conn
       |> put_status(:created)
@@ -133,8 +151,12 @@ defmodule ThalamusWeb.API.UserController do
       {:error, %Ecto.Changeset{} = changeset} ->
         errors = format_changeset_errors(changeset)
 
+        # Check if it's a unique constraint violation (email already exists)
+        status =
+          if has_unique_constraint_error?(changeset, :email), do: :conflict, else: :bad_request
+
         conn
-        |> put_status(:bad_request)
+        |> put_status(status)
         |> json(%{error: "Validation failed", details: errors})
 
       {:error, reason} ->
@@ -163,9 +185,12 @@ defmodule ThalamusWeb.API.UserController do
   - 400 Bad Request: Invalid input
   """
   def update(conn, %{"id" => id} = params) do
+    # Unwrap "user" key if SDK wraps data (thalamus-js sends { user: data })
+    update_params = params["user"] || params
+
     with {:ok, user_id} <- UserId.from_string(id),
          {:ok, user} <- PostgreSQLUserRepository.find_by_id(user_id),
-         {:ok, updated_user} <- apply_updates(user, params),
+         {:ok, updated_user} <- apply_updates(user, update_params),
          {:ok, saved_user} <- PostgreSQLUserRepository.save(updated_user) do
       conn
       |> put_status(:ok)
@@ -251,6 +276,13 @@ defmodule ThalamusWeb.API.UserController do
       end
 
     filters =
+      if username = params["username"] do
+        Map.put(filters, :username, username)
+      else
+        filters
+      end
+
+    filters =
       if limit = params["limit"] do
         limit_int = min(String.to_integer(limit), 100)
         Map.put(filters, :limit, limit_int)
@@ -272,13 +304,16 @@ defmodule ThalamusWeb.API.UserController do
     %{
       id: UserId.to_string(user.id),
       email: Email.to_string(user.email),
+      name: user.name,
       status: user.status,
       verified: !is_nil(user.verified_at),
       verified_at: user.verified_at,
       last_login_at: user.last_login_at,
       mfa_enabled: User.mfa_enabled?(user),
       created_at: user.created_at,
-      updated_at: user.updated_at
+      updated_at: user.updated_at,
+      is_agent: user.is_agent,
+      agent_config: user.agent_config
     }
   end
 
@@ -310,6 +345,22 @@ defmodule ThalamusWeb.API.UserController do
           user
       end
 
+    # Apply name update if present
+    user =
+      if name = params["name"] do
+        %{user | name: name}
+      else
+        user
+      end
+
+    # Apply agent_config update if present
+    user =
+      if agent_config = params["agent_config"] do
+        %{user | agent_config: agent_config}
+      else
+        user
+      end
+
     {:ok, user}
   end
 
@@ -318,6 +369,13 @@ defmodule ThalamusWeb.API.UserController do
       Enum.reduce(opts, msg, fn {key, value}, acc ->
         String.replace(acc, "%{#{key}}", to_string(value))
       end)
+    end)
+  end
+
+  defp has_unique_constraint_error?(changeset, field) do
+    changeset.errors
+    |> Enum.any?(fn {error_field, {_message, opts}} ->
+      error_field == field && Keyword.get(opts, :constraint) == :unique
     end)
   end
 end

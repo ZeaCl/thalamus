@@ -27,6 +27,7 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository do
     |> do_find_by_id()
     |> case do
       nil -> {:error, :not_found}
+      {:error, :invalid_uuid} -> {:error, :invalid_uuid}
       schema -> schema_to_entity(schema)
     end
   end
@@ -41,6 +42,30 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository do
     |> case do
       nil -> {:error, :not_found}
       schema -> schema_to_entity(schema)
+    end
+  end
+
+  @impl true
+  def find_by_ids([]), do: {:ok, %{}}
+
+  def find_by_ids(user_ids) when is_list(user_ids) do
+    users_map =
+      UserSchema
+      |> where([u], u.id in ^user_ids)
+      |> Repo.all()
+      |> build_users_map()
+
+    {:ok, users_map}
+  end
+
+  defp build_users_map(schemas) do
+    Enum.reduce(schemas, %{}, &add_user_to_map/2)
+  end
+
+  defp add_user_to_map(schema, acc) do
+    case schema_to_entity(schema) do
+      {:ok, user} -> Map.put(acc, schema.id, user)
+      {:error, _} -> acc
     end
   end
 
@@ -121,8 +146,9 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository do
   @impl true
   def update_last_login(%UserId{} = user_id, timestamp) do
     user_id_string = UserId.to_string(user_id)
+    uuid = String.replace_prefix(user_id_string, "user_", "")
 
-    case Repo.get(UserSchema, user_id_string) do
+    case Repo.get(UserSchema, uuid) do
       nil ->
         {:error, :not_found}
 
@@ -142,7 +168,11 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository do
   defp do_find_by_id(user_id_string) do
     # Extract UUID from "user_<uuid>" format
     uuid = String.replace_prefix(user_id_string, "user_", "")
-    Repo.get(UserSchema, uuid)
+
+    case Ecto.UUID.cast(uuid) do
+      {:ok, valid_uuid} -> Repo.get(UserSchema, valid_uuid)
+      :error -> nil
+    end
   end
 
   defp schema_to_entity(%UserSchema{} = schema) do
@@ -155,17 +185,23 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository do
          {:ok, mfa_methods} <- convert_mfa_methods_from_db(schema.mfa_methods) do
       user = %User{
         id: user_id,
+        organization_id:
+          if(schema.organization_id, do: "org_" <> schema.organization_id, else: nil),
         email: email,
         name: schema.name,
+        avatar_url: schema.avatar_url,
         password_hash: password_hash,
         status: schema.status,
+        email_verified: schema.verified_at != nil,
         verified_at: schema.verified_at,
         last_login_at: schema.last_login_at,
         failed_login_attempts: schema.failed_login_attempts,
         locked_until: schema.locked_until,
         mfa_methods: mfa_methods,
         created_at: schema.inserted_at,
-        updated_at: schema.updated_at
+        updated_at: schema.updated_at,
+        is_agent: schema.is_agent,
+        agent_config: schema.agent_config
       }
 
       {:ok, user}
@@ -185,19 +221,30 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository do
         nil
       end
 
+    org_uuid =
+      case user.organization_id do
+        nil -> nil
+        %{value: val} -> String.replace_prefix(val, "org_", "")
+        val when is_binary(val) -> String.replace_prefix(val, "org_", "")
+      end
+
     %UserSchema{
       id: user_uuid,
       email: Email.to_string(user.email),
       name: user.name,
+      avatar_url: user.avatar_url,
       password_hash: PasswordHash.to_string(user.password_hash),
       status: user.status,
+      organization_id: org_uuid,
       verified_at: user.verified_at,
       last_login_at: user.last_login_at,
       failed_login_attempts: user.failed_login_attempts,
       locked_until: user.locked_until,
       mfa_methods: mfa_methods_maps,
       inserted_at: user.created_at,
-      updated_at: user.updated_at
+      updated_at: user.updated_at,
+      is_agent: user.is_agent,
+      agent_config: user.agent_config
     }
   end
 
@@ -240,6 +287,7 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository do
     |> filter_by_status(filters[:status])
     |> filter_by_verified(filters[:verified])
     |> filter_by_organization(filters[:organization_id])
+    |> filter_by_username(filters[:username])
     |> order_by_field(filters[:order_by])
     |> limit_results(filters[:limit])
     |> offset_results(filters[:offset])
@@ -266,6 +314,16 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository do
   defp filter_by_organization(query, org_id) when is_binary(org_id) do
     where(query, [u], u.organization_id == ^org_id)
   end
+
+  defp filter_by_username(query, nil), do: query
+
+  defp filter_by_username(query, username) when is_binary(username) and username != "" do
+    search_term = "%#{username}%"
+
+    where(query, [u], ilike(u.name, ^search_term) or ilike(u.email, ^search_term))
+  end
+
+  defp filter_by_username(query, _), do: query
 
   defp order_by_field(query, nil), do: order_by(query, [u], desc: u.inserted_at)
   defp order_by_field(query, :email), do: order_by(query, [u], asc: u.email)

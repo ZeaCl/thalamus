@@ -1,5 +1,5 @@
 defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
-  use ThalamusWeb.ConnCase, async: true
+  use ThalamusWeb.ConnCase, async: false
 
   alias Thalamus.Domain.Entities.{User, Organization}
   alias Thalamus.Domain.ValueObjects.{AccessToken, Scope}
@@ -14,11 +14,11 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
 
   setup do
     # Create organization
-    {:ok, org} = Organization.new("Test Corp", "owner@test.com", :professional)
+    {:ok, org} = Organization.new("Test Corp", "owner@test.com", :standard)
     {:ok, org} = PostgreSQLOrganizationRepository.save(org)
 
     # Create admin user with access token
-    {:ok, admin} = User.register("admin@test.com", "AdminPass123!")
+    {:ok, admin} = User.register("admin8183@test.com", "AdminPass123!")
     {:ok, admin} = User.verify_email(admin)
     {:ok, admin} = PostgreSQLUserRepository.save(admin)
 
@@ -33,9 +33,9 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
     {:ok, test_client} = PostgreSQLOAuth2ClientRepository.save(test_client)
 
     # Generate access token
-    {:ok, read_scope} = Scope.new("zea:read")
-    {:ok, write_scope} = Scope.new("zea:write")
-    {:ok, admin_scope} = Scope.new("zea:admin")
+    {:ok, read_scope} = Scope.new("api:read")
+    {:ok, write_scope} = Scope.new("api:write")
+    {:ok, admin_scope} = Scope.new("api:admin")
     scopes = [read_scope, write_scope, admin_scope]
 
     {:ok, access_token} =
@@ -139,8 +139,8 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
           name: "New Client",
           organization_id: to_string(org.id),
           redirect_uris: ["http://localhost:3000/callback", "http://localhost:3000/auth"],
-          allowed_grant_types: ["authorization_code", "refresh_token"],
-          allowed_scopes: ["read", "write"]
+          grant_types: ["authorization_code", "refresh_token"],
+          scopes: ["zea:read", "zea:write"]
         })
 
       assert %{
@@ -149,9 +149,9 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
                  "name" => "New Client",
                  "organization_id" => org_id,
                  "redirect_uris" => redirect_uris,
-                 "allowed_grant_types" => grant_types,
-                 "allowed_scopes" => scopes,
-                 "secret" => secret
+                 "grant_types" => grant_types,
+                 "scopes" => scopes,
+                 "client_secret" => secret
                }
              } = json_response(conn, 201)
 
@@ -179,8 +179,8 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
 
       assert %{
                "data" => %{
-                 "allowed_grant_types" => grant_types,
-                 "allowed_scopes" => scopes
+                 "grant_types" => grant_types,
+                 "scopes" => scopes
                }
              } = json_response(conn, 201)
 
@@ -196,8 +196,8 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
           name: "Bad URI Client",
           organization_id: to_string(org.id),
           redirect_uris: ["not-a-valid-uri"],
-          allowed_grant_types: ["authorization_code"],
-          allowed_scopes: ["read"]
+          grant_types: ["authorization_code"],
+          scopes: ["zea:read"]
         })
 
       assert %{
@@ -213,8 +213,8 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
           name: "Bad Grant Client",
           organization_id: to_string(org.id),
           redirect_uris: ["http://localhost:3000/callback"],
-          allowed_grant_types: ["invalid_grant"],
-          allowed_scopes: ["read"]
+          grant_types: ["invalid_grant"],
+          scopes: ["zea:read"]
         })
 
       assert %{
@@ -271,7 +271,7 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
                  "id" => id,
                  "name" => "Get Client",
                  "redirect_uris" => redirect_uris,
-                 "allowed_grant_types" => grant_types
+                 "grant_types" => grant_types
                }
              } = json_response(conn, 200)
 
@@ -408,16 +408,16 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
         conn
         |> put_req_header("authorization", "Bearer #{token}")
         |> patch(~p"/api/clients/#{to_string(client.id)}", %{
-          allowed_scopes: ["read", "write", "admin"]
+          scopes: ["zea:read", "zea:write", "api:admin"]
         })
 
       assert %{
                "data" => %{
-                 "allowed_scopes" => scopes
+                 "scopes" => scopes
                }
              } = json_response(conn, 200)
 
-      assert "admin" in scopes
+      assert "api:admin" in scopes
     end
 
     test "returns 404 for non-existent client", %{conn: conn, access_token: token} do

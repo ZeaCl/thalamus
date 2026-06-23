@@ -50,6 +50,20 @@ defmodule Thalamus.Domain.ValueObjects.OrganizationId do
   end
 
   @doc """
+  Generates a new unique OrganizationId, raising on error.
+
+  ## Examples
+
+      iex> %OrganizationId{value: value} = OrganizationId.generate!()
+      iex> String.starts_with?(value, "org_")
+      true
+  """
+  def generate! do
+    {:ok, org_id} = generate()
+    org_id
+  end
+
+  @doc """
   Converts OrganizationId to string for database storage or API responses.
 
   ## Examples
@@ -68,7 +82,16 @@ defmodule Thalamus.Domain.ValueObjects.OrganizationId do
       iex> OrganizationId.from_string("org_12345")
       {:ok, %OrganizationId{value: "org_12345"}}
   """
-  def from_string(value), do: new(value)
+  def from_string(value) when is_binary(value) do
+    normalized =
+      if String.starts_with?(value, "org_") do
+        value
+      else
+        "org_#{value}"
+      end
+
+    new(normalized)
+  end
 
   # Private functions
 
@@ -98,5 +121,11 @@ end
 defimpl Jason.Encoder, for: Thalamus.Domain.ValueObjects.OrganizationId do
   def encode(%Thalamus.Domain.ValueObjects.OrganizationId{value: value}, opts) do
     Jason.Encode.string(value, opts)
+  end
+end
+
+defimpl Phoenix.Param, for: Thalamus.Domain.ValueObjects.OrganizationId do
+  def to_param(%Thalamus.Domain.ValueObjects.OrganizationId{value: value}) do
+    String.replace_prefix(value, "org_", "")
   end
 end

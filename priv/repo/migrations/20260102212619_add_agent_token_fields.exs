@@ -4,7 +4,7 @@ defmodule Thalamus.Repo.Migrations.AddAgentTokenFields do
   def change do
     alter table(:tokens) do
       # Agent Identity
-      # "autonomous" | "supervised" | "ephemeral"
+      # "autonomous" | "supervisor" | "tool" (per 03-tasks.md spec)
       add :agent_type, :string
       add :delegated_by_user_id, references(:users, type: :binary_id, on_delete: :nilify_all)
       add :delegation_chain, {:array, :binary_id}, default: []

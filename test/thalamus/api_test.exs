@@ -18,7 +18,7 @@ defmodule Thalamus.APITest do
 
     test "returns error for missing required fields" do
       params = %{
-        "client_id" => "test",
+        "client_id" => "test"
         # Missing other required fields
       }
 
@@ -67,7 +67,8 @@ defmodule Thalamus.APITest do
     end
 
     test "returns error for nonexistent token" do
-      token = "at_nonexistent_" <> (:crypto.strong_rand_bytes(16) |> Base.url_encode64(padding: false))
+      token =
+        "at_nonexistent_" <> (:crypto.strong_rand_bytes(16) |> Base.url_encode64(padding: false))
 
       result = Thalamus.API.validate_step(token, "step_name", ["scope:read"])
 
@@ -96,10 +97,11 @@ defmodule Thalamus.APITest do
 
   describe "revoke_token/2" do
     test "returns error for invalid token_id format" do
-      result = Thalamus.API.revoke_token("invalid_uuid", %{
-        organization_id: Ecto.UUID.generate(),
-        revoked_by_user_id: Ecto.UUID.generate()
-      })
+      result =
+        Thalamus.API.revoke_token("invalid_uuid", %{
+          organization_id: Ecto.UUID.generate(),
+          revoked_by_user_id: Ecto.UUID.generate()
+        })
 
       assert {:error, :invalid_token_id} = result
     end
@@ -107,9 +109,10 @@ defmodule Thalamus.APITest do
     test "returns error for missing organization_id" do
       token_id = Ecto.UUID.generate()
 
-      result = Thalamus.API.revoke_token(token_id, %{
-        revoked_by_user_id: Ecto.UUID.generate()
-      })
+      result =
+        Thalamus.API.revoke_token(token_id, %{
+          revoked_by_user_id: Ecto.UUID.generate()
+        })
 
       assert {:error, :missing_organization_id} = result
     end
@@ -117,10 +120,11 @@ defmodule Thalamus.APITest do
     test "validates request parameters" do
       token_id = Ecto.UUID.generate()
 
-      result = Thalamus.API.revoke_token(token_id, %{
-        organization_id: Ecto.UUID.generate(),
-        revoked_by_user_id: Ecto.UUID.generate()
-      })
+      result =
+        Thalamus.API.revoke_token(token_id, %{
+          organization_id: Ecto.UUID.generate(),
+          revoked_by_user_id: Ecto.UUID.generate()
+        })
 
       # Returns :not_found because token doesn't exist (validation passed)
       assert {:error, :not_found} = result
@@ -129,12 +133,13 @@ defmodule Thalamus.APITest do
     test "accepts cascade parameter" do
       token_id = Ecto.UUID.generate()
 
-      result = Thalamus.API.revoke_token(token_id, %{
-        organization_id: Ecto.UUID.generate(),
-        revoked_by_user_id: Ecto.UUID.generate(),
-        cascade: true,
-        reason: "Test revocation"
-      })
+      result =
+        Thalamus.API.revoke_token(token_id, %{
+          organization_id: Ecto.UUID.generate(),
+          revoked_by_user_id: Ecto.UUID.generate(),
+          cascade: true,
+          reason: "Test revocation"
+        })
 
       # Will fail because token doesn't exist, but params are validated
       assert {:error, _reason} = result

@@ -20,12 +20,16 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.OrganizationSchema do
 
   schema "organizations" do
     field :name, :string
-    field :status, Ecto.Enum, values: [:trial, :active, :suspended, :cancelled]
+    field :owner_email, :string
+
+    field :status, Ecto.Enum,
+      values: [:pending_verification, :trial, :active, :suspended, :inactive, :cancelled]
+
     field :verified, :boolean, default: false
 
     # Plan fields (embedded)
     field :plan_type, Ecto.Enum,
-      values: [:free, :starter, :professional, :enterprise],
+      values: [:free, :basic, :standard, :premium, :enterprise],
       default: :free
 
     field :max_users, :integer
@@ -46,6 +50,9 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.OrganizationSchema do
     # Each member: %{user_id: uuid, role: atom, joined_at: datetime}
     field :members, {:array, :map}, default: []
 
+    # Domain access
+    field :domains, {:array, :string}, default: []
+
     # Relationships
     has_many :users, UserSchema, foreign_key: :organization_id
     has_many :oauth2_clients, OAuth2ClientSchema, foreign_key: :organization_id
@@ -62,7 +69,21 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.OrganizationSchema do
   """
   def create_changeset(attrs) do
     %__MODULE__{}
-    |> cast(attrs, [:name, :plan_type])
+    |> cast(attrs, [
+      :id,
+      :name,
+      :owner_email,
+      :status,
+      :verified,
+      :plan_type,
+      :max_users,
+      :max_api_calls_per_month,
+      :members,
+      :current_user_count,
+      :api_calls_current_month,
+      :inserted_at,
+      :updated_at
+    ])
     |> validate_required([:name])
     |> validate_name()
     |> put_plan_defaults()
@@ -76,11 +97,16 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.OrganizationSchema do
     organization
     |> cast(attrs, [
       :name,
+      :owner_email,
       :status,
       :verified,
+      :plan_type,
+      :max_users,
+      :max_api_calls_per_month,
       :current_user_count,
       :api_calls_current_month,
-      :members
+      :members,
+      :updated_at
     ])
     |> validate_name()
   end
@@ -201,11 +227,18 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.OrganizationSchema do
 
   defp put_default_values(changeset) do
     changeset
-    |> put_change(:status, :trial)
-    |> put_change(:verified, false)
-    |> put_change(:current_user_count, 0)
-    |> put_change(:api_calls_current_month, 0)
-    |> put_change(:api_calls_reset_at, DateTime.truncate(DateTime.utc_now(), :second))
+    |> put_if_missing(:status, :trial)
+    |> put_if_missing(:verified, false)
+    |> put_if_missing(:current_user_count, 0)
+    |> put_if_missing(:api_calls_current_month, 0)
+    |> put_if_missing(:api_calls_reset_at, DateTime.truncate(DateTime.utc_now(), :second))
+  end
+
+  defp put_if_missing(changeset, field, default) do
+    case get_field(changeset, field) do
+      nil -> put_change(changeset, field, default)
+      _ -> changeset
+    end
   end
 
   defp put_plan_defaults(changeset) do
@@ -236,9 +269,9 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.OrganizationSchema do
     }
   end
 
-  defp get_plan_limits(:starter) do
+  defp get_plan_limits(:basic) do
     %{
-      max_users: 20,
+      max_users: 25,
       max_api_calls_per_month: 100_000,
       mfa_required: false,
       sso_enabled: false,
@@ -247,13 +280,24 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.OrganizationSchema do
     }
   end
 
-  defp get_plan_limits(:professional) do
+  defp get_plan_limits(:standard) do
     %{
       max_users: 100,
-      max_api_calls_per_month: 1_000_000,
+      max_api_calls_per_month: 500_000,
       mfa_required: true,
       sso_enabled: true,
       audit_logs_retention_days: 90,
+      support_level: :priority
+    }
+  end
+
+  defp get_plan_limits(:premium) do
+    %{
+      max_users: 500,
+      max_api_calls_per_month: 2_000_000,
+      mfa_required: true,
+      sso_enabled: true,
+      audit_logs_retention_days: 180,
       support_level: :priority
     }
   end

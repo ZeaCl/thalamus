@@ -1,5 +1,5 @@
 defmodule ThalamusWeb.Admin.AdminApiKeyControllerTest do
-  use ThalamusWeb.ConnCase, async: true
+  use ThalamusWeb.ConnCase, async: false
 
   alias Thalamus.Domain.Services.AdminApiKeyGenerator
   alias Thalamus.Domain.Entities.AdminApiKey
@@ -225,7 +225,7 @@ defmodule ThalamusWeb.Admin.AdminApiKeyControllerTest do
     end
 
     test "rotates API key", %{conn: conn, api_key: api_key} do
-      old_prefix = api_key.key_prefix
+      _old_prefix = api_key.key_prefix
       old_hash = api_key.key_hash
 
       conn = post(conn, ~p"/api/admin/api-keys/#{api_key.id}/rotate")

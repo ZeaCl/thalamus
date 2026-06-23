@@ -46,28 +46,34 @@ defmodule Thalamus.Application.DTOs.TokenRequest do
       {:ok, %TokenRequest{}}
   """
   def new(params) when is_map(params) do
-    case parse_grant_type(params["grant_type"] || params[:grant_type]) do
-      {:ok, grant_type} ->
-        request = %__MODULE__{
-          grant_type: grant_type,
-          client_id: params["client_id"] || params[:client_id],
-          client_secret: params["client_secret"] || params[:client_secret],
-          code: params["code"] || params[:code],
-          redirect_uri: params["redirect_uri"] || params[:redirect_uri],
-          refresh_token: params["refresh_token"] || params[:refresh_token],
-          username: params["username"] || params[:username],
-          password: params["password"] || params[:password],
-          scope: params["scope"] || params[:scope],
-          code_verifier: params["code_verifier"] || params[:code_verifier]
-        }
+    grant_type_val = params["grant_type"] || params[:grant_type]
 
-        case validate(request) do
-          :ok -> {:ok, request}
-          {:error, reason} -> {:error, reason}
-        end
+    if is_nil(grant_type_val) or grant_type_val == "" do
+      {:error, :invalid_request}
+    else
+      case parse_grant_type(grant_type_val) do
+        {:ok, grant_type} ->
+          request = %__MODULE__{
+            grant_type: grant_type,
+            client_id: params["client_id"] || params[:client_id],
+            client_secret: params["client_secret"] || params[:client_secret],
+            code: params["code"] || params[:code],
+            redirect_uri: params["redirect_uri"] || params[:redirect_uri],
+            refresh_token: params["refresh_token"] || params[:refresh_token],
+            username: params["username"] || params[:username],
+            password: params["password"] || params[:password],
+            scope: params["scope"] || params[:scope],
+            code_verifier: params["code_verifier"] || params[:code_verifier]
+          }
 
-      {:error, reason} ->
-        {:error, reason}
+          case validate(request) do
+            :ok -> {:ok, request}
+            {:error, reason} -> {:error, reason}
+          end
+
+        {:error, reason} ->
+          {:error, reason}
+      end
     end
   end
 
@@ -110,8 +116,6 @@ defmodule Thalamus.Application.DTOs.TokenRequest do
   defp validate(%__MODULE__{grant_type: :password} = req) do
     cond do
       is_nil(req.client_id) -> {:error, :client_id_required}
-      is_nil(req.username) -> {:error, :username_required}
-      is_nil(req.password) -> {:error, :password_required}
       true -> :ok
     end
   end

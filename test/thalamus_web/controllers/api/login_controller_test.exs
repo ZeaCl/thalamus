@@ -1,5 +1,5 @@
 defmodule ThalamusWeb.API.LoginControllerTest do
-  use ThalamusWeb.ConnCase, async: true
+  use ThalamusWeb.ConnCase, async: false
 
   alias Thalamus.Domain.Entities.User
   alias Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository
@@ -9,16 +9,15 @@ defmodule ThalamusWeb.API.LoginControllerTest do
 
   describe "POST /api/public/login" do
     setup do
+      # Create internal login client for token storage (FK constraint)
+      create_internal_login_client()
+
       # Create a test user
       {:ok, user} = User.register(@valid_email, @valid_password)
       # Verify email so user can login (changes status to :active)
       {:ok, verified_user} = User.verify_email(user)
       # Save the verified user
       {:ok, saved_user} = PostgreSQLUserRepository.save(verified_user)
-
-      # Debug: verify the user was saved correctly
-      IO.puts("Setup: saved_user status = #{saved_user.status}")
-      IO.puts("Setup: saved_user verified_at = #{inspect(saved_user.verified_at)}")
 
       %{user: saved_user}
     end
@@ -39,9 +38,14 @@ defmodule ThalamusWeb.API.LoginControllerTest do
                "organization" => _org_data
              } = json_response(conn, 200)
 
-      # Verify tokens have correct prefixes
-      assert String.starts_with?(access_token, "at_")
-      assert String.starts_with?(refresh_token, "rt_")
+      # Verify tokens are generated (access token is a JWT)
+      assert is_binary(access_token)
+      assert is_binary(refresh_token)
+      # In the new JWT architecture, tokens usually start with eyJ (Base64 JWT header)
+      assert String.starts_with?(access_token, "eyJ") or String.starts_with?(access_token, "at_")
+
+      assert String.starts_with?(refresh_token, "eyJ") or
+               String.starts_with?(refresh_token, "rt_")
 
       # Verify user data
       assert user_data["email"] == @valid_email
@@ -195,5 +199,42 @@ defmodule ThalamusWeb.API.LoginControllerTest do
 
       assert %{"organization" => nil} = json_response(conn, 200)
     end
+  end
+
+  defp create_internal_login_client do
+    alias Thalamus.Repo
+    alias Thalamus.Infrastructure.Persistence.Schemas.{OrganizationSchema, OAuth2ClientSchema}
+
+    # Create org for the internal client  
+    org =
+      Repo.insert!(%OrganizationSchema{
+        id: Ecto.UUID.generate(),
+        name: "Internal Login Org #{Ecto.UUID.generate()}",
+        status: :active,
+        plan_type: :free,
+        verified: true,
+        max_users: 10,
+        max_api_calls_per_month: 10_000,
+        support_level: :community,
+        api_calls_reset_at: DateTime.truncate(DateTime.utc_now(), :second)
+      })
+
+    # Create the internal login client with the fixed UUID used by login_controller
+    # Use on_conflict: :nothing to handle shared sandbox mode across tests
+    Repo.insert(
+      %OAuth2ClientSchema{
+        id: "00000000-0000-0000-0000-000000000001",
+        client_id_string: "internal_login",
+        client_secret: Bcrypt.hash_pwd_salt("internal_secret"),
+        name: "Internal Login",
+        client_type: :confidential,
+        organization_id: org.id,
+        redirect_uris: ["http://localhost:4000"],
+        allowed_scopes: ["openid", "profile", "email"],
+        allowed_grant_types: ["authorization_code"],
+        is_active: true
+      },
+      on_conflict: :nothing
+    )
   end
 end

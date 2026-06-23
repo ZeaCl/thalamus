@@ -1,5 +1,5 @@
 defmodule Thalamus.Domain.ValueObjects.PasswordHashTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias Thalamus.Domain.ValueObjects.PasswordHash
 
@@ -11,7 +11,7 @@ defmodule Thalamus.Domain.ValueObjects.PasswordHashTest do
     end
 
     test "fails with empty password" do
-      assert {:error, :invalid_password} = PasswordHash.from_password("")
+      assert {:error, :password_too_short} = PasswordHash.from_password("")
     end
 
     test "fails with password too short" do

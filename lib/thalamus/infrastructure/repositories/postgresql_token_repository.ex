@@ -70,9 +70,10 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLTokenRepository do
   @impl true
   def revoke_all_for_user(%UserId{} = user_id) do
     user_id_string = UserId.to_string(user_id)
+    uuid = String.replace_prefix(user_id_string, "user_", "")
 
     TokenSchema
-    |> where([t], t.user_id == ^user_id_string)
+    |> where([t], t.user_id == ^uuid)
     |> where([t], t.revoked == false)
     |> Repo.update_all(set: [revoked: true, revoked_at: DateTime.utc_now()])
     |> case do
@@ -83,9 +84,10 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLTokenRepository do
   @impl true
   def revoke_all_for_client(%ClientId{} = client_id) do
     client_id_string = ClientId.to_string(client_id)
+    uuid = String.replace_prefix(client_id_string, "client_", "")
 
     TokenSchema
-    |> where([t], t.client_id == ^client_id_string)
+    |> where([t], t.client_id == ^uuid)
     |> where([t], t.revoked == false)
     |> Repo.update_all(set: [revoked: true, revoked_at: DateTime.utc_now()])
     |> case do
@@ -108,9 +110,10 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLTokenRepository do
   @impl true
   def find_by_user(%UserId{} = user_id) do
     user_id_string = UserId.to_string(user_id)
+    uuid = String.replace_prefix(user_id_string, "user_", "")
 
     TokenSchema
-    |> where([t], t.user_id == ^user_id_string)
+    |> where([t], t.user_id == ^uuid)
     |> where([t], t.revoked == false)
     |> order_by([t], desc: t.inserted_at)
     |> Repo.all()
@@ -124,10 +127,10 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLTokenRepository do
     %{
       token: token_data.token,
       type: token_data.type,
-      user_id: prepare_user_id(token_data.user_id),
-      client_id: prepare_client_id(token_data.client_id),
+      user_id: prepare_user_id(Map.get(token_data, :user_id)),
+      client_id: prepare_client_id(Map.get(token_data, :client_id)),
       organization_id: prepare_organization_id(Map.get(token_data, :organization_id)),
-      scopes: token_data.scopes || [],
+      scopes: Map.get(token_data, :scopes) || Map.get(token_data, :scope) || [],
       expires_at: token_data.expires_at,
       code_challenge: Map.get(token_data, :code_challenge),
       code_challenge_method: Map.get(token_data, :code_challenge_method),
@@ -144,7 +147,8 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLTokenRepository do
       expires_on_completion: Map.get(token_data, :expires_on_completion, false),
       intent_description: Map.get(token_data, :intent_description),
       orchestrator_id: Map.get(token_data, :orchestrator_id),
-      environment: Map.get(token_data, :environment)
+      environment: Map.get(token_data, :environment),
+      inserted_at: Map.get(token_data, :inserted_at)
     }
     |> Enum.reject(fn {_k, v} -> is_nil(v) end)
     |> Map.new()
@@ -179,10 +183,14 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLTokenRepository do
   defp prepare_organization_id(nil), do: nil
 
   defp prepare_organization_id(%Thalamus.Domain.ValueObjects.OrganizationId{} = org_id) do
-    Thalamus.Domain.ValueObjects.OrganizationId.to_string(org_id)
+    org_id
+    |> Thalamus.Domain.ValueObjects.OrganizationId.to_string()
+    |> String.replace_prefix("org_", "")
   end
 
-  defp prepare_organization_id(org_id) when is_binary(org_id), do: org_id
+  defp prepare_organization_id(org_id) when is_binary(org_id) do
+    String.replace_prefix(org_id, "org_", "")
+  end
 
   defp prepare_delegation_chain(chain) when is_list(chain) do
     Enum.map(chain, fn user_id ->
@@ -209,9 +217,18 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLTokenRepository do
 
     # Reconstruct the client_id as ClientId value object
     client_id =
-      case ClientId.from_string(schema.client_id) do
-        {:ok, client_id} -> client_id
-        _ -> nil
+      if schema.client_id do
+        client_id_str =
+          if String.starts_with?(schema.client_id, "client_"),
+            do: schema.client_id,
+            else: "client_" <> schema.client_id
+
+        case ClientId.from_string(client_id_str) do
+          {:ok, client_id} -> client_id
+          _ -> nil
+        end
+      else
+        nil
       end
 
     # Reconstruct the organization_id as OrganizationId value object if present
@@ -263,6 +280,8 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLTokenRepository do
       expires_at: schema.expires_at,
       revoked: schema.revoked,
       created_at: schema.inserted_at,
+      code_challenge: schema.code_challenge,
+      code_challenge_method: schema.code_challenge_method,
       # Agent-specific fields
       agent_type: schema.agent_type,
       delegated_by_user_id: delegated_by_user_id,

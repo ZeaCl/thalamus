@@ -50,5 +50,6 @@ defmodule ThalamusWeb.Endpoint do
   plug Plug.MethodOverride
   plug Plug.Head
   plug Plug.Session, @session_options
+  plug ThalamusWeb.Plugs.CORS
   plug ThalamusWeb.Router
 end

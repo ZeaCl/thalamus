@@ -146,28 +146,36 @@ defmodule ThalamusWeb.Layouts do
   @doc """
   Sidebar navigation link component with ZEA styling.
   """
-  attr :href, :string, required: true
+  attr :href, :string, default: nil
+  attr :navigate, :string, default: nil
   attr :current, :string, required: true
   slot :inner_block, required: true
 
   def sidebar_link(assigns) do
-    active = String.starts_with?(assigns.current, assigns.href)
+    target_path = assigns.navigate || assigns.href
+    active = String.starts_with?(assigns.current, target_path)
 
-    assigns = assign(assigns, :active, active)
+    assigns =
+      assigns
+      |> assign(:active, active)
+      |> assign(:target_path, target_path)
 
     ~H"""
-    <a
+    <% link_attrs = %{"x-bind:class" => "sidebarCollapsed ? 'justify-center px-2' : 'px-3'"} %>
+    <.link
+      navigate={@navigate}
       href={@href}
+      {link_attrs}
       class={[
-        "group flex items-center px-3 py-3 text-[11px] font-medium uppercase rounded-md transition-all",
+        "sidebar-link-item group flex items-center py-3 text-[13px] font-medium rounded-md transition-all",
         if(@active,
-          do: "bg-white/10 text-cyan-500 border-l-2 border-cyan-500",
+          do: "bg-white/10 text-white border-l-2 border-white",
           else: "text-gray-400 hover:bg-white/5 hover:text-white border-l-2 border-transparent"
         )
       ]}
     >
       {render_slot(@inner_block)}
-    </a>
+    </.link>
     """
   end
 
@@ -189,9 +197,9 @@ defmodule ThalamusWeb.Layouts do
       class={[
         "block border-l-4 py-2 pl-3 pr-4 text-base font-medium transition-colors",
         if(@active,
-          do: "border-primary-500 bg-primary-50 text-primary-700",
+          do: "border-white bg-white/10 text-white",
           else:
-            "border-transparent text-gray-600 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-800"
+            "border-transparent text-gray-400 hover:border-gray-300 hover:bg-white/5 hover:text-white"
         )
       ]}
     >

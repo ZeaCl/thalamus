@@ -89,10 +89,11 @@ defmodule Thalamus.Application.UseCases.ValidateStepAuthorizationTest do
     test "returns error when token is expired" do
       token_string = "at_expired_token"
       # Token expired 1 hour ago
-      agent_token = build_agent_token(
-        created_at: DateTime.add(DateTime.utc_now(), -7200, :second),
-        expires_in: 3600
-      )
+      agent_token =
+        build_agent_token(
+          created_at: DateTime.add(DateTime.utc_now(), -7200, :second),
+          expires_in: 3600
+        )
 
       MockAgentTokenRepository
       |> expect(:find_by_access_token, fn ^token_string -> {:ok, agent_token} end)
@@ -140,7 +141,8 @@ defmodule Thalamus.Application.UseCases.ValidateStepAuthorizationTest do
 
     test "returns error when token lacks required scopes" do
       token_string = "at_limited_token"
-      agent_token = build_agent_token(scopes: ["email:read"])  # Only read, no send
+      # Only read, no send
+      agent_token = build_agent_token(scopes: ["email:read"])
 
       MockAgentTokenRepository
       |> expect(:find_by_access_token, fn ^token_string -> {:ok, agent_token} end)
@@ -156,7 +158,8 @@ defmodule Thalamus.Application.UseCases.ValidateStepAuthorizationTest do
       request = %{
         token: token_string,
         step_name: "send_email",
-        required_scopes: ["email:send", "email:read"]  # Requires send, but token only has read
+        # Requires send, but token only has read
+        required_scopes: ["email:send", "email:read"]
       }
 
       assert {:error, :insufficient_scopes} = ValidateStepAuthorization.execute(request, deps)
@@ -212,7 +215,7 @@ defmodule Thalamus.Application.UseCases.ValidateStepAuthorizationTest do
 
   # Helper functions
 
-  defp build_agent_token(overrides \\ []) do
+  defp build_agent_token(overrides) do
     {:ok, agent_type} = AgentType.new(:autonomous)
     {:ok, task_id} = TaskId.new(Ecto.UUID.generate())
     {:ok, delegation_chain} = DelegationChain.new(%{parent_token_id: nil, depth: 0, path: []})

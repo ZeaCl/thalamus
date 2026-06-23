@@ -175,7 +175,7 @@ defmodule ThalamusWeb.OAuth2.RevocationController do
     case PostgreSQLOAuth2ClientRepository.find_by_id(client_id) do
       {:ok, client} ->
         # Verify client is active
-        if client.status == :active do
+        if client.is_active do
           # Verify client secret
           case client.client_secret do
             nil ->

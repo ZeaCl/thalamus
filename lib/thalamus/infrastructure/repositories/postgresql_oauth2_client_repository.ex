@@ -141,7 +141,10 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository 
 
   @impl true
   def find_by_organization(%OrganizationId{} = org_id) do
-    org_id_string = OrganizationId.to_string(org_id)
+    org_id_string =
+      org_id
+      |> OrganizationId.to_string()
+      |> String.replace_prefix("org_", "")
 
     OAuth2ClientSchema
     |> where([c], c.organization_id == ^org_id_string)
@@ -158,7 +161,10 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository 
 
   @impl true
   def count_by_organization(%OrganizationId{} = org_id) do
-    org_id_string = OrganizationId.to_string(org_id)
+    org_id_string =
+      org_id
+      |> OrganizationId.to_string()
+      |> String.replace_prefix("org_", "")
 
     count =
       OAuth2ClientSchema
@@ -183,14 +189,26 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository 
     # Convert client_secret from hash string to ClientSecret value object if present
     client_secret =
       if schema.client_secret do
-        Thalamus.Domain.ValueObjects.ClientSecret.from_hash(schema.client_secret)
+        if String.starts_with?(schema.client_secret, "$2b$") or
+             String.starts_with?(schema.client_secret, "$2a$") do
+          Thalamus.Domain.ValueObjects.ClientSecret.from_hash(schema.client_secret)
+        else
+          hashed = Bcrypt.hash_pwd_salt(schema.client_secret)
+
+          Ecto.Changeset.change(schema, client_secret: hashed)
+          |> Thalamus.Repo.update!()
+
+          Thalamus.Domain.ValueObjects.ClientSecret.from_hash(hashed)
+        end
       else
         nil
       end
 
     with {:ok, client_id} <- ClientId.from_string(client_id_string),
          {:ok, org_id} <- OrganizationId.from_string(schema.organization_id),
-         {:ok, grant_types} <- convert_grant_types_from_db(schema.allowed_grant_types) do
+         {:ok, grant_types} <- convert_grant_types_from_db(schema.allowed_grant_types),
+         {:ok, scopes} <- convert_scopes_from_db(schema.allowed_scopes),
+         {:ok, redirect_uris} <- convert_redirect_uris_from_db(schema.redirect_uris) do
       client = %OAuth2Client{
         id: client_id,
         organization_id: org_id,
@@ -198,8 +216,8 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository 
         client_type: schema.client_type,
         client_secret: client_secret,
         grant_types: grant_types,
-        allowed_scopes: schema.allowed_scopes || [],
-        redirect_uris: schema.redirect_uris || [],
+        allowed_scopes: scopes,
+        redirect_uris: redirect_uris,
         is_active: schema.is_active,
         trusted: false,
         created_at: schema.inserted_at,
@@ -228,7 +246,9 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository 
     # Extract organization_id string (could have "org_" prefix or be pure UUID)
     org_id_string =
       if client.organization_id do
-        OrganizationId.to_string(client.organization_id)
+        client.organization_id
+        |> OrganizationId.to_string()
+        |> String.replace_prefix("org_", "")
       else
         nil
       end
@@ -289,6 +309,21 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository 
 
   defp convert_grant_types_to_db(_), do: []
 
+  defp convert_scopes_from_db(scope_strings) when is_list(scope_strings) do
+    scopes =
+      Enum.map(scope_strings, fn scope_string ->
+        case Scope.new(scope_string) do
+          {:ok, scope} -> scope
+          {:error, _} -> nil
+        end
+      end)
+      |> Enum.reject(&is_nil/1)
+
+    {:ok, scopes}
+  end
+
+  defp convert_scopes_from_db(_), do: {:ok, []}
+
   defp convert_scopes_to_db(scopes) when is_list(scopes) do
     Enum.map(scopes, fn %Scope{} = scope ->
       Scope.to_string(scope)
@@ -296,6 +331,21 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository 
   end
 
   defp convert_scopes_to_db(_), do: []
+
+  defp convert_redirect_uris_from_db(uri_strings) when is_list(uri_strings) do
+    uris =
+      Enum.map(uri_strings, fn uri_string ->
+        case RedirectUri.new(uri_string) do
+          {:ok, uri} -> uri
+          {:error, _} -> nil
+        end
+      end)
+      |> Enum.reject(&is_nil/1)
+
+    {:ok, uris}
+  end
+
+  defp convert_redirect_uris_from_db(_), do: {:ok, []}
 
   defp convert_redirect_uris_to_db(uris) when is_list(uris) do
     Enum.map(uris, fn %RedirectUri{} = uri ->
@@ -332,7 +382,8 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository 
   defp filter_by_organization(query, nil), do: query
 
   defp filter_by_organization(query, org_id) when is_binary(org_id) do
-    where(query, [c], c.organization_id == ^org_id)
+    org_uuid = String.replace_prefix(org_id, "org_", "")
+    where(query, [c], c.organization_id == ^org_uuid)
   end
 
   defp order_by_field(query, nil), do: order_by(query, [c], desc: c.inserted_at)

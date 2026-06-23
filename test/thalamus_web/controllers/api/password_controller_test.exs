@@ -1,34 +1,57 @@
 defmodule ThalamusWeb.API.PasswordControllerTest do
-  use ThalamusWeb.ConnCase, async: true
+  use ThalamusWeb.ConnCase, async: false
 
-  alias Thalamus.Domain.Entities.User
-  alias Thalamus.Domain.ValueObjects.AccessToken
+  alias Thalamus.Domain.Entities.{User, Organization}
+  alias Thalamus.Domain.ValueObjects.{AccessToken, Scope}
 
   alias Thalamus.Infrastructure.Repositories.{
     PostgreSQLUserRepository,
+    PostgreSQLOrganizationRepository,
     PostgreSQLTokenRepository
   }
 
   setup do
+    # Create organization for OAuth2 client
+    {:ok, org} = Organization.new("Test Corp", "owner@test.com", :standard)
+    {:ok, _org} = PostgreSQLOrganizationRepository.save(org)
+
     # Create and verify user
     {:ok, user} = User.register("user@test.com", "OldPassword123!")
     {:ok, user} = User.verify_email(user)
     {:ok, user} = PostgreSQLUserRepository.save(user)
 
-    # Generate access token for authenticated requests
-    {:ok, access_token} =
-      AccessToken.generate(
-        user.id,
-        Thalamus.Domain.ValueObjects.ClientId.generate(),
-        [:read, :write],
-        3600
+    # Create organization and client
+    {:ok, org} = Thalamus.Domain.Entities.Organization.new("Test Org", "admin@test.com")
+    {:ok, _org} = Thalamus.Infrastructure.Repositories.PostgreSQLOrganizationRepository.save(org)
+
+    {:ok, client} =
+      Thalamus.TestHelpers.create_test_client(
+        "Test Client",
+        org.id,
+        ["zea:read", "zea:write"]
       )
+
+    {:ok, client} =
+      Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository.save(client)
+
+    # Generate access token for authenticated requests
+    {:ok, read_scope} = Scope.new("api:read")
+    {:ok, write_scope} = Scope.new("api:write")
+    scopes = [read_scope, write_scope]
+
+    {:ok, access_token} =
+      AccessToken.generate(scopes, user.id, 3600)
+
+    # Extract client ID without "client_" prefix for DB storage
+    client_id_string = Thalamus.Domain.ValueObjects.ClientId.to_string(client.id)
+    _client_uuid = String.replace_prefix(client_id_string, "client_", "")
 
     token_data = %{
       token: access_token.token,
       type: :access_token,
       user_id: user.id,
-      scope: [:read, :write],
+      client_id: client.id,
+      scopes: ["zea:read", "zea:write"],
       expires_at: access_token.expires_at
     }
 
@@ -112,8 +135,7 @@ defmodule ThalamusWeb.API.PasswordControllerTest do
 
         # Verify can login with new password
         {:ok, updated_user} = PostgreSQLUserRepository.find_by_id(user.id)
-        {:ok, can_login} = User.verify_password(updated_user, "NewPassword123!")
-        assert can_login == true
+        assert :ok == User.verify_password(updated_user, "NewPassword123!")
       end
     end
 
@@ -191,12 +213,10 @@ defmodule ThalamusWeb.API.PasswordControllerTest do
 
       # Verify can login with new password
       {:ok, updated_user} = PostgreSQLUserRepository.find_by_id(user.id)
-      {:ok, can_login} = User.verify_password(updated_user, "NewPassword456!")
-      assert can_login == true
+      assert :ok == User.verify_password(updated_user, "NewPassword456!")
 
       # Verify old password no longer works
-      {:ok, cannot_login} = User.verify_password(updated_user, "OldPassword123!")
-      assert cannot_login == false
+      assert {:error, :invalid_password} == User.verify_password(updated_user, "OldPassword123!")
     end
 
     test "returns error with incorrect current password", %{conn: conn, access_token: token} do
@@ -260,7 +280,7 @@ defmodule ThalamusWeb.API.PasswordControllerTest do
                "error" => error
              } = json_response(conn, 400)
 
-      assert String.contains?(error, "same") or String.contains?(error, "different")
+      assert String.contains?(error, "different")
     end
 
     test "requires authentication", %{conn: conn} do

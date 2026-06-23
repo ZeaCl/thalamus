@@ -132,7 +132,7 @@ defmodule ThalamusWeb.API.PasswordController do
          :ok <- validate_password_confirmation(password, password_confirmation),
          {:ok, user_id} <- decode_reset_token(token),
          {:ok, user} <- PostgreSQLUserRepository.find_by_id(user_id),
-         {:ok, updated_user} <- User.change_password(user, password, password),
+         {:ok, updated_user} <- User.reset_password(user, password),
          {:ok, _saved_user} <- PostgreSQLUserRepository.save(updated_user) do
       # TODO: Audit log
       # AuditLogger.log_password_changed(user.id, %{ip_address: get_ip(conn)})
@@ -168,12 +168,6 @@ defmodule ThalamusWeb.API.PasswordController do
         conn
         |> put_status(:bad_request)
         |> json(%{error: "Invalid or expired reset token"})
-
-      {:error, :incorrect_current_password} ->
-        # This shouldn't happen in password reset flow, but handle it
-        conn
-        |> put_status(:bad_request)
-        |> json(%{error: "Password reset failed"})
 
       {:error, reason} when is_atom(reason) ->
         conn
@@ -247,6 +241,11 @@ defmodule ThalamusWeb.API.PasswordController do
         conn
         |> put_status(:bad_request)
         |> json(%{error: "Current password is incorrect"})
+
+      {:error, :password_must_be_different} ->
+        conn
+        |> put_status(:bad_request)
+        |> json(%{error: "New password must be different from current password"})
 
       {:error, reason} when is_atom(reason) ->
         conn

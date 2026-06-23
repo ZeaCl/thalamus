@@ -4,14 +4,22 @@ defmodule Thalamus.MixProject do
   def project do
     [
       app: :thalamus,
-      version: "0.1.0",
-      elixir: "~> 1.15",
+      version: "1.0.0",
+      elixir: "~> 1.19",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
       deps: deps(),
       compilers: [:phoenix_live_view] ++ Mix.compilers(),
-      listeners: [Phoenix.CodeReloader]
+      listeners: [Phoenix.CodeReloader],
+      test_coverage: [tool: ExCoveralls],
+      preferred_cli_env: [
+        coveralls: :test,
+        "coveralls.detail": :test,
+        "coveralls.post": :test,
+        "coveralls.html": :test,
+        "coveralls.json": :test
+      ]
     ]
   end
 
@@ -75,8 +83,12 @@ defmodule Thalamus.MixProject do
       {:bcrypt_elixir, "~> 3.0"},
       {:pbkdf2_elixir, "~> 2.0"},
       {:comeonin, "~> 5.3"},
+      {:cloak_ecto, "~> 1.3"},
       # TOTP for MFA
       {:pot, "~> 1.0"},
+
+      # SAML SSO
+      {:samly, "~> 1.4"},
 
       # HTTP Client
       {:req, "~> 0.4"},
@@ -104,10 +116,12 @@ defmodule Thalamus.MixProject do
       {:timex, "~> 3.7"},
       {:uuid, "~> 1.1"},
       {:decimal, "~> 2.0"},
+      {:csv, "~> 3.2"},
 
       # Development & Testing
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
+      {:excoveralls, "~> 0.18", only: :test},
       {:mox, "~> 1.1", only: :test},
       {:ex_machina, "~> 2.7", only: :test},
       {:faker, "~> 0.18", only: :test},
@@ -137,6 +151,9 @@ defmodule Thalamus.MixProject do
       # Unit tests without database setup
       "test.unit": ["test"],
       "test.integration": ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
+      # Test coverage
+      "test.coverage": ["ecto.create --quiet", "ecto.migrate --quiet", "coveralls.html"],
+      "test.coverage.ci": ["ecto.create --quiet", "ecto.migrate --quiet", "coveralls"],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
       "assets.build": ["tailwind thalamus", "esbuild thalamus"],
       "assets.deploy": [
@@ -144,7 +161,7 @@ defmodule Thalamus.MixProject do
         "esbuild thalamus --minify",
         "phx.digest"
       ],
-      precommit: ["compile --warning-as-errors", "deps.unlock --unused", "format", "test"]
+      precommit: ["compile --warnings-as-errors", "deps.unlock --unused", "format", "test"]
     ]
   end
 end

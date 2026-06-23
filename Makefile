@@ -6,7 +6,7 @@
 # Usage: make [command]
 # ============================================================================
 
-.PHONY: help setup dev test clean docker-build docker-up docker-down migrate seed
+.PHONY: help setup dev test clean docker-build docker-up docker-down migrate seed sdk-ci
 
 # Default target
 .DEFAULT_GOAL := help
@@ -188,3 +188,7 @@ security: ## Run security audit
 # ============================================================================
 ci: deps compile lint test ## Run CI pipeline locally
 	@echo "CI pipeline completed successfully!"
+
+sdk-ci: ## Run SDK CI pipeline checks locally
+	@./scripts/ci-sdk-local.sh
+

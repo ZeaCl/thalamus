@@ -112,9 +112,18 @@ defmodule ThalamusWeb.Plugs.CORS do
   defp origin_allowed?(origin, origins) when is_list(origins) do
     Enum.any?(origins, fn allowed_origin ->
       cond do
+        # Allow all
+        allowed_origin == "*" ->
+          true
+
         # Exact match
         allowed_origin == origin ->
           true
+
+        # Wildcard port: http://localhost:* matches http://localhost:5299 etc
+        String.ends_with?(allowed_origin, ":*") ->
+          base = String.replace_suffix(allowed_origin, ":*", "")
+          String.starts_with?(origin, base <> ":")
 
         # Wildcard subdomain (e.g., "*.example.com")
         String.starts_with?(allowed_origin, "*.") ->
