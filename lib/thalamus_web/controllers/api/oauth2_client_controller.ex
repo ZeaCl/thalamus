@@ -17,9 +17,10 @@ defmodule ThalamusWeb.API.OAuth2ClientController do
 
   use ThalamusWeb, :controller
 
-  alias Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository
   alias Thalamus.Domain.Entities.OAuth2Client
-  alias Thalamus.Domain.ValueObjects.{ClientId, OrganizationId, ClientSecret, RedirectUri, Scope}
+  alias Thalamus.Domain.ValueObjects.{ClientId, ClientSecret, OrganizationId, RedirectUri, Scope}
+  alias Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository
+  alias Thalamus.OAuth2ClientValidator
 
   @doc """
   GET /api/clients
@@ -608,6 +609,143 @@ defmodule ThalamusWeb.API.OAuth2ClientController do
   end
 
   # Private helper functions
+
+  @doc """
+  GET /api/clients/:client_id/validate
+
+  Validate an OAuth2 client configuration. Returns a diagnostic report
+  with PASS/FAIL/WARN status for each check.
+
+  ## Authorization
+  - PAT (th_pat_): user must be a member of the client's organization
+  - JWT: user must be a member of the client's organization
+  - API Key: admin — bypasses organization check
+
+  ## Response
+  - 200 OK: Validation report with client_id, status, summary, checks
+  - 400 Bad Request: Invalid client ID format
+  - 401 Unauthorized: Missing or invalid token
+  - 403 Forbidden: User not authorized for this client's organization
+  - 404 Not Found: Client not found
+  """
+  def validate(conn, %{"client_id" => id}) do
+    # Validate UUID format before passing to repository
+    with {:ok, client_id} <- ClientId.from_string(id),
+         :ok <- validate_uuid_format(client_id),
+         {:ok, client} <- PostgreSQLOAuth2ClientRepository.find_by_id(client_id),
+         :ok <- verify_user_in_client_org(conn, client) do
+      checks = OAuth2ClientValidator.run(client)
+
+      conn
+      |> put_status(:ok)
+      |> json(%{
+        client_id: ClientId.to_string(client.id),
+        client_name: client.name,
+        organization_id: OrganizationId.to_string(client.organization_id),
+        validated_at: DateTime.utc_now() |> DateTime.to_iso8601(),
+        status: OAuth2ClientValidator.overall_status(checks),
+        summary: OAuth2ClientValidator.count_statuses(checks),
+        checks: checks
+      })
+    else
+      {:error, :invalid_id} ->
+        conn
+        |> put_status(:bad_request)
+        |> json(%{error: "Invalid client ID format"})
+
+      {:error, :invalid_uuid_format} ->
+        conn
+        |> put_status(:bad_request)
+        |> json(%{error: "Invalid client ID format — must be a valid UUID"})
+
+      {:error, :not_found} ->
+        conn
+        |> put_status(:not_found)
+        |> json(%{error: "Client not found"})
+
+      {:error, :forbidden} ->
+        conn
+        |> put_status(:forbidden)
+        |> json(%{
+          error: "Forbidden",
+          detail: "You do not have access to this client's organization"
+        })
+
+      {:error, _reason} ->
+        conn
+        |> put_status(:bad_request)
+        |> json(%{error: "Invalid client ID format"})
+    end
+  end
+
+  defp validate_uuid_format(client_id) do
+    # Extract the UUID part from "client_<uuid>" format
+    uuid = ClientId.to_string(client_id) |> String.replace_prefix("client_", "")
+
+    if String.match?(uuid, ~r/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i) do
+      :ok
+    else
+      {:error, :invalid_uuid_format}
+    end
+  end
+
+  defp verify_user_in_client_org(conn, %OAuth2Client{} = client) do
+    # API Keys have admin access — bypass org check
+    if conn.assigns[:auth_type] == :api_key do
+      :ok
+    else
+      client_org_id = OrganizationId.to_string(client.organization_id)
+      user_org_id = conn.assigns[:organization_id]
+
+      cond do
+        # PAT auth — organization_id is set directly on assigns
+        is_binary(user_org_id) and user_org_id == client_org_id ->
+          :ok
+
+        is_binary(user_org_id) and user_org_id != client_org_id ->
+          {:error, :forbidden}
+
+        # JWT auth — check current_user organization memberships
+        conn.assigns[:current_user] ->
+          verify_jwt_user_org(conn.assigns[:current_user], client_org_id)
+
+        # No organization context — allow in test/dev placeholder mode
+        true ->
+          allow_test_auth()
+      end
+    end
+  end
+
+  defp verify_jwt_user_org(user, client_org_id) do
+    user_orgs = get_user_organization_ids(user)
+
+    if client_org_id in user_orgs, do: :ok, else: {:error, :forbidden}
+  end
+
+  defp allow_test_auth do
+    if Mix.env() == :test or Application.get_env(:thalamus, :api_auth_placeholder, false),
+      do: :ok,
+      else: {:error, :forbidden}
+  end
+
+  defp get_user_organization_ids(user) do
+    case Map.get(user, :organization_id) do
+      nil -> extract_orgs_from_list(user)
+      org_id -> [org_id]
+    end
+  end
+
+  defp extract_orgs_from_list(user) do
+    user
+    |> Map.get(:organizations, [])
+    |> Enum.map(fn
+      %{id: id} when is_binary(id) -> id
+      %{id: id} -> OrganizationId.to_string(id)
+      id when is_binary(id) -> id
+      _ -> nil
+    end)
+    |> Enum.reject(&is_nil/1)
+  end
 
   defp extract_plain_secret(client_secret) when is_binary(client_secret) do
     # If it's a plain string (from generate_client_secret), return as-is

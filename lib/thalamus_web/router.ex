@@ -244,6 +244,10 @@ defmodule ThalamusWeb.Router do
 
     # Add dynamic redirect URI for subdomains
     post "/clients/:client_id/add-redirect-uri", OAuth2ClientController, :add_redirect_uri
+
+    # OAuth2 client diagnostic validation
+    get "/clients/:client_id/validate", OAuth2ClientController, :validate
+
     resources "/secrets", SecretController, only: [:index, :create, :delete]
   end
 
