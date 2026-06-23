@@ -7,7 +7,6 @@ defmodule ThalamusWeb.API.PasswordControllerTest do
   alias Thalamus.Infrastructure.Repositories.{
     PostgreSQLUserRepository,
     PostgreSQLOrganizationRepository,
-    PostgreSQLOAuth2ClientRepository,
     PostgreSQLTokenRepository
   }
 

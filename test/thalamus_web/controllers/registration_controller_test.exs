@@ -25,7 +25,9 @@ defmodule ThalamusWeb.RegistrationControllerTest do
 
       conn = post(conn, "/register", %{"registration" => valid_attrs})
       assert redirected_to(conn) == "/"
-      assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "Welcome to Thalamus! Your account has been created."
+
+      assert Phoenix.Flash.get(conn.assigns.flash, :info) =~
+               "Welcome to Thalamus! Your account has been created."
 
       # Verify user in database
       user = Repo.get_by(UserSchema, email: "test@example.com")

@@ -1,8 +1,6 @@
 defmodule ThalamusWeb.API.AgentTokenControllerTest do
   use ThalamusWeb.ConnCase, async: false
 
-  alias Thalamus.Domain.ValueObjects.UserId
-
   setup %{conn: conn} do
     {:ok, conn: put_req_header(conn, "accept", "application/json")}
   end

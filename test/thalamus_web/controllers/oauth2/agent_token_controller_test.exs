@@ -8,8 +8,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
   alias Thalamus.Infrastructure.Repositories.{
     PostgreSQLUserRepository,
     PostgreSQLOrganizationRepository,
-    PostgreSQLOAuth2ClientRepository,
-    PostgreSQLTokenRepository
+    PostgreSQLOAuth2ClientRepository
   }
 
   # Plain text secret for testing (matches the one in test_helpers.ex)
@@ -195,7 +194,7 @@ defmodule ThalamusWeb.OAuth2.AgentTokenControllerTest do
     test "returns error with missing client_id", %{
       conn: conn,
       delegator: delegator,
-      client: client
+      client: _client
     } do
       conn =
         post(conn, ~p"/oauth/agent-token", %{

@@ -1,7 +1,6 @@
 defmodule ThalamusWeb.OAuth2.TokenControllerTest do
   use ThalamusWeb.ConnCase, async: false
 
-  
   alias Thalamus.Domain.Entities.{User, Organization}
   alias Thalamus.Domain.ValueObjects.{AuthorizationCode, Scope, RedirectUri}
   alias Thalamus.TestHelpers

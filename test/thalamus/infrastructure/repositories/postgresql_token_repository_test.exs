@@ -204,7 +204,7 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLTokenRepositoryTest do
       user_uuid = create_test_user()
       delegator_uuid = create_test_user()
 
-      user_id = build_user_id(user_uuid)
+      _user_id = build_user_id(user_uuid)
       delegator_id = build_user_id(delegator_uuid)
 
       token_data =

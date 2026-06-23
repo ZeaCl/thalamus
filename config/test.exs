@@ -21,8 +21,8 @@ config :thalamus, ThalamusWeb.Endpoint,
   secret_key_base: "LdKro4VE1x55xLQ08UQ9Ef8JEhpCejwSDvpmSS1TOBvjx4UHKF+2TikmFf1UeS1D",
   server: false
 
-# Print only warnings and errors during test
-config :logger, level: :warning
+# Suppress log output during tests
+config :logger, level: :none
 
 # Initialize plugs at runtime for faster test compilation
 config :phoenix, :plug_init_mode, :runtime

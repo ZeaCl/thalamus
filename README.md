@@ -1,88 +1,83 @@
-# 🔐 ZEA Thalamus — Auth & Identity
+# 🔐 Thalamus — OAuth2 & Identity Provider
 
-**Enterprise OAuth2 + Multi-tenancy + User/Org Management**
+**Enterprise-grade authentication and authorization service. OAuth2, OpenID Connect, MFA, RBAC, multi-tenancy. Built with Elixir + Phoenix.**
 
-[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
-
----
-
-## 🎯 Features
-
-### Core OAuth2 (RFC Compliant)
-- ✅ **Authorization Code Grant** (RFC 6749)
-- ✅ **Client Credentials Grant** (RFC 6749)
-- ✅ **Refresh Token Grant** (RFC 6749)
-- ✅ **PKCE Support** (RFC 7636)
-- ✅ **Token Introspection** (RFC 7662)
-- ✅ **Token Revocation** (RFC 7009)
-
-### Security & Authentication
-- 🔒 **Multi-Factor Authentication** (TOTP)
-- 🔒 **Backup Codes** for account recovery
-- 🔒 **Email Verification** with secure tokens
-- 🔒 **Password Reset** with anti-enumeration
-- 🔒 **Admin API Keys** for service-to-service authentication
-- 🔒 **Rate Limiting** (per IP, user, client)
-- 🔒 **CORS Configuration** with origin whitelisting
-- 🔒 **Security Headers** (CSP, HSTS, X-Frame-Options)
-- 🔒 **Audit Logging** for all security events
-
-### Enterprise Features
-- 🏢 **Multi-Tenancy** with organization management
-- 🏢 **Role-Based Access Control** (RBAC)
-- 🏢 **User Management** API
-- 🏢 **Client Application** management
-- 🏢 **Flexible Plans** (Free, Starter, Professional, Enterprise)
-
-### Developer Experience
-- 📦 **TypeScript SDK** (`@zea/thalamus-js`) - Zero dependencies, fully typed
-- 📚 **OpenAPI 3.0 Documentation** (Swagger)
-- 🎯 **Complete Examples** (Next.js 14, Direct API integration)
-- 🐳 **Docker & Docker Compose** ready
-- 🔧 **Makefile** with common commands
-- 🧪 **Comprehensive Test Suite** (189 tests passing)
-- 📖 **Complete Documentation**
-
-### Admin Dashboard (NEW ✨)
-- 🎨 **Modern Web UI** built with Phoenix LiveView
-- 📊 **Real-time Statistics** (users, clients, organizations, tokens)
-- 👥 **User Management** (CRUD operations, password reset, status management)
-- 🔑 **OAuth2 Clients** (create, edit, rotate secrets, view tokens)
-- 🏢 **Organizations** (manage plans, users, settings)
-- 🎫 **Token Management** (view, revoke, filter by status)
-- 📝 **Audit Logs** (immutable security trail, advanced filtering)
-- 🧭 **Breadcrumb Navigation** for better UX
-- ⚡ **Loading States** with skeleton screens
-- 🌓 **Dark/Light/System Themes**
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
 
 ---
 
-## 📊 Project Status
+## 🚀 Quick Start
 
-**Version:** 0.9.0
-**Status:** Production-Ready
-**Completion:** 84% (36/43 tasks)
+```bash
+# Install dependencies, create DB, run migrations
+make setup
 
-### Implementation Status
-- ✅ Domain Layer: 100%
-- ✅ Application Layer: 100%
-- ✅ Infrastructure Layer: 100%
-- ✅ Web Dashboard: 100% (NEW ✨)
-- ✅ Presentation Layer: 100%
-- ✅ Security: 100%
-- ✅ Admin API Keys: 100%
-- ✅ Audit & Monitoring: 100% (NEW ✨)
-- ✅ UX & Polish: 100% (NEW ✨)
-- ⚠️  Testing: 80% (189 tests passing)
-- ⚠️  Documentation: 90%
+# Start the server
+make dev
+```
 
-See [STATUS.md](STATUS.md) for detailed status.
+Open `http://localhost:4000`. That's it.
+
+**Prerequisites:** Elixir 1.19+, Erlang 28+, PostgreSQL 16+. Redis 7+ optional.
+
+### Docker
+
+```bash
+docker-compose up -d
+```
 
 ---
 
-## 📦 SDK & Examples
+## ✨ Features
 
-### TypeScript SDK
+| Category | Capabilities |
+|---|---|
+| **OAuth2 / OIDC** | Authorization Code + PKCE, Client Credentials, Refresh Token rotation, Token Introspection (RFC 7662), Token Revocation (RFC 7009), OpenID Connect Discovery, JWKS, UserInfo |
+| **Security** | MFA (TOTP + backup codes), Bcrypt password hashing, Rate limiting (per IP/user/client), CORS, CSP/HSTS security headers, CSRF protection, Constant-time token comparison |
+| **Multi-tenancy** | Organizations with flexible plans (Free/Starter/Professional/Enterprise), Isolated user bases per org |
+| **RBAC** | Roles, permissions, domain-scoped roles, delegation chains, effective scope resolution |
+| **Agent Tokens** | Delegated tokens for multi-agent systems, task-level scoping, intent attestation, max operations tracking |
+| **Audit** | Immutable security event log, export API, advanced filtering |
+| **Admin** | LiveView dashboard, User/Client/Org/Token CRUD, Admin API Keys for M2M auth, Personal Access Tokens |
+| **SAML SSO** | Identity provider configuration, assertion validation, attribute mapping |
+
+---
+
+## 🔌 API Overview
+
+### OAuth2 Endpoints
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` `/POST` | `/oauth/authorize` | Authorization endpoint (user consent) |
+| `POST` | `/oauth/token` | Token exchange (all grant types) |
+| `POST` | `/oauth/introspect` | Token validation (RFC 7662) |
+| `POST` | `/oauth/revoke` | Token revocation (RFC 7009) |
+| `POST` | `/oauth/agent-token` | Agent token generation |
+| `GET` | `/oauth/userinfo` | OpenID Connect user info |
+| `GET` | `/.well-known/openid-configuration` | OIDC Discovery |
+| `GET` | `/.well-known/jwks.json` | JWKS public keys |
+
+### Management API
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/public/register` | User registration |
+| `POST` | `/api/public/login` | Password login |
+| `GET/POST/PUT/DELETE` | `/api/users` | User CRUD |
+| `GET/POST/PUT/DELETE` | `/api/organizations` | Organization management |
+| `GET/POST/PUT/DELETE` | `/api/clients` | OAuth2 client management |
+| `GET/POST/PUT/DELETE` | `/api/roles` | Role management |
+| `GET/POST/DELETE` | `/api/secrets` | Agent secrets |
+| `POST/DELETE` | `/api/domains/roles/grant` | Domain-scoped role assignment |
+| `GET` | `/api/audit-logs/export` | Audit log export |
+| `GET` | `/api/public/health` | Health check |
+
+Full spec: [`docs/OPENAPI_SPEC.yaml`](docs/OPENAPI_SPEC.yaml)
+
+---
+
+## 📦 SDK
 
 ```bash
 npm install @zea/thalamus-js
@@ -93,129 +88,70 @@ import { ThalamusClient } from '@zea/thalamus-js'
 
 const thalamus = new ThalamusClient({
   clientId: 'your_client_id',
-  clientSecret: 'your_client_secret',
-  redirectUri: 'http://localhost:3000/auth/callback',
+  redirectUri: 'http://localhost:3000/callback',
   baseUrl: 'http://localhost:4000',
 })
 
-// OAuth2 Authorization Code flow
-const authUrl = thalamus.auth.getAuthorizationUrl({ state: 'random-state' })
-const tokens = await thalamus.auth.exchangeCode('authorization_code')
+// OAuth2 PKCE flow
+const authUrl = thalamus.auth.getAuthorizationUrl({ state: crypto.randomUUID() })
+// ... after redirect:
+const tokens = await thalamus.auth.exchangeCode(code, codeVerifier)
 const user = await thalamus.tokens.getUserInfo(tokens.access_token)
 ```
 
-**Features:**
-- ✅ Zero dependencies
-- ✅ Full TypeScript support
-- ✅ OAuth2 2.0 compliant
-- ✅ All grant types supported
-- ✅ Token introspection & revocation
+React components (`@zea/thalamus-sdk`): `LoginButton`, `RegisterButton`, `UserMenu`, `UserTable`, `OrgManager`, `APIKeyManager`, `OrgSwitcher`.
 
-[View SDK Documentation →](./packages/thalamus-js/README.md)
-
-### Examples
-
-- **[Next.js 14 App Router](./examples/nextjs-app-router)** - Complete OAuth2 integration with React Server Components
-- **[Direct API Example](./examples/direct-api)** - Integration without SDK using vanilla `fetch()`
-
-[View All Examples →](./examples/README.md)
+Hooks: `useThalamus()` (login, logout, token, user), `useAdmin()` (users, agents, roles).
 
 ---
 
-## 🚀 Quick Start
+## 📖 Documentation
 
-### Prerequisites
-
-- **Elixir** 1.17+ and **Erlang** 26+
-- **PostgreSQL** 16+
-- **Redis** 7+ (optional, for rate limiting)
-- **Docker** & **Docker Compose** (optional)
-
-### Option 1: Docker (Recommended)
-
-```bash
-npm install @zea/thalamus-sdk
-npx thalamus-init
-```
-
-→ Abre navegador → Registrate → **User + Org + OAuth client creados automáticamente** ✅
-
-```tsx
-import { LoginButton, useThalamus } from '@zea/thalamus-sdk'
-
-function App() {
-  const { token, user, isAuthenticated } = useThalamus({
-    clientId: 'my_app',
-    redirectUri: `${location.origin}/callback`,
-    baseUrl: 'https://auth.zea.cl',
-  })
-
-  if (!isAuthenticated) return <LoginButton config={...} />
-  return <Dashboard user={user} />
-}
-```
-
----
-
-## 📦 SDK Components
-
-| Component | Descripción |
+| Doc | Audience |
 |---|---|
-| `LoginButton` | OAuth2 PKCE login en 1 click |
-| `RegisterButton` | Registro con org + app origin |
-| `UserMenu` | Avatar + logout |
-| `UserCreateForm` | Formulario crear usuarios/agentes |
-| `UserTable` | Tabla de usuarios |
-| `OrgManager` | Lista organizaciones |
-| `APIKeyManager` | Generar/revocar API keys |
-| `OrgSwitcher` | Dropdown cambiar de org |
-
-## 🪝 Hooks
-
-| Hook | Descripción |
-|---|---|
-| `useThalamus()` | `login`, `logout`, `token`, `user`, `isAuthenticated` |
-| `useAdmin()` | `users`, `agents`, `createUser`, `listDomainRoles` |
+| [Integration Guide](docs/INTEGRATION_GUIDE.md) | Teams integrating their app with Thalamus |
+| [Deployment Guide](docs/DEPLOYMENT_GUIDE.md) | DevOps deploying to production |
+| [OpenAPI Spec](docs/OPENAPI_SPEC.yaml) | API reference (Swagger) |
+| [Admin API Keys](docs/guides/admin-api-keys.md) | Service-to-service auth |
+| [OAuth2 Client Management](docs/guides/oauth2-client-management.md) | Managing registered apps |
+| [Secret Rotation](docs/guides/oauth2-client-secret-rotation.md) | Rotating client secrets |
+| [Dashboard Guide](docs/guides/dashboard-user-guide.md) | Admin UI |
+| [Tutorials](docs/tutorials/) | Step-by-step integration examples |
+| [SDK Changelog](CHANGELOG_SDK.md) | SDK release history |
 
 ---
 
-## 🔧 API
-
-| Endpoint | Descripción |
-|---|---|
-| `POST /oauth/token` | Token exchange (PKCE) |
-| `POST /oauth/introspect` | Validar token |
-| `GET /oauth/userinfo` | Info del usuario |
-| `GET/POST /api/users` | CRUD usuarios |
-| `GET /api/organizations` | Listar orgs |
-| `POST /api/domains/roles/grant` | Asignar roles |
-
----
-
-## 🛡️ Seguridad
-
-- ✅ OAuth2 PKCE (SPA, sin secret)
-- ✅ Client credentials (M2M)
-- ✅ Refresh token rotation
-- ✅ Rate limiting en `/register` (5/min por IP)
-- ✅ CORS por origin automático
-- ✅ CSRF protection (state param)
-- ✅ Public/confidential clients
-
----
-
-## 🏗️ Arquitectura
+## 🏗️ Architecture
 
 ```
 thalamus/
-├── lib/          # Backend Phoenix (Clean Architecture + SOLID)
-├── sdk/          # @zea/thalamus-sdk (React + CLI)
-├── skill/        # Skills para agentes
-└── config/       # Configuración
+├── lib/
+│   ├── thalamus/domain/         # Entities, Value Objects, Domain Services
+│   ├── thalamus/application/    # Use Cases, Ports (interfaces), DTOs
+│   ├── thalamus/infrastructure/ # PostgreSQL repos, Redis, SAML, Email adapters
+│   └── thalamus_web/            # Controllers, Plugs, LiveView, Router
+├── sdk/                         # @zea/thalamus-sdk (React + CLI)
+├── priv/repo/migrations/        # Database migrations
+├── config/                      # Environment configuration
+└── test/                        # 1,820 tests, 0 failures
+```
+
+**Clean Architecture + SOLID** — Domain layer has zero external dependencies. Infrastructure implements ports defined by the application layer.
+
+---
+
+## 🧪 Development
+
+```bash
+make setup          # deps + db + migrate
+make dev            # start server
+mix test            # 1,820 tests
+make check          # format + lint + test
+make precommit      # compile --warnings-as-errors + format + test
 ```
 
 ---
 
-## 📄 Licencia
+## 📄 License
 
-MIT — [ZEA Platform](https://github.com/zeacl)
+Apache 2.0 — [ZEA Platform](https://github.com/zeacl)

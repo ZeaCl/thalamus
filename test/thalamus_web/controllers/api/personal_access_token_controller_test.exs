@@ -133,7 +133,7 @@ defmodule ThalamusWeb.API.PersonalAccessTokenControllerTest do
   describe "DELETE /api/personal-access-tokens/:id" do
     test "deletes personal access token successfully", %{
       conn: conn,
-      user_id: user_id,
+      user_id: _user_id,
       org_id: org_id
     } do
       res_conn =

@@ -6,8 +6,7 @@ defmodule Thalamus.Domain.ValueObjects.AuthorizationCodeTest do
     UserId,
     ClientId,
     RedirectUri,
-    Scope,
-    PKCEChallenge
+    Scope
   }
 
   # Test fixtures

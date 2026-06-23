@@ -5,9 +5,7 @@ defmodule ThalamusWeb.API.DomainControllerTest do
 
   alias Thalamus.Infrastructure.Persistence.Schemas.{
     DomainScopeSchema,
-    UserDomainRoleSchema,
-    UserSchema,
-    OrganizationSchema
+    UserDomainRoleSchema
   }
 
   setup %{conn: conn} do

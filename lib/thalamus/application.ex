@@ -7,7 +7,7 @@ defmodule Thalamus.Application do
 
   @impl true
   def start(_type, _args) do
-    print_banner()
+    if Mix.env() != :test, do: print_banner()
 
     children = [
       ThalamusWeb.Telemetry,

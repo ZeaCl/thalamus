@@ -7,10 +7,8 @@ defmodule ThalamusWeb.API.MFAControllerTest do
   alias Thalamus.Infrastructure.Repositories.{
     PostgreSQLUserRepository,
     PostgreSQLOrganizationRepository,
-    PostgreSQLOAuth2ClientRepository,
     PostgreSQLTokenRepository
   }
-
 
   setup do
     # Create organization for OAuth2 client

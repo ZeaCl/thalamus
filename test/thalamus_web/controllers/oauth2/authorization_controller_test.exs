@@ -2,7 +2,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
   use ThalamusWeb.ConnCase, async: false
 
   alias Thalamus.Domain.Entities.{User, Organization}
-  
+
   alias Thalamus.TestHelpers
 
   alias Thalamus.Infrastructure.Repositories.{
