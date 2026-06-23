@@ -7,7 +7,7 @@ defmodule Thalamus.Application do
 
   @impl true
   def start(_type, _args) do
-    if Mix.env() != :test, do: print_banner()
+    if not is_test?(), do: print_banner()
 
     children = [
       ThalamusWeb.Telemetry,
@@ -47,6 +47,15 @@ defmodule Thalamus.Application do
       :mock ->
         # Use mock adapter, no supervisor needed
         children
+    end
+  end
+
+  defp is_test? do
+    # Mix is not available in production releases, use System.get_env as fallback
+    if Code.ensure_loaded?(Mix) do
+      Mix.env() == :test
+    else
+      System.get_env("MIX_ENV") == "test"
     end
   end
 

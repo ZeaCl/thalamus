@@ -108,15 +108,14 @@ defmodule ThalamusWeb.Plugs.APIAuth do
 
     # Placeholder implementation
     # In test environment, preserve existing assigns if present (for mocking)
-    if Mix.env() == :test and conn.assigns[:current_user] do
-      # Test mode: preserve mocked user
-      conn
-      |> assign(:auth_type, conn.assigns[:auth_type] || :jwt)
-    else
-      # Default placeholder
+    if Application.get_env(:thalamus, :api_auth_placeholder, false) do
+      # Placeholder mode: use default user
       conn
       |> assign(:auth_type, :jwt)
       |> assign(:current_user, %{id: "placeholder-user-id", email: "placeholder@test.com"})
+    else
+      conn
+      |> assign(:auth_type, conn.assigns[:auth_type] || :jwt)
       |> assign(:user_id, "placeholder-user-id")
     end
   end

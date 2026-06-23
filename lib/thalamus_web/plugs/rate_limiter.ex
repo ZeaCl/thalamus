@@ -83,10 +83,10 @@ defmodule ThalamusWeb.Plugs.RateLimiter do
   end
 
   def call(conn, opts) do
-    if Mix.env() == :test do
-      conn
-    else
+    if Application.get_env(:thalamus, :rate_limiting_enabled, true) do
       do_call(conn, opts)
+    else
+      conn
     end
   end
 
