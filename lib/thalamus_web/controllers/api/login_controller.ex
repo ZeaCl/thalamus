@@ -84,11 +84,16 @@ defmodule ThalamusWeb.API.LoginController do
   defp generate_token(user) do
     signer = Joken.Signer.create("HS256", signing_secret())
 
+    org_id =
+      if user.organization_id,
+        do: "org_#{user.organization_id}",
+        else: nil
+
     claims = %{
       "sub" => user.id,
       "email" => user.email,
       "name" => user.name,
-      "organization_id" => user.organization_id,
+      "organization_id" => org_id,
       "iat" => DateTime.utc_now() |> DateTime.to_unix(),
       "exp" => DateTime.utc_now() |> DateTime.to_unix() |> Kernel.+(3600)
     }
