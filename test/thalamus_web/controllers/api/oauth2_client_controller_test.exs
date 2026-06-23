@@ -13,6 +13,9 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
   }
 
   setup do
+    Application.put_env(:thalamus, :api_auth_placeholder, true)
+    on_exit(fn -> Application.delete_env(:thalamus, :api_auth_placeholder) end)
+
     # Create organization
     {:ok, org} = Organization.new("Test Corp", "owner@test.com", :standard)
     {:ok, org} = PostgreSQLOrganizationRepository.save(org)
@@ -634,6 +637,9 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
       access_token: token,
       org: org
     } do
+      # Disable placeholder auth for this specific test
+      Application.put_env(:thalamus, :api_auth_placeholder, false)
+
       # Create a client in the user's org
       {:ok, client} =
         TestHelpers.create_test_client(

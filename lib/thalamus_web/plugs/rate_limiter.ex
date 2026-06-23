@@ -152,40 +152,38 @@ defmodule ThalamusWeb.Plugs.RateLimiter do
   end
 
   defp check_rate_limit(key, limit, window_ms) do
-    # Current timestamp in seconds
     now = System.system_time(:second)
 
-    # Try to increment counter
     case RedisCacheAdapter.increment(key, 1) do
       {:ok, count} ->
-        if count == 1 do
-          # First request in window - set expiration
-          ttl_seconds = div(window_ms, 1000)
-          RedisCacheAdapter.expire(key, ttl_seconds)
-        end
-
-        if count <= limit do
-          # Within limit
-          remaining = limit - count
-          reset_at = now + div(window_ms, 1000)
-          {:ok, remaining, reset_at}
-        else
-          # Exceeded limit
-          case RedisCacheAdapter.ttl(key) do
-            {:ok, ttl} when ttl > 0 ->
-              {:error, :rate_limited, ttl}
-
-            _ ->
-              # Key expired or error - reset and allow
-              RedisCacheAdapter.delete(key)
-              check_rate_limit(key, limit, window_ms)
-          end
-        end
+        handle_rate_limit_increment(key, count, limit, window_ms, now)
 
       {:error, _reason} ->
-        # Cache error - fail open (allow request)
-        # In production, you might want to fail closed instead
         {:ok, limit - 1, now + div(window_ms, 1000)}
+    end
+  end
+
+  defp handle_rate_limit_increment(key, count, limit, window_ms, now) do
+    if count == 1 do
+      ttl_seconds = div(window_ms, 1000)
+      RedisCacheAdapter.expire(key, ttl_seconds)
+    end
+
+    if count <= limit do
+      {:ok, limit - count, now + div(window_ms, 1000)}
+    else
+      handle_rate_limit_exceeded(key, limit, window_ms)
+    end
+  end
+
+  defp handle_rate_limit_exceeded(key, limit, window_ms) do
+    case RedisCacheAdapter.ttl(key) do
+      {:ok, ttl} when ttl > 0 ->
+        {:error, :rate_limited, ttl}
+
+      _ ->
+        RedisCacheAdapter.delete(key)
+        check_rate_limit(key, limit, window_ms)
     end
   end
 
@@ -225,7 +223,6 @@ defmodule ThalamusWeb.Plugs.RateLimiter do
         case conn.remote_ip do
           {a, b, c, d} -> "#{a}.#{b}.#{c}.#{d}"
           {a, b, c, d, e, f, g, h} -> "#{a}:#{b}:#{c}:#{d}:#{e}:#{f}:#{g}:#{h}"
-          _ -> "unknown"
         end
     end
   end

@@ -266,8 +266,9 @@ defmodule Thalamus.OAuth2ClientValidator do
   # ── Check: Endpoint health ───────────────────────────────────────────────
 
   defp check_endpoint_health do
-    # Skip health checks in test environment to avoid network timeouts
-    if Mix.env() == :test do
+    # Skip health checks in test environment or when configured to skip
+    if Application.get_env(:thalamus, :skip_health_checks, false) or
+         System.get_env("SKIP_HEALTH_CHECKS") == "true" do
       [
         %{check: "jwks_endpoint", status: "pass"},
         %{check: "authorize_endpoint", status: "pass"},

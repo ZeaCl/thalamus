@@ -54,3 +54,6 @@ config :thalamus, Oban,
 
 # Reduce Bcrypt cost for faster tests (production uses log_rounds: 12)
 config :bcrypt_elixir, log_rounds: 4
+
+# Skip endpoint health checks in test (prevents network timeouts)
+config :thalamus, :skip_health_checks, true

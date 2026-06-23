@@ -1,4 +1,4 @@
-import { T as ThalamusConfig$1, U as UserInfo$1, a as User$1, O as Organization, R as Role, D as DomainRole$1 } from './index-BnHWPrKX.js';
+import { T as ThalamusConfig$1, U as UserInfo$1, a as User$1, O as Organization, R as Role, D as DomainRole$1 } from './index-BnHWPrKX.mjs';
 
 /**
  * ZEA Thalamus SDK Types
@@ -36,7 +36,11 @@ interface IntrospectionResponse {
     token_type?: string;
     exp?: number;
     iat?: number;
+    nbf?: number;
     sub?: string;
+    aud?: string;
+    iss?: string;
+    jti?: string;
     agent_type?: 'autonomous' | 'supervised' | 'ephemeral';
     delegated_by?: string;
     delegation_chain?: string[];
