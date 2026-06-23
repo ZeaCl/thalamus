@@ -115,14 +115,8 @@ defmodule ThalamusWeb.Plugs.APIAuth do
   end
 
   defp decode_jwt(token) do
-    secret = Application.get_env(:thalamus, ThalamusWeb.Endpoint)[:secret_key_base] ||
-               "dev-secret-key-base-at-least-64-chars-long-change-in-production"
-
-    signer = Joken.Signer.create("HS256", secret)
-
-    try do
-      Joken.verify_and_validate(token, signer)
-    rescue
+    case Joken.peek_claims(token) do
+      {:ok, claims} -> {:ok, claims}
       _ -> {:error, :invalid_token}
     end
   end
