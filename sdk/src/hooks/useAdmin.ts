@@ -24,7 +24,7 @@ export interface UseAdminReturn {
 
 export function useAdmin(options: UseAdminOptions): UseAdminReturn {
   const { baseUrl } = options
-  const clientRef = useRef(new ThalamusClient({ clientId: 'admin', redirectUri: '', baseUrl }))
+  const clientRef = useRef(new ThalamusClient({ clientId: 'admin', redirectUri: typeof window !== 'undefined' ? window.location.origin : 'http://localhost', baseUrl }))
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
