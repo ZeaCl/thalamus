@@ -8,7 +8,15 @@ defmodule Thalamus.Release do
     load_app()
 
     for repo <- repos() do
-      {:ok, _, _} = Ecto.Migrator.with_repo(repo, &Ecto.Migrator.run(&1, :up, all: true))
+      {:ok, _, _} = Ecto.Migrator.with_repo(repo, fn repo_module ->
+        Ecto.Migrator.run(repo_module, :up, all: true)
+
+        seed_script = Application.app_dir(@app, "priv/repo/seeds.exs")
+        if File.exists?(seed_script) do
+          IO.puts("Running seed script...")
+          Code.eval_file(seed_script)
+        end
+      end)
     end
   end
 
