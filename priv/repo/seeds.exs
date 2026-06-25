@@ -223,13 +223,13 @@ case Repo.get(OAuth2ClientSchema, platform_web_client_id) ||
       id: platform_web_client_id,
       client_id_string: "platform_web",
       name: "ZEA Platform",
-      client_type: :confidential,
+      client_type: :public,
       client_secret: hashed_secret,
       organization_id: zea_org_id,
       redirect_uris: platform_web_uris,
       allowed_grant_types: ["authorization_code", "refresh_token"],
       allowed_scopes: ["openid", "profile", "email", "zea:read", "zea:write"],
-      pkce_required: false
+      pkce_required: true
     }
 
     %OAuth2ClientSchema{}
