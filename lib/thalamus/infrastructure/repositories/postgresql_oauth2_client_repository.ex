@@ -36,9 +36,17 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository 
     # Remove "client_" prefix if present (OAuth endpoints send with prefix, DB stores without)
     uuid_only = String.replace_prefix(client_id_string, "client_", "")
 
-    OAuth2ClientSchema
-    |> where([c], c.client_id_string == ^uuid_only)
-    |> Repo.one()
+    case Ecto.UUID.cast(uuid_only) do
+      {:ok, valid_uuid} ->
+        OAuth2ClientSchema
+        |> where([c], c.id == ^valid_uuid or c.client_id_string == ^uuid_only)
+        |> Repo.one()
+
+      :error ->
+        OAuth2ClientSchema
+        |> where([c], c.client_id_string == ^uuid_only)
+        |> Repo.one()
+    end
     |> case do
       nil -> {:error, :not_found}
       schema -> schema_to_entity(schema)
