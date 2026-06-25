@@ -99,8 +99,8 @@ sudlich_org =
 c_user_id = "c0000000-852c-44e5-aee1-a761ec76eaea"
 ccerda_user_id = "c0000001-852c-44e5-aee1-a761ec76eaea"
 
-c_pass_hash = Bcrypt.hash_pwd_salt("ZeaPassword123!")
-ccerda_pass_hash = Bcrypt.hash_pwd_salt("SudlichPassword123!")
+c_pass_hash = Bcrypt.hash_pwd_salt("GusVicentAnto1.")
+ccerda_pass_hash = Bcrypt.hash_pwd_salt("GusVicentAnto1.")
 
 c_user =
   case Repo.get(UserSchema, c_user_id) || Repo.get_by(UserSchema, email: "c@zea.cl") do
