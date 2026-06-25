@@ -14,36 +14,58 @@ defmodule ThalamusWeb.RegistrationController do
   def create(conn, %{"registration" => registration_params}) do
     email = registration_params["email"]
     password = registration_params["password"]
+    password_confirmation = registration_params["password_confirmation"]
     name = registration_params["name"]
 
-    # Validate inputs
-    with {:ok, email_string} <- validate_required(email, "email"),
-         {:ok, password_string} <- validate_required(password, "password"),
-         {:ok, name_string} <- validate_required(name, "name"),
-         {:ok, email_vo} <- Email.new(email_string),
-         {:ok, nil} <- check_email_available(email_vo),
-         # Create personal organization first
-         {:ok, organization} <- create_personal_organization(name_string, email_string),
-         {:ok, saved_org} <- PostgreSQLOrganizationRepository.save(organization),
-         # Create user (domain entity doesn't have organization_id)
-         {:ok, user} <- create_user(email_string, password_string, name_string),
-         {:ok, saved_user} <- PostgreSQLUserRepository.save(user),
-         # Associate user with organization at schema level
-         :ok <- update_user_organization(saved_user.id, saved_org.id),
-         # Auto-verify user (skip email verification for MVP)
-         {:ok, verified_user} <- User.verify_email(saved_user),
-         {:ok, final_user} <- PostgreSQLUserRepository.save(verified_user) do
-      # Extract UUID without "user_" prefix for session
-      user_id_string = UserId.to_string(final_user.id)
-      uuid_only = String.replace_prefix(user_id_string, "user_", "")
+    # Wrap the registration logic in a transaction to prevent ghost entities
+    result =
+      Thalamus.Repo.transaction(fn ->
+        with {:ok, email_string} <- validate_required(email, "email"),
+             {:ok, password_string} <- validate_required(password, "password"),
+             {:ok, ^password_string} <- validate_password_confirmation(password, password_confirmation),
+             {:ok, name_string} <- validate_required(name, "name"),
+             {:ok, email_vo} <- Email.new(email_string),
+             {:ok, nil} <- check_email_available(email_vo),
+             # Create personal organization first
+             {:ok, organization} <- create_personal_organization(name_string, email_string),
+             {:ok, saved_org} <- PostgreSQLOrganizationRepository.save(organization),
+             # Create user (domain entity doesn't have organization_id)
+             {:ok, user} <- create_user(email_string, password_string, name_string),
+             {:ok, saved_user} <- PostgreSQLUserRepository.save(user),
+             # Auto-verify user (skip email verification for MVP)
+             {:ok, verified_user} <- User.verify_email(saved_user),
+             {:ok, final_user} <- PostgreSQLUserRepository.save(verified_user),
+             # Associate user with organization at schema level (MUST be after all user saves to prevent overwrite)
+             :ok <- update_user_organization(final_user.id, saved_org.id) do
+          final_user
+        else
+          {:error, :missing_parameter, param} ->
+            Thalamus.Repo.rollback({:missing_parameter, param})
 
-      # Log the user in immediately
-      conn
-      |> put_flash(:info, "Welcome to Thalamus! Your account has been created.")
-      |> put_session(:user_id, uuid_only)
-      |> redirect(to: ~p"/")
-    else
-      {:error, :missing_parameter, param} ->
+          {:error, reason} ->
+            Thalamus.Repo.rollback(reason)
+        end
+      end)
+
+    case result do
+      {:ok, final_user} ->
+        # Extract UUID without "user_" prefix for session
+        user_id_string = UserId.to_string(final_user.id)
+        uuid_only = String.replace_prefix(user_id_string, "user_", "")
+
+        # Check if there's an OAuth2 authorization request in session
+        authorization_request = get_session(conn, :authorization_request)
+        return_to = get_session(conn, :return_to)
+
+        # Log the user in immediately
+        conn
+        |> put_flash(:info, "Welcome to Thalamus! Your account has been created.")
+        |> put_session(:user_id, uuid_only)
+        |> delete_session(:return_to)
+        |> delete_session(:authorization_request)
+        |> redirect_after_registration(authorization_request, return_to)
+
+      {:error, {:missing_parameter, param}} ->
         conn
         |> put_flash(:error, "Please provide #{param}")
         |> render(:new, layout: false)
@@ -56,6 +78,11 @@ defmodule ThalamusWeb.RegistrationController do
       {:error, :invalid_email} ->
         conn
         |> put_flash(:error, "Please provide a valid email address")
+        |> render(:new, layout: false)
+
+      {:error, :password_mismatch} ->
+        conn
+        |> put_flash(:error, "Passwords do not match")
         |> render(:new, layout: false)
 
       {:error, reason} when is_atom(reason) ->
@@ -86,6 +113,14 @@ defmodule ThalamusWeb.RegistrationController do
   defp validate_required(nil, param), do: {:error, :missing_parameter, param}
   defp validate_required("", param), do: {:error, :missing_parameter, param}
   defp validate_required(value, _param), do: {:ok, value}
+
+  defp validate_password_confirmation(password, password_confirmation) do
+    if password == password_confirmation do
+      {:ok, password}
+    else
+      {:error, :password_mismatch}
+    end
+  end
 
   defp check_email_available(email) do
     case PostgreSQLUserRepository.find_by_email(email) do
@@ -132,8 +167,8 @@ defmodule ThalamusWeb.RegistrationController do
       nil ->
         {:error, :user_not_found}
 
-      user_schema ->
-        user_schema
+      user ->
+        user
         |> Ecto.Changeset.change(%{organization_id: org_uuid})
         |> Thalamus.Repo.update()
         |> case do
@@ -141,6 +176,28 @@ defmodule ThalamusWeb.RegistrationController do
           {:error, changeset} -> {:error, changeset}
         end
     end
+  end
+
+  defp get_return_to(conn) do
+    get_session(conn, :return_to) || conn.params["return_to"] ||
+      System.get_env("DEFAULT_REDIRECT_URL") || "http://zea.localhost/dashboard"
+  end
+
+  defp redirect_after_registration(conn, nil, return_to) do
+    target = return_to || get_return_to(conn)
+
+    if String.starts_with?(target, "http://") or String.starts_with?(target, "https://") do
+      redirect(conn, external: target)
+    else
+      redirect(conn, to: target)
+    end
+  end
+
+  defp redirect_after_registration(conn, authorization_request, _return_to)
+       when is_map(authorization_request) do
+    # Rebuild authorization URL with original OAuth2 parameters
+    query_string = URI.encode_query(authorization_request)
+    redirect(conn, to: "/oauth/authorize?" <> query_string)
   end
 
   defp parse_changeset_errors(changeset) do

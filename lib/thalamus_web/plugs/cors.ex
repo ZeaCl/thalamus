@@ -110,7 +110,7 @@ defmodule ThalamusWeb.Plugs.CORS do
   defp origin_allowed?(nil, _origins), do: false
 
   defp origin_allowed?(origin, origins) when is_list(origins) do
-    Enum.any?(origins, fn allowed_origin ->
+    static_allowed? = Enum.any?(origins, fn allowed_origin ->
       cond do
         # Allow all
         allowed_origin == "*" ->
@@ -135,6 +135,13 @@ defmodule ThalamusWeb.Plugs.CORS do
           false
       end
     end)
+
+    if static_allowed? do
+      true
+    else
+      # Fallback to dynamic CORS Registry
+      Thalamus.CORSRegistry.member?(origin)
+    end
   end
 
   defp maybe_put_credentials(conn, true) do

@@ -63,6 +63,11 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
       assert conn.resp_body =~ "Authorize Access"
       assert conn.resp_body =~ client.name
       assert conn.resp_body =~ "api:read"
+
+      # Validate dynamic CSP injection
+      [csp] = Plug.Conn.get_resp_header(conn, "content-security-policy")
+      assert csp =~ "http://localhost:3000:*"
+      assert csp =~ "https://localhost:3000:*"
     end
 
     test "shows consent screen with PKCE parameters", %{conn: conn, client: client} do

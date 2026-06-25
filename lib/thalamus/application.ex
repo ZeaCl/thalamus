@@ -18,7 +18,8 @@ defmodule Thalamus.Application do
       # Start a worker by calling: Thalamus.Worker.start_link(arg)
       # {Thalamus.Worker, arg},
       # Start to serve requests, typically the last entry
-      ThalamusWeb.Endpoint
+      ThalamusWeb.Endpoint,
+      Thalamus.CORSRegistry
     ]
 
     # Add Redis cache adapter if configured
@@ -27,7 +28,18 @@ defmodule Thalamus.Application do
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
     opts = [strategy: :one_for_one, name: Thalamus.Supervisor]
-    Supervisor.start_link(children, opts)
+
+    case Supervisor.start_link(children, opts) do
+      {:ok, pid} ->
+        Task.start(fn ->
+          Thalamus.CORSRegistry.rebuild_from_clients()
+        end)
+
+        {:ok, pid}
+
+      error ->
+        error
+    end
   end
 
   # Tell Phoenix to update the endpoint configuration

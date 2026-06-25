@@ -105,9 +105,10 @@ defmodule ThalamusWeb.OAuth2.AuthorizationController do
           end
 
         {:error, :not_authenticated} ->
-          # User not authenticated - redirect to login
+          # User not authenticated (or deleted from DB) - redirect to login
           # Store authorization request in session for after login
           conn
+          |> clear_session()
           |> put_session(:authorization_request, params)
           |> redirect(to: "/login?return_to=" <> URI.encode_www_form("/oauth/authorize"))
       end
@@ -335,25 +336,46 @@ defmodule ThalamusWeb.OAuth2.AuthorizationController do
 
           user_id_string ->
             case UserId.from_string(user_id_string) do
-              {:ok, user_id} -> {:ok, user_id}
+              {:ok, user_id} -> verify_user_in_db(user_id)
               {:error, _} -> {:error, :not_authenticated}
             end
         end
 
       user_id when is_binary(user_id) ->
         case UserId.from_string(user_id) do
-          {:ok, user_id_vo} -> {:ok, user_id_vo}
+          {:ok, user_id_vo} -> verify_user_in_db(user_id_vo)
           {:error, _} -> {:error, :not_authenticated}
         end
 
       user_id ->
-        {:ok, user_id}
+        verify_user_in_db(user_id)
+    end
+  end
+
+  defp verify_user_in_db(user_id) do
+    alias Thalamus.Infrastructure.Persistence.Schemas.UserSchema
+    
+    user_id_string = UserId.to_string(user_id)
+    user_uuid = String.replace_prefix(user_id_string, "user_", "")
+    
+    case Thalamus.Repo.get(UserSchema, user_uuid) do
+      nil -> {:error, :not_authenticated}
+      _user -> {:ok, user_id}
     end
   end
 
   defp render_consent_screen(conn, data) do
     # Convert scopes to strings for rendering (handle both Scope structs and strings)
     scope_strings = Enum.map(data.scopes, &scope_to_string/1)
+
+    # Inyectar el host del redirect_uri en la cabecera CSP (form-action)
+    host = extract_host(data.redirect_uri)
+    conn =
+      if host do
+        ThalamusWeb.Plugs.SecurityHeaders.add_form_action(conn, host)
+      else
+        conn
+      end
 
     # Render HTML consent screen
     render(conn, :consent,
@@ -370,6 +392,13 @@ defmodule ThalamusWeb.OAuth2.AuthorizationController do
         code_challenge_method: data.pkce_params.code_challenge_method
       }
     )
+  end
+
+  defp extract_host(uri_str) do
+    uri = URI.parse(uri_str)
+    if uri.port && uri.port not in [80, 443], do: "#{uri.host}:#{uri.port}", else: uri.host
+  rescue
+    _ -> nil
   end
 
   defp generate_authorization_code(conn, data) do

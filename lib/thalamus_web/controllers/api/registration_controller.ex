@@ -66,42 +66,56 @@ defmodule ThalamusWeb.API.RegistrationController do
       }
   """
   def create(conn, params) do
-    with {:ok, email_string} <- get_required_param(params, "email"),
-         {:ok, password} <- get_required_param(params, "password"),
-         {:ok, password_confirmation} <- get_required_param(params, "password_confirmation"),
-         :ok <- validate_password_confirmation(password, password_confirmation),
-         {:ok, email_vo} <- Email.new(email_string),
-         {:ok, nil} <- check_email_available(email_vo),
-         # Create user first (without organization)
-         {:ok, user} <- create_user(email_string, password, params),
-         {:ok, saved_user} <- PostgreSQLUserRepository.save(user),
-         # Now create organization with user as owner (if organization_name provided)
-         {:ok, organization} <- create_organization_if_provided(params, saved_user),
-         # Associate user with organization if created
-         :ok <- associate_user_with_organization(saved_user, organization) do
-      # Generate verification token
-      verification_token = generate_verification_token(saved_user.id)
+    result =
+      Thalamus.Repo.transaction(fn ->
+        with {:ok, email_string} <- get_required_param(params, "email"),
+             {:ok, password} <- get_required_param(params, "password"),
+             {:ok, password_confirmation} <- get_required_param(params, "password_confirmation"),
+             :ok <- validate_password_confirmation(password, password_confirmation),
+             {:ok, email_vo} <- Email.new(email_string),
+             {:ok, nil} <- check_email_available(email_vo),
+             # Create user first (without organization)
+             {:ok, user} <- create_user(email_string, password, params),
+             {:ok, saved_user} <- PostgreSQLUserRepository.save(user),
+             # Now create organization with user as owner (if organization_name provided)
+             {:ok, organization} <- create_organization_if_provided(params, saved_user),
+             # Associate user with organization if created
+             :ok <- associate_user_with_organization(saved_user, organization) do
+          saved_user
+        else
+          {:error, :missing_parameter, param} ->
+            Thalamus.Repo.rollback({:missing_parameter, param})
 
-      # TODO: Send verification email
-      # EmailService.send_verification_email(saved_user.email, verification_token)
+          {:error, reason} ->
+            Thalamus.Repo.rollback(reason)
+        end
+      end)
 
-      # Build response
-      conn
-      |> put_status(:created)
-      |> json(%{
-        data: %{
-          id: UserId.to_string(saved_user.id),
-          email: Email.to_string(saved_user.email),
-          status: "pending_verification",
-          verified: false
-        },
-        message:
-          "Registration successful. Please check your email for verification instructions.",
-        # DEVELOPMENT ONLY - remove in production
-        verification_token: verification_token
-      })
-    else
-      {:error, :missing_parameter, param} ->
+    case result do
+      {:ok, saved_user} ->
+        # Generate verification token
+        verification_token = generate_verification_token(saved_user.id)
+
+        # TODO: Send verification email
+        # EmailService.send_verification_email(saved_user.email, verification_token)
+
+        # Build response
+        conn
+        |> put_status(:created)
+        |> json(%{
+          data: %{
+            id: UserId.to_string(saved_user.id),
+            email: Email.to_string(saved_user.email),
+            status: "pending_verification",
+            verified: false
+          },
+          message:
+            "Registration successful. Please check your email for verification instructions.",
+          # DEVELOPMENT ONLY - remove in production
+          verification_token: verification_token
+        })
+
+      {:error, {:missing_parameter, param}} ->
         conn
         |> put_status(:bad_request)
         |> json(%{error: "Missing required parameter: #{param}"})

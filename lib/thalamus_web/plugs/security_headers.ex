@@ -93,6 +93,22 @@ defmodule ThalamusWeb.Plugs.SecurityHeaders do
     |> maybe_put_hsts_header(config.hsts_max_age)
   end
 
+  @doc """
+  Dynamically appends a host to the CSP form-action directive.
+  Used by authorization controllers to allow form submission to specific client URIs.
+  """
+  def add_form_action(conn, host) do
+    case Plug.Conn.get_resp_header(conn, "content-security-policy") do
+      [csp | _] ->
+        # Find form-action and append the host with both http and https and optional port
+        new_csp = String.replace(csp, "form-action ", "form-action http://#{host}:* https://#{host}:* ")
+        Plug.Conn.put_resp_header(conn, "content-security-policy", new_csp)
+        
+      [] ->
+        conn
+    end
+  end
+
   # Private functions
 
   defp put_csp_header(conn, policy) do
