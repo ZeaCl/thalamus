@@ -1,5 +1,5 @@
 {
-  "name": "@zeacl/auth",
+  "name": "@zea.cl/auth",
   "version": "0.1.6",
   "description": "ZEA Thalamus SDK — Auth, User Management, and Organization Context",
   "main": "dist/index.js",
