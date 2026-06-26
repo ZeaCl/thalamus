@@ -109,6 +109,7 @@ interface OrgSwitcherProps {
     /** Called when user switches org */
     onSwitch?: (orgId: string) => void;
     className?: string;
+    style?: React.CSSProperties;
 }
 /**
  * Organization switcher dropdown.
@@ -121,7 +122,7 @@ interface OrgSwitcherProps {
  * />
  * ```
  */
-declare function OrgSwitcher({ config, onSwitch, className }: OrgSwitcherProps): React.JSX.Element | null;
+declare function OrgSwitcher({ config, onSwitch, className, style }: OrgSwitcherProps): React.JSX.Element | null;
 
 interface OrgManagerProps {
     config: ThalamusConfig;

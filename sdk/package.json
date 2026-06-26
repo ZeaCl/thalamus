@@ -1,6 +1,6 @@
 {
   "name": "@zeacl/auth",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "ZEA Thalamus React Auth SDK — OAuth2 PKCE login, user/org management, API keys for React apps",
   "main": "dist/index.js",
   "module": "dist/index.mjs",

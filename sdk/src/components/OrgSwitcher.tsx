@@ -51,15 +51,10 @@ export function OrgSwitcher({ config, onSwitch, className, style }: OrgSwitcherP
 
   return (
     <select
-      className={className}
+      className={`th-select ${className || ''}`}
       value={selected}
       onChange={e => { setSelected(e.target.value); onSwitch?.(e.target.value) }}
-      style={{
-        padding: '6px 28px 6px 12px', borderRadius: 6, border: '1px solid #30363d',
-        background: '#161b22', color: '#e6edf3', fontSize: 13, fontFamily: 'system-ui, sans-serif',
-        cursor: 'pointer', outline: 'none',
-        ...style
-      }}
+      style={style}
     >
       <option value="">Select org...</option>
       {orgs.map(org => (

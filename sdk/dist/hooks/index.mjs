@@ -576,7 +576,7 @@ async function pkceChallenge(verifier) {
 }
 function useAdmin(options) {
   const { baseUrl } = options;
-  const clientRef = useRef(new ThalamusClient({ clientId: "admin", redirectUri: "", baseUrl }));
+  const clientRef = useRef(new ThalamusClient({ clientId: "admin", redirectUri: typeof window !== "undefined" ? window.location.origin : "http://localhost", baseUrl }));
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);

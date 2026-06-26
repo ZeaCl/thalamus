@@ -757,9 +757,20 @@ function APIKeyManager({ baseUrl, authStorageKey = "thalamus_auth", label = "+ G
     ] })
   ] });
 }
-function OrgSwitcher({ config, onSwitch, className }) {
+function OrgSwitcher({ config, onSwitch, className, style }) {
   const [orgs, setOrgs] = useState([]);
-  const [selected, setSelected] = useState("");
+  const [selected, setSelected] = useState(() => {
+    try {
+      const authStr = typeof window !== "undefined" ? localStorage.getItem("thalamus_auth") : null;
+      if (authStr) {
+        const auth = JSON.parse(authStr);
+        return auth.user?.organization_id || "";
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return "";
+  });
   const [loading, setLoading] = useState(true);
   useEffect(() => {
     const client = new ThalamusClient(config);
@@ -773,23 +784,13 @@ function OrgSwitcher({ config, onSwitch, className }) {
   return /* @__PURE__ */ jsxs(
     "select",
     {
-      className,
+      className: `th-select ${className || ""}`,
       value: selected,
       onChange: (e) => {
         setSelected(e.target.value);
         onSwitch?.(e.target.value);
       },
-      style: {
-        padding: "6px 12px",
-        borderRadius: 6,
-        border: "1px solid #30363d",
-        background: "#161b22",
-        color: "#e6edf3",
-        fontSize: 13,
-        fontFamily: "system-ui, sans-serif",
-        cursor: "pointer",
-        outline: "none"
-      },
+      style,
       children: [
         /* @__PURE__ */ jsx("option", { value: "", children: "Select org..." }),
         orgs.map((org) => /* @__PURE__ */ jsx("option", { value: org.id, children: org.name }, org.id))
@@ -811,12 +812,12 @@ function OrgManager({ config, className }) {
       setLoading(false);
     });
   }, [config.baseUrl, config.clientId, config.redirectUri]);
-  if (loading) return /* @__PURE__ */ jsx("p", { style: { color: "#656d76", fontSize: 13 }, children: "Loading..." });
-  if (error) return /* @__PURE__ */ jsx("div", { style: { padding: "8px 12px", background: "#fff0f0", borderRadius: 6, color: "#c00", fontSize: 12 }, children: error });
-  if (orgs.length === 0) return /* @__PURE__ */ jsx("p", { style: { color: "#656d76", fontSize: 13 }, children: "No organizations." });
-  return /* @__PURE__ */ jsx("div", { className, style: { display: "flex", flexDirection: "column", gap: 12, fontFamily: "system-ui, sans-serif" }, children: orgs.map((org) => /* @__PURE__ */ jsxs("div", { style: { padding: "16px", border: "1px solid #d0d7de", borderRadius: 8 }, children: [
-    /* @__PURE__ */ jsx("div", { style: { fontWeight: 600, fontSize: 15 }, children: org.name }),
-    /* @__PURE__ */ jsxs("div", { style: { fontSize: 12, color: "#656d76", marginTop: 4 }, children: [
+  if (loading) return /* @__PURE__ */ jsx("p", { className: "th-loading", children: "Loading..." });
+  if (error) return /* @__PURE__ */ jsx("div", { className: "th-alert", children: error });
+  if (orgs.length === 0) return /* @__PURE__ */ jsx("p", { className: "th-empty", children: "No organizations." });
+  return /* @__PURE__ */ jsx("div", { className: `th-list ${className || ""}`, children: orgs.map((org) => /* @__PURE__ */ jsxs("div", { className: "th-card", children: [
+    /* @__PURE__ */ jsx("div", { className: "th-card-title", children: org.name }),
+    /* @__PURE__ */ jsxs("div", { className: "th-card-desc", children: [
       "Domains: ",
       (org.domains || []).join(", ") || "none"
     ] })
@@ -846,47 +847,42 @@ function UserCreateForm({ config, onCreated, className }) {
     }
     setLoading(false);
   };
-  return /* @__PURE__ */ jsxs("form", { onSubmit: handleSubmit, className, style: { display: "flex", flexDirection: "column", gap: 12, fontFamily: "system-ui, sans-serif" }, children: [
-    /* @__PURE__ */ jsxs("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }, children: [
+  return /* @__PURE__ */ jsxs("form", { onSubmit: handleSubmit, className: `th-form ${className || ""}`, children: [
+    /* @__PURE__ */ jsxs("div", { className: "th-form-grid", children: [
       /* @__PURE__ */ jsx("input", { required: true, placeholder: "Email", type: "email", value: email, onChange: (e) => setEmail(e.target.value), className: "th-input" }),
       /* @__PURE__ */ jsx("input", { required: true, placeholder: "Password", type: "password", value: password, onChange: (e) => setPassword(e.target.value), className: "th-input", minLength: 8 }),
       /* @__PURE__ */ jsx("input", { placeholder: "Name (optional)", value: name, onChange: (e) => setName(e.target.value), className: "th-input" }),
-      /* @__PURE__ */ jsxs("label", { style: { display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#656d76", cursor: "pointer" }, children: [
+      /* @__PURE__ */ jsxs("label", { className: "th-checkbox-label", children: [
         /* @__PURE__ */ jsx("input", { type: "checkbox", checked: isAgent, onChange: (e) => setIsAgent(e.target.checked) }),
         " Is Agent"
       ] })
     ] }),
-    error && /* @__PURE__ */ jsx("div", { style: { padding: "8px 12px", background: "#fff0f0", borderRadius: 6, color: "#c00", fontSize: 12 }, children: error }),
-    /* @__PURE__ */ jsx("button", { type: "submit", disabled: loading, className: "th-btn th-btn--primary", style: { alignSelf: "flex-start" }, children: loading ? "Creating..." : "Create User" })
+    error && /* @__PURE__ */ jsx("div", { className: "th-alert", children: error }),
+    /* @__PURE__ */ jsx("div", { children: /* @__PURE__ */ jsx("button", { type: "submit", disabled: loading, className: "th-btn th-btn--primary", children: loading ? "Creating..." : "Create User" }) })
   ] });
 }
 function UserTable({ users, loading, error, className }) {
-  if (loading) return /* @__PURE__ */ jsx("p", { style: { color: "#656d76", fontSize: 13 }, children: "Loading..." });
-  if (error) return /* @__PURE__ */ jsx("div", { style: { padding: "8px 12px", background: "#fff0f0", borderRadius: 6, color: "#c00", fontSize: 12 }, children: error });
-  if (users.length === 0) return /* @__PURE__ */ jsx("p", { style: { color: "#656d76", fontSize: 13 }, children: "No users found." });
-  return /* @__PURE__ */ jsx("div", { className, style: { border: "1px solid #d0d7de", borderRadius: 8, overflow: "hidden" }, children: /* @__PURE__ */ jsxs("table", { style: { width: "100%", borderCollapse: "collapse", fontSize: 13 }, children: [
-    /* @__PURE__ */ jsx("thead", { children: /* @__PURE__ */ jsxs("tr", { style: { background: "#f6f8fa", textAlign: "left" }, children: [
-      /* @__PURE__ */ jsx("th", { style: { padding: "8px 16px", fontWeight: 600 }, children: "Name" }),
-      /* @__PURE__ */ jsx("th", { style: { padding: "8px 16px", fontWeight: 600 }, children: "Email" }),
-      /* @__PURE__ */ jsx("th", { style: { padding: "8px 16px", fontWeight: 600 }, children: "Status" }),
-      /* @__PURE__ */ jsx("th", { style: { padding: "8px 16px", fontWeight: 600 }, children: "Agent" })
+  if (loading) return /* @__PURE__ */ jsx("p", { className: "th-loading", children: "Loading..." });
+  if (error) return /* @__PURE__ */ jsx("div", { className: "th-alert", children: error });
+  if (users.length === 0) return /* @__PURE__ */ jsx("p", { className: "th-empty", children: "No users found." });
+  return /* @__PURE__ */ jsx("div", { className: `th-table-container ${className || ""}`, children: /* @__PURE__ */ jsxs("table", { className: "th-table", children: [
+    /* @__PURE__ */ jsx("thead", { children: /* @__PURE__ */ jsxs("tr", { children: [
+      /* @__PURE__ */ jsx("th", { children: "Name" }),
+      /* @__PURE__ */ jsx("th", { children: "Email" }),
+      /* @__PURE__ */ jsx("th", { children: "Status" }),
+      /* @__PURE__ */ jsx("th", { children: "Agent" })
     ] }) }),
-    /* @__PURE__ */ jsx("tbody", { children: users.map((u) => /* @__PURE__ */ jsxs("tr", { style: { borderTop: "1px solid #d0d7de" }, children: [
-      /* @__PURE__ */ jsx("td", { style: { padding: "8px 16px" }, children: u.name || "\u2014" }),
-      /* @__PURE__ */ jsx("td", { style: { padding: "8px 16px", color: "#0969da" }, children: u.email }),
-      /* @__PURE__ */ jsx("td", { style: { padding: "8px 16px" }, children: /* @__PURE__ */ jsx(StatusBadge, { status: u.status }) }),
-      /* @__PURE__ */ jsx("td", { style: { padding: "8px 16px" }, children: u.is_agent ? "\u{1F916}" : "\u{1F464}" })
+    /* @__PURE__ */ jsx("tbody", { children: users.map((u) => /* @__PURE__ */ jsxs("tr", { children: [
+      /* @__PURE__ */ jsx("td", { children: u.name || "\u2014" }),
+      /* @__PURE__ */ jsx("td", { className: "th-text-accent", children: u.email }),
+      /* @__PURE__ */ jsx("td", { children: /* @__PURE__ */ jsx(StatusBadge, { status: u.status }) }),
+      /* @__PURE__ */ jsx("td", { children: u.is_agent ? "\u{1F916}" : "\u{1F464}" })
     ] }, u.id)) })
   ] }) });
 }
 function StatusBadge({ status }) {
-  const colors = {
-    active: { bg: "#dafbe1", color: "#1a7f37" },
-    inactive: { bg: "#f6f8fa", color: "#656d76" },
-    suspended: { bg: "#fff0f0", color: "#c00" }
-  };
-  const c = colors[status] || colors.inactive;
-  return /* @__PURE__ */ jsx("span", { style: { padding: "2px 8px", borderRadius: 10, fontSize: 11, background: c.bg, color: c.color }, children: status || "unknown" });
+  const badgeClass = status ? `th-badge--${status}` : "";
+  return /* @__PURE__ */ jsx("span", { className: `th-badge ${badgeClass}`, children: status || "unknown" });
 }
 
 export { APIKeyManager, LoginButton, OrgManager, OrgSwitcher, RegisterButton, StatusBadge, UserCreateForm, UserMenu, UserTable };
