@@ -12,7 +12,7 @@
 import { randomBytes } from 'crypto'
 import { writeFileSync, existsSync, readFileSync, appendFileSync } from 'fs'
 
-const THALAMUS_URL = process.env.THALAMUS_URL || 'http://auth.zea.localhost'
+const THALAMUS_URL = process.env.THALAMUS_URL || 'https://auth.zea.cl'
 
 function base64url(b) {
   return b.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
