@@ -56,15 +56,15 @@ export function UserCreateForm({ config, onCreated, className }: UserCreateFormP
         <div style={{ position: 'relative', display: 'flex', gap: '8px' }}>
           <input required placeholder="Password" type={showPassword ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} className="th-input" minLength={8} style={{ flex: 1, minWidth: 0 }} />
           <button type="button" onClick={generatePassword} className="th-btn th-btn--ghost" title="Generate Password" style={{ padding: '0 12px' }}>
-            🎲
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
           </button>
         </div>
         
         <input required placeholder="Confirm Password" type={showPassword ? 'text' : 'password'} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="th-input" minLength={8} />
 
         <select value={isAgent ? 'agent' : 'user'} onChange={e => setIsAgent(e.target.value === 'agent')} className="th-select" style={{ gridColumn: '1 / -1' }}>
-          <option value="user">👤 Human User</option>
-          <option value="agent">🤖 AI Agent</option>
+          <option value="user">Human User</option>
+          <option value="agent">AI Agent</option>
         </select>
       </div>
       {error && <div className="th-alert">{error}</div>}
@@ -109,7 +109,13 @@ export function UserTable({ users, loading, error, className }: UserTableProps) 
               <td>{u.name || '—'}</td>
               <td className="th-text-accent">{u.email}</td>
               <td style={{ color: 'var(--th-text-muted)' }}>{u.organization_id ? u.organization_id.split('-')[0] + '...' : '—'}</td>
-              <td>{u.is_agent ? '🤖 Agent' : '👤 User'}</td>
+              <td style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 16px' }}>
+                {u.is_agent ? (
+                  <><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="14" x="3" y="7" rx="2" ry="2"/><path d="M12 7V3"/><path d="M9 3h6"/><path d="M12 11h.01"/><path d="M15 15h.01"/><path d="M9 15h.01"/></svg> Agent</>
+                ) : (
+                  <><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> User</>
+                )}
+              </td>
               <td>
                 <StatusBadge status={u.status} />
               </td>

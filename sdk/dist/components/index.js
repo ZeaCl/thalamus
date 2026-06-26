@@ -890,12 +890,12 @@ function UserCreateForm({ config, onCreated, className }) {
       /* @__PURE__ */ jsxRuntime.jsx("input", { placeholder: "Name (optional)", value: name, onChange: (e) => setName(e.target.value), className: "th-input" }),
       /* @__PURE__ */ jsxRuntime.jsxs("div", { style: { position: "relative", display: "flex", gap: "8px" }, children: [
         /* @__PURE__ */ jsxRuntime.jsx("input", { required: true, placeholder: "Password", type: showPassword ? "text" : "password", value: password, onChange: (e) => setPassword(e.target.value), className: "th-input", minLength: 8, style: { flex: 1, minWidth: 0 } }),
-        /* @__PURE__ */ jsxRuntime.jsx("button", { type: "button", onClick: generatePassword, className: "th-btn th-btn--ghost", title: "Generate Password", style: { padding: "0 12px" }, children: "\u{1F3B2}" })
+        /* @__PURE__ */ jsxRuntime.jsx("button", { type: "button", onClick: generatePassword, className: "th-btn th-btn--ghost", title: "Generate Password", style: { padding: "0 12px" }, children: /* @__PURE__ */ jsxRuntime.jsx("svg", { xmlns: "http://www.w3.org/2000/svg", width: "16", height: "16", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", children: /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" }) }) })
       ] }),
       /* @__PURE__ */ jsxRuntime.jsx("input", { required: true, placeholder: "Confirm Password", type: showPassword ? "text" : "password", value: confirmPassword, onChange: (e) => setConfirmPassword(e.target.value), className: "th-input", minLength: 8 }),
       /* @__PURE__ */ jsxRuntime.jsxs("select", { value: isAgent ? "agent" : "user", onChange: (e) => setIsAgent(e.target.value === "agent"), className: "th-select", style: { gridColumn: "1 / -1" }, children: [
-        /* @__PURE__ */ jsxRuntime.jsx("option", { value: "user", children: "\u{1F464} Human User" }),
-        /* @__PURE__ */ jsxRuntime.jsx("option", { value: "agent", children: "\u{1F916} AI Agent" })
+        /* @__PURE__ */ jsxRuntime.jsx("option", { value: "user", children: "Human User" }),
+        /* @__PURE__ */ jsxRuntime.jsx("option", { value: "agent", children: "AI Agent" })
       ] })
     ] }),
     error && /* @__PURE__ */ jsxRuntime.jsx("div", { className: "th-alert", children: error }),
@@ -918,7 +918,23 @@ function UserTable({ users, loading, error, className }) {
       /* @__PURE__ */ jsxRuntime.jsx("td", { children: u.name || "\u2014" }),
       /* @__PURE__ */ jsxRuntime.jsx("td", { className: "th-text-accent", children: u.email }),
       /* @__PURE__ */ jsxRuntime.jsx("td", { style: { color: "var(--th-text-muted)" }, children: u.organization_id ? u.organization_id.split("-")[0] + "..." : "\u2014" }),
-      /* @__PURE__ */ jsxRuntime.jsx("td", { children: u.is_agent ? "\u{1F916} Agent" : "\u{1F464} User" }),
+      /* @__PURE__ */ jsxRuntime.jsx("td", { style: { display: "flex", alignItems: "center", gap: 6, padding: "10px 16px" }, children: u.is_agent ? /* @__PURE__ */ jsxRuntime.jsxs(jsxRuntime.Fragment, { children: [
+        /* @__PURE__ */ jsxRuntime.jsxs("svg", { xmlns: "http://www.w3.org/2000/svg", width: "14", height: "14", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", children: [
+          /* @__PURE__ */ jsxRuntime.jsx("rect", { width: "18", height: "14", x: "3", y: "7", rx: "2", ry: "2" }),
+          /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M12 7V3" }),
+          /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M9 3h6" }),
+          /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M12 11h.01" }),
+          /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M15 15h.01" }),
+          /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M9 15h.01" })
+        ] }),
+        " Agent"
+      ] }) : /* @__PURE__ */ jsxRuntime.jsxs(jsxRuntime.Fragment, { children: [
+        /* @__PURE__ */ jsxRuntime.jsxs("svg", { xmlns: "http://www.w3.org/2000/svg", width: "14", height: "14", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", children: [
+          /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" }),
+          /* @__PURE__ */ jsxRuntime.jsx("circle", { cx: "12", cy: "7", r: "4" })
+        ] }),
+        " User"
+      ] }) }),
       /* @__PURE__ */ jsxRuntime.jsx("td", { children: /* @__PURE__ */ jsxRuntime.jsx(StatusBadge, { status: u.status }) })
     ] }, u.id)) })
   ] }) });
