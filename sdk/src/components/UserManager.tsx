@@ -40,7 +40,7 @@ export function UserCreateForm({ config, onCreated, className }: UserCreateFormP
           <input type="checkbox" checked={isAgent} onChange={e => setIsAgent(e.target.checked)} /> Is Agent
         </label>
       </div>
-      {error && <div style={{ padding: '8px 12px', background: '#fff0f0', borderRadius: 6, color: '#c00', fontSize: 12 }}>{error}</div>}
+      {error && <div style={{ padding: '8px 12px', background: 'rgba(248, 81, 73, 0.1)', border: '1px solid rgba(248, 81, 73, 0.4)', borderRadius: 6, color: '#f85149', fontSize: 12 }}>{error}</div>}
       <button type="submit" disabled={loading} className="th-btn th-btn--primary" style={{ alignSelf: 'flex-start' }}>
         {loading ? 'Creating...' : 'Create User'}
       </button>
@@ -63,21 +63,21 @@ export function UserTable({ users, loading, error, className }: UserTableProps) 
   if (users.length === 0) return <p style={{ color: '#656d76', fontSize: 13 }}>No users found.</p>
 
   return (
-    <div className={className} style={{ border: '1px solid #d0d7de', borderRadius: 8, overflow: 'hidden' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+    <div className={className} style={{ border: '1px solid var(--th-border, #30363d)', borderRadius: 8, overflow: 'hidden' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, color: 'var(--th-text, #e6edf3)' }}>
         <thead>
-          <tr style={{ background: '#f6f8fa', textAlign: 'left' }}>
-            <th style={{ padding: '8px 16px', fontWeight: 600 }}>Name</th>
-            <th style={{ padding: '8px 16px', fontWeight: 600 }}>Email</th>
-            <th style={{ padding: '8px 16px', fontWeight: 600 }}>Status</th>
-            <th style={{ padding: '8px 16px', fontWeight: 600 }}>Agent</th>
+          <tr style={{ background: 'var(--th-bg, #0d1117)', textAlign: 'left', borderBottom: '1px solid var(--th-border, #30363d)' }}>
+            <th style={{ padding: '8px 16px', fontWeight: 600, color: 'var(--th-text-muted, #8b949e)' }}>Name</th>
+            <th style={{ padding: '8px 16px', fontWeight: 600, color: 'var(--th-text-muted, #8b949e)' }}>Email</th>
+            <th style={{ padding: '8px 16px', fontWeight: 600, color: 'var(--th-text-muted, #8b949e)' }}>Status</th>
+            <th style={{ padding: '8px 16px', fontWeight: 600, color: 'var(--th-text-muted, #8b949e)' }}>Agent</th>
           </tr>
         </thead>
         <tbody>
           {users.map(u => (
-            <tr key={u.id} style={{ borderTop: '1px solid #d0d7de' }}>
+            <tr key={u.id} style={{ borderBottom: '1px solid var(--th-border, #30363d)', background: 'transparent' }}>
               <td style={{ padding: '8px 16px' }}>{u.name || '—'}</td>
-              <td style={{ padding: '8px 16px', color: '#0969da' }}>{u.email}</td>
+              <td style={{ padding: '8px 16px', color: '#58a6ff' }}>{u.email}</td>
               <td style={{ padding: '8px 16px' }}>
                 <StatusBadge status={u.status} />
               </td>
@@ -93,14 +93,14 @@ export function UserTable({ users, loading, error, className }: UserTableProps) 
 // ── Status Badge ──
 
 export function StatusBadge({ status }: { status: string }) {
-  const colors: Record<string, { bg: string; color: string }> = {
-    active: { bg: '#dafbe1', color: '#1a7f37' },
-    inactive: { bg: '#f6f8fa', color: '#656d76' },
-    suspended: { bg: '#fff0f0', color: '#c00' },
+  const colors: Record<string, { bg: string; color: string; border: string }> = {
+    active: { bg: 'rgba(35, 134, 54, 0.1)', color: '#3fb950', border: 'rgba(63, 185, 80, 0.4)' },
+    inactive: { bg: 'rgba(139, 148, 158, 0.1)', color: '#8b949e', border: 'rgba(139, 148, 158, 0.4)' },
+    suspended: { bg: 'rgba(248, 81, 73, 0.1)', color: '#f85149', border: 'rgba(248, 81, 73, 0.4)' },
   }
   const c = colors[status] || colors.inactive
   return (
-    <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, background: c.bg, color: c.color }}>
+    <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, background: c.bg, color: c.color, border: `1px solid ${c.border}` }}>
       {status || 'unknown'}
     </span>
   )
