@@ -19,8 +19,7 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: 22
-        registry-url: 'https://npm.pkg.github.com'
-        scope: '@ZeaCl'
+        registry-url: 'https://registry.npmjs.org'
         
     - name: Install dependencies
       working-directory: sdk
@@ -38,8 +37,8 @@ jobs:
       working-directory: sdk
       run: npm run build
       
-    - name: Publish to GitHub Packages
+    - name: Publish to NPM
       working-directory: sdk
       run: npm publish
       env:
-        NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
