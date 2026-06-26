@@ -42,7 +42,27 @@ export function OrgSwitcher({ config, onSwitch, className, style }: OrgSwitcherP
   useEffect(() => {
     const client = new ThalamusClient(config)
     client.admin.listOrganizations()
-      .then(o => { setOrgs(o); setLoading(false) })
+      .then(o => { 
+        setOrgs(o)
+        setLoading(false)
+        if (o.length > 0) {
+          let currentSelected = ''
+          try {
+            const authStr = typeof window !== 'undefined' ? localStorage.getItem('thalamus_auth') : null
+            if (authStr) {
+              const auth = JSON.parse(authStr)
+              currentSelected = auth.user?.organization_id || ''
+            }
+          } catch(e) {}
+          
+          if (!currentSelected) {
+            const defaultOrgId = 'ea7b11ea-852c-44e5-aee1-a761ec76eaea'
+            const target = o.find(org => org.id === defaultOrgId) ? defaultOrgId : o[0].id
+            setSelected(target)
+            onSwitch?.(target)
+          }
+        }
+      })
       .catch(() => setLoading(false))
   }, [config.baseUrl])
 

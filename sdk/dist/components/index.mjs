@@ -777,6 +777,23 @@ function OrgSwitcher({ config, onSwitch, className, style }) {
     client.admin.listOrganizations().then((o) => {
       setOrgs(o);
       setLoading(false);
+      if (o.length > 0) {
+        let currentSelected = "";
+        try {
+          const authStr = typeof window !== "undefined" ? localStorage.getItem("thalamus_auth") : null;
+          if (authStr) {
+            const auth = JSON.parse(authStr);
+            currentSelected = auth.user?.organization_id || "";
+          }
+        } catch (e) {
+        }
+        if (!currentSelected) {
+          const defaultOrgId = "ea7b11ea-852c-44e5-aee1-a761ec76eaea";
+          const target = o.find((org) => org.id === defaultOrgId) ? defaultOrgId : o[0].id;
+          setSelected(target);
+          onSwitch?.(target);
+        }
+      }
     }).catch(() => setLoading(false));
   }, [config.baseUrl]);
   if (loading) return null;
@@ -826,12 +843,28 @@ function OrgManager({ config, className }) {
 function UserCreateForm({ config, onCreated, className }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [name, setName] = useState("");
   const [isAgent, setIsAgent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const generatePassword = () => {
+    const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+    let pass = "";
+    for (let i = 0; i < 16; i++) {
+      pass += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setPassword(pass);
+    setConfirmPassword(pass);
+    setShowPassword(true);
+  };
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (password !== confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
     setLoading(true);
     setError("");
     try {
@@ -839,8 +872,10 @@ function UserCreateForm({ config, onCreated, className }) {
       const user = await client.admin.createUser({ email, password, name, is_agent: isAgent });
       setEmail("");
       setPassword("");
+      setConfirmPassword("");
       setName("");
       setIsAgent(false);
+      setShowPassword(false);
       onCreated?.(user);
     } catch (err) {
       setError(err.message);
@@ -850,15 +885,19 @@ function UserCreateForm({ config, onCreated, className }) {
   return /* @__PURE__ */ jsxs("form", { onSubmit: handleSubmit, className: `th-form ${className || ""}`, children: [
     /* @__PURE__ */ jsxs("div", { className: "th-form-grid", children: [
       /* @__PURE__ */ jsx("input", { required: true, placeholder: "Email", type: "email", value: email, onChange: (e) => setEmail(e.target.value), className: "th-input" }),
-      /* @__PURE__ */ jsx("input", { required: true, placeholder: "Password", type: "password", value: password, onChange: (e) => setPassword(e.target.value), className: "th-input", minLength: 8 }),
       /* @__PURE__ */ jsx("input", { placeholder: "Name (optional)", value: name, onChange: (e) => setName(e.target.value), className: "th-input" }),
-      /* @__PURE__ */ jsxs("label", { className: "th-checkbox-label", children: [
-        /* @__PURE__ */ jsx("input", { type: "checkbox", checked: isAgent, onChange: (e) => setIsAgent(e.target.checked) }),
-        " Is Agent"
+      /* @__PURE__ */ jsxs("div", { style: { position: "relative", display: "flex", gap: "8px" }, children: [
+        /* @__PURE__ */ jsx("input", { required: true, placeholder: "Password", type: showPassword ? "text" : "password", value: password, onChange: (e) => setPassword(e.target.value), className: "th-input", minLength: 8, style: { flex: 1, minWidth: 0 } }),
+        /* @__PURE__ */ jsx("button", { type: "button", onClick: generatePassword, className: "th-btn th-btn--ghost", title: "Generate Password", style: { padding: "0 12px" }, children: "\u{1F3B2}" })
+      ] }),
+      /* @__PURE__ */ jsx("input", { required: true, placeholder: "Confirm Password", type: showPassword ? "text" : "password", value: confirmPassword, onChange: (e) => setConfirmPassword(e.target.value), className: "th-input", minLength: 8 }),
+      /* @__PURE__ */ jsxs("select", { value: isAgent ? "agent" : "user", onChange: (e) => setIsAgent(e.target.value === "agent"), className: "th-select", style: { gridColumn: "1 / -1" }, children: [
+        /* @__PURE__ */ jsx("option", { value: "user", children: "\u{1F464} Human User" }),
+        /* @__PURE__ */ jsx("option", { value: "agent", children: "\u{1F916} AI Agent" })
       ] })
     ] }),
     error && /* @__PURE__ */ jsx("div", { className: "th-alert", children: error }),
-    /* @__PURE__ */ jsx("div", { children: /* @__PURE__ */ jsx("button", { type: "submit", disabled: loading, className: "th-btn th-btn--primary", children: loading ? "Creating..." : "Create User" }) })
+    /* @__PURE__ */ jsx("div", { style: { marginTop: "8px" }, children: /* @__PURE__ */ jsx("button", { type: "submit", disabled: loading, className: "th-btn th-btn--primary", children: loading ? "Creating..." : "Create User" }) })
   ] });
 }
 function UserTable({ users, loading, error, className }) {
@@ -869,14 +908,16 @@ function UserTable({ users, loading, error, className }) {
     /* @__PURE__ */ jsx("thead", { children: /* @__PURE__ */ jsxs("tr", { children: [
       /* @__PURE__ */ jsx("th", { children: "Name" }),
       /* @__PURE__ */ jsx("th", { children: "Email" }),
-      /* @__PURE__ */ jsx("th", { children: "Status" }),
-      /* @__PURE__ */ jsx("th", { children: "Agent" })
+      /* @__PURE__ */ jsx("th", { children: "Organization" }),
+      /* @__PURE__ */ jsx("th", { children: "User Type" }),
+      /* @__PURE__ */ jsx("th", { children: "Status" })
     ] }) }),
     /* @__PURE__ */ jsx("tbody", { children: users.map((u) => /* @__PURE__ */ jsxs("tr", { children: [
       /* @__PURE__ */ jsx("td", { children: u.name || "\u2014" }),
       /* @__PURE__ */ jsx("td", { className: "th-text-accent", children: u.email }),
-      /* @__PURE__ */ jsx("td", { children: /* @__PURE__ */ jsx(StatusBadge, { status: u.status }) }),
-      /* @__PURE__ */ jsx("td", { children: u.is_agent ? "\u{1F916}" : "\u{1F464}" })
+      /* @__PURE__ */ jsx("td", { style: { color: "var(--th-text-muted)" }, children: u.organization_id ? u.organization_id.split("-")[0] + "..." : "\u2014" }),
+      /* @__PURE__ */ jsx("td", { children: u.is_agent ? "\u{1F916} Agent" : "\u{1F464} User" }),
+      /* @__PURE__ */ jsx("td", { children: /* @__PURE__ */ jsx(StatusBadge, { status: u.status }) })
     ] }, u.id)) })
   ] }) });
 }

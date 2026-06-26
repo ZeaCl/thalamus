@@ -779,6 +779,23 @@ function OrgSwitcher({ config, onSwitch, className, style }) {
     client.admin.listOrganizations().then((o) => {
       setOrgs(o);
       setLoading(false);
+      if (o.length > 0) {
+        let currentSelected = "";
+        try {
+          const authStr = typeof window !== "undefined" ? localStorage.getItem("thalamus_auth") : null;
+          if (authStr) {
+            const auth = JSON.parse(authStr);
+            currentSelected = auth.user?.organization_id || "";
+          }
+        } catch (e) {
+        }
+        if (!currentSelected) {
+          const defaultOrgId = "ea7b11ea-852c-44e5-aee1-a761ec76eaea";
+          const target = o.find((org) => org.id === defaultOrgId) ? defaultOrgId : o[0].id;
+          setSelected(target);
+          onSwitch?.(target);
+        }
+      }
     }).catch(() => setLoading(false));
   }, [config.baseUrl]);
   if (loading) return null;
@@ -828,12 +845,28 @@ function OrgManager({ config, className }) {
 function UserCreateForm({ config, onCreated, className }) {
   const [email, setEmail] = react.useState("");
   const [password, setPassword] = react.useState("");
+  const [confirmPassword, setConfirmPassword] = react.useState("");
   const [name, setName] = react.useState("");
   const [isAgent, setIsAgent] = react.useState(false);
   const [loading, setLoading] = react.useState(false);
   const [error, setError] = react.useState("");
+  const [showPassword, setShowPassword] = react.useState(false);
+  const generatePassword = () => {
+    const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+    let pass = "";
+    for (let i = 0; i < 16; i++) {
+      pass += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setPassword(pass);
+    setConfirmPassword(pass);
+    setShowPassword(true);
+  };
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (password !== confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
     setLoading(true);
     setError("");
     try {
@@ -841,8 +874,10 @@ function UserCreateForm({ config, onCreated, className }) {
       const user = await client.admin.createUser({ email, password, name, is_agent: isAgent });
       setEmail("");
       setPassword("");
+      setConfirmPassword("");
       setName("");
       setIsAgent(false);
+      setShowPassword(false);
       onCreated?.(user);
     } catch (err) {
       setError(err.message);
@@ -852,15 +887,19 @@ function UserCreateForm({ config, onCreated, className }) {
   return /* @__PURE__ */ jsxRuntime.jsxs("form", { onSubmit: handleSubmit, className: `th-form ${className || ""}`, children: [
     /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "th-form-grid", children: [
       /* @__PURE__ */ jsxRuntime.jsx("input", { required: true, placeholder: "Email", type: "email", value: email, onChange: (e) => setEmail(e.target.value), className: "th-input" }),
-      /* @__PURE__ */ jsxRuntime.jsx("input", { required: true, placeholder: "Password", type: "password", value: password, onChange: (e) => setPassword(e.target.value), className: "th-input", minLength: 8 }),
       /* @__PURE__ */ jsxRuntime.jsx("input", { placeholder: "Name (optional)", value: name, onChange: (e) => setName(e.target.value), className: "th-input" }),
-      /* @__PURE__ */ jsxRuntime.jsxs("label", { className: "th-checkbox-label", children: [
-        /* @__PURE__ */ jsxRuntime.jsx("input", { type: "checkbox", checked: isAgent, onChange: (e) => setIsAgent(e.target.checked) }),
-        " Is Agent"
+      /* @__PURE__ */ jsxRuntime.jsxs("div", { style: { position: "relative", display: "flex", gap: "8px" }, children: [
+        /* @__PURE__ */ jsxRuntime.jsx("input", { required: true, placeholder: "Password", type: showPassword ? "text" : "password", value: password, onChange: (e) => setPassword(e.target.value), className: "th-input", minLength: 8, style: { flex: 1, minWidth: 0 } }),
+        /* @__PURE__ */ jsxRuntime.jsx("button", { type: "button", onClick: generatePassword, className: "th-btn th-btn--ghost", title: "Generate Password", style: { padding: "0 12px" }, children: "\u{1F3B2}" })
+      ] }),
+      /* @__PURE__ */ jsxRuntime.jsx("input", { required: true, placeholder: "Confirm Password", type: showPassword ? "text" : "password", value: confirmPassword, onChange: (e) => setConfirmPassword(e.target.value), className: "th-input", minLength: 8 }),
+      /* @__PURE__ */ jsxRuntime.jsxs("select", { value: isAgent ? "agent" : "user", onChange: (e) => setIsAgent(e.target.value === "agent"), className: "th-select", style: { gridColumn: "1 / -1" }, children: [
+        /* @__PURE__ */ jsxRuntime.jsx("option", { value: "user", children: "\u{1F464} Human User" }),
+        /* @__PURE__ */ jsxRuntime.jsx("option", { value: "agent", children: "\u{1F916} AI Agent" })
       ] })
     ] }),
     error && /* @__PURE__ */ jsxRuntime.jsx("div", { className: "th-alert", children: error }),
-    /* @__PURE__ */ jsxRuntime.jsx("div", { children: /* @__PURE__ */ jsxRuntime.jsx("button", { type: "submit", disabled: loading, className: "th-btn th-btn--primary", children: loading ? "Creating..." : "Create User" }) })
+    /* @__PURE__ */ jsxRuntime.jsx("div", { style: { marginTop: "8px" }, children: /* @__PURE__ */ jsxRuntime.jsx("button", { type: "submit", disabled: loading, className: "th-btn th-btn--primary", children: loading ? "Creating..." : "Create User" }) })
   ] });
 }
 function UserTable({ users, loading, error, className }) {
@@ -871,14 +910,16 @@ function UserTable({ users, loading, error, className }) {
     /* @__PURE__ */ jsxRuntime.jsx("thead", { children: /* @__PURE__ */ jsxRuntime.jsxs("tr", { children: [
       /* @__PURE__ */ jsxRuntime.jsx("th", { children: "Name" }),
       /* @__PURE__ */ jsxRuntime.jsx("th", { children: "Email" }),
-      /* @__PURE__ */ jsxRuntime.jsx("th", { children: "Status" }),
-      /* @__PURE__ */ jsxRuntime.jsx("th", { children: "Agent" })
+      /* @__PURE__ */ jsxRuntime.jsx("th", { children: "Organization" }),
+      /* @__PURE__ */ jsxRuntime.jsx("th", { children: "User Type" }),
+      /* @__PURE__ */ jsxRuntime.jsx("th", { children: "Status" })
     ] }) }),
     /* @__PURE__ */ jsxRuntime.jsx("tbody", { children: users.map((u) => /* @__PURE__ */ jsxRuntime.jsxs("tr", { children: [
       /* @__PURE__ */ jsxRuntime.jsx("td", { children: u.name || "\u2014" }),
       /* @__PURE__ */ jsxRuntime.jsx("td", { className: "th-text-accent", children: u.email }),
-      /* @__PURE__ */ jsxRuntime.jsx("td", { children: /* @__PURE__ */ jsxRuntime.jsx(StatusBadge, { status: u.status }) }),
-      /* @__PURE__ */ jsxRuntime.jsx("td", { children: u.is_agent ? "\u{1F916}" : "\u{1F464}" })
+      /* @__PURE__ */ jsxRuntime.jsx("td", { style: { color: "var(--th-text-muted)" }, children: u.organization_id ? u.organization_id.split("-")[0] + "..." : "\u2014" }),
+      /* @__PURE__ */ jsxRuntime.jsx("td", { children: u.is_agent ? "\u{1F916} Agent" : "\u{1F464} User" }),
+      /* @__PURE__ */ jsxRuntime.jsx("td", { children: /* @__PURE__ */ jsxRuntime.jsx(StatusBadge, { status: u.status }) })
     ] }, u.id)) })
   ] }) });
 }

@@ -13,18 +13,35 @@ export interface UserCreateFormProps {
 export function UserCreateForm({ config, onCreated, className }: UserCreateFormProps) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [name, setName] = useState('')
   const [isAgent, setIsAgent] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+
+  const generatePassword = () => {
+    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*'
+    let pass = ''
+    for (let i = 0; i < 16; i++) {
+      pass += chars.charAt(Math.floor(Math.random() * chars.length))
+    }
+    setPassword(pass)
+    setConfirmPassword(pass)
+    setShowPassword(true)
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (password !== confirmPassword) {
+      setError('Passwords do not match')
+      return
+    }
     setLoading(true); setError('')
     try {
       const client = new ThalamusClient(config)
       const user = await client.admin.createUser({ email, password, name, is_agent: isAgent })
-      setEmail(''); setPassword(''); setName(''); setIsAgent(false)
+      setEmail(''); setPassword(''); setConfirmPassword(''); setName(''); setIsAgent(false); setShowPassword(false)
       onCreated?.(user)
     } catch (err: any) { setError(err.message) }
     setLoading(false)
@@ -34,14 +51,24 @@ export function UserCreateForm({ config, onCreated, className }: UserCreateFormP
     <form onSubmit={handleSubmit} className={`th-form ${className || ''}`}>
       <div className="th-form-grid">
         <input required placeholder="Email" type="email" value={email} onChange={e => setEmail(e.target.value)} className="th-input" />
-        <input required placeholder="Password" type="password" value={password} onChange={e => setPassword(e.target.value)} className="th-input" minLength={8} />
         <input placeholder="Name (optional)" value={name} onChange={e => setName(e.target.value)} className="th-input" />
-        <label className="th-checkbox-label">
-          <input type="checkbox" checked={isAgent} onChange={e => setIsAgent(e.target.checked)} /> Is Agent
-        </label>
+        
+        <div style={{ position: 'relative', display: 'flex', gap: '8px' }}>
+          <input required placeholder="Password" type={showPassword ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} className="th-input" minLength={8} style={{ flex: 1, minWidth: 0 }} />
+          <button type="button" onClick={generatePassword} className="th-btn th-btn--ghost" title="Generate Password" style={{ padding: '0 12px' }}>
+            🎲
+          </button>
+        </div>
+        
+        <input required placeholder="Confirm Password" type={showPassword ? 'text' : 'password'} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="th-input" minLength={8} />
+
+        <select value={isAgent ? 'agent' : 'user'} onChange={e => setIsAgent(e.target.value === 'agent')} className="th-select" style={{ gridColumn: '1 / -1' }}>
+          <option value="user">👤 Human User</option>
+          <option value="agent">🤖 AI Agent</option>
+        </select>
       </div>
       {error && <div className="th-alert">{error}</div>}
-      <div>
+      <div style={{ marginTop: '8px' }}>
         <button type="submit" disabled={loading} className="th-btn th-btn--primary">
           {loading ? 'Creating...' : 'Create User'}
         </button>
@@ -71,8 +98,9 @@ export function UserTable({ users, loading, error, className }: UserTableProps) 
           <tr>
             <th>Name</th>
             <th>Email</th>
+            <th>Organization</th>
+            <th>User Type</th>
             <th>Status</th>
-            <th>Agent</th>
           </tr>
         </thead>
         <tbody>
@@ -80,10 +108,11 @@ export function UserTable({ users, loading, error, className }: UserTableProps) 
             <tr key={u.id}>
               <td>{u.name || '—'}</td>
               <td className="th-text-accent">{u.email}</td>
+              <td style={{ color: 'var(--th-text-muted)' }}>{u.organization_id ? u.organization_id.split('-')[0] + '...' : '—'}</td>
+              <td>{u.is_agent ? '🤖 Agent' : '👤 User'}</td>
               <td>
                 <StatusBadge status={u.status} />
               </td>
-              <td>{u.is_agent ? '🤖' : '👤'}</td>
             </tr>
           ))}
         </tbody>
