@@ -67,6 +67,6 @@
     "url": "https://github.com/ZeaCl/thalamus.git"
   },
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
+    "access": "public"
   }
 }
