@@ -427,6 +427,12 @@ var AdminAPI = class {
       }
     });
     if (!res.ok) {
+      if (res.status === 401 && typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("thalamus:unauthorized"));
+        if (window.parent && window.parent !== window) {
+          window.parent.postMessage({ type: "thalamus:unauthorized" }, "*");
+        }
+      }
       throw await this.toError(res);
     }
     return res;
@@ -548,6 +554,19 @@ function useThalamus(options) {
     setToken(null);
     setUser(null);
   }, [storageKey]);
+  react.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handleUnauthorized = () => logout();
+    window.addEventListener("thalamus:unauthorized", handleUnauthorized);
+    const handleMessage = (e) => {
+      if (e.data?.type === "thalamus:unauthorized") handleUnauthorized();
+    };
+    window.addEventListener("message", handleMessage);
+    return () => {
+      window.removeEventListener("thalamus:unauthorized", handleUnauthorized);
+      window.removeEventListener("message", handleMessage);
+    };
+  }, [logout]);
   const refreshToken = react.useCallback(async () => {
     try {
       const saved = localStorage.getItem(storageKey);

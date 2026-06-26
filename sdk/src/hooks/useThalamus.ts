@@ -105,6 +105,23 @@ export function useThalamus(options: UseThalamusOptions): UseThalamusReturn {
     setUser(null)
   }, [storageKey])
 
+  // ── Global 401 Interceptor ──
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const handleUnauthorized = () => logout()
+    
+    window.addEventListener('thalamus:unauthorized', handleUnauthorized)
+    const handleMessage = (e: MessageEvent) => {
+      if (e.data?.type === 'thalamus:unauthorized') handleUnauthorized()
+    }
+    window.addEventListener('message', handleMessage)
+    
+    return () => {
+      window.removeEventListener('thalamus:unauthorized', handleUnauthorized)
+      window.removeEventListener('message', handleMessage)
+    }
+  }, [logout])
+
   // ── Refresh token ──
   const refreshToken = useCallback(async () => {
     try {

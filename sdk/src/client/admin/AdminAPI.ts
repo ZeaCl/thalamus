@@ -247,6 +247,12 @@ export class AdminAPI {
     })
 
     if (!res.ok) {
+      if (res.status === 401 && typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('thalamus:unauthorized'))
+        if (window.parent && window.parent !== window) {
+          window.parent.postMessage({ type: 'thalamus:unauthorized' }, '*')
+        }
+      }
       throw await this.toError(res)
     }
 
