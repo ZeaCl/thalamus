@@ -907,11 +907,29 @@ function UserCreateForm({ config, onCreated, className }) {
     /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "th-form-grid", children: [
       /* @__PURE__ */ jsxRuntime.jsx("input", { required: true, placeholder: "Email", type: "email", value: email, onChange: (e) => setEmail(e.target.value), className: "th-input" }),
       /* @__PURE__ */ jsxRuntime.jsx("input", { placeholder: "Name (optional)", value: name, onChange: (e) => setName(e.target.value), className: "th-input" }),
-      /* @__PURE__ */ jsxRuntime.jsxs("div", { style: { position: "relative", display: "flex", gap: "8px" }, children: [
-        /* @__PURE__ */ jsxRuntime.jsx("input", { required: true, placeholder: "Password", type: showPassword ? "text" : "password", value: password, onChange: (e) => setPassword(e.target.value), className: "th-input", minLength: 8, style: { flex: 1, minWidth: 0 } }),
+      /* @__PURE__ */ jsxRuntime.jsxs("div", { style: { display: "flex", gap: "8px" }, children: [
+        /* @__PURE__ */ jsxRuntime.jsxs("div", { style: { position: "relative", flex: 1, display: "flex" }, children: [
+          /* @__PURE__ */ jsxRuntime.jsx("input", { required: true, placeholder: "Password", type: showPassword ? "text" : "password", value: password, onChange: (e) => setPassword(e.target.value), className: "th-input", minLength: 8, style: { flex: 1, minWidth: 0, paddingRight: 32 } }),
+          /* @__PURE__ */ jsxRuntime.jsx("button", { type: "button", onClick: () => setShowPassword(!showPassword), style: { position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "var(--th-text-muted)", cursor: "pointer", padding: 2, display: "flex" }, children: showPassword ? /* @__PURE__ */ jsxRuntime.jsxs("svg", { xmlns: "http://www.w3.org/2000/svg", width: "14", height: "14", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", children: [
+            /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" }),
+            /* @__PURE__ */ jsxRuntime.jsx("line", { x1: "1", y1: "1", x2: "23", y2: "23" })
+          ] }) : /* @__PURE__ */ jsxRuntime.jsxs("svg", { xmlns: "http://www.w3.org/2000/svg", width: "14", height: "14", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", children: [
+            /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" }),
+            /* @__PURE__ */ jsxRuntime.jsx("circle", { cx: "12", cy: "12", r: "3" })
+          ] }) })
+        ] }),
         /* @__PURE__ */ jsxRuntime.jsx("button", { type: "button", onClick: generatePassword, className: "th-btn th-btn--ghost", title: "Generate Password", style: { padding: "0 12px" }, children: /* @__PURE__ */ jsxRuntime.jsx("svg", { xmlns: "http://www.w3.org/2000/svg", width: "16", height: "16", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", children: /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" }) }) })
       ] }),
-      /* @__PURE__ */ jsxRuntime.jsx("input", { required: true, placeholder: "Confirm Password", type: showPassword ? "text" : "password", value: confirmPassword, onChange: (e) => setConfirmPassword(e.target.value), className: "th-input", minLength: 8 }),
+      /* @__PURE__ */ jsxRuntime.jsxs("div", { style: { position: "relative", display: "flex" }, children: [
+        /* @__PURE__ */ jsxRuntime.jsx("input", { required: true, placeholder: "Confirm Password", type: showPassword ? "text" : "password", value: confirmPassword, onChange: (e) => setConfirmPassword(e.target.value), className: "th-input", minLength: 8, style: { flex: 1, minWidth: 0, paddingRight: 32 } }),
+        /* @__PURE__ */ jsxRuntime.jsx("button", { type: "button", onClick: () => setShowPassword(!showPassword), style: { position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "var(--th-text-muted)", cursor: "pointer", padding: 2, display: "flex" }, children: showPassword ? /* @__PURE__ */ jsxRuntime.jsxs("svg", { xmlns: "http://www.w3.org/2000/svg", width: "14", height: "14", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", children: [
+          /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" }),
+          /* @__PURE__ */ jsxRuntime.jsx("line", { x1: "1", y1: "1", x2: "23", y2: "23" })
+        ] }) : /* @__PURE__ */ jsxRuntime.jsxs("svg", { xmlns: "http://www.w3.org/2000/svg", width: "14", height: "14", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", children: [
+          /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" }),
+          /* @__PURE__ */ jsxRuntime.jsx("circle", { cx: "12", cy: "12", r: "3" })
+        ] }) })
+      ] }),
       /* @__PURE__ */ jsxRuntime.jsxs("select", { value: isAgent ? "agent" : "user", onChange: (e) => setIsAgent(e.target.value === "agent"), className: "th-select", style: { gridColumn: "1 / -1" }, children: [
         /* @__PURE__ */ jsxRuntime.jsx("option", { value: "user", children: "Human User" }),
         /* @__PURE__ */ jsxRuntime.jsx("option", { value: "agent", children: "AI Agent" })
