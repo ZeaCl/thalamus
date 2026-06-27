@@ -9,45 +9,189 @@
  * Usage: npx zea-auth-init
  */
 
-import { randomBytes } from 'crypto'
+import { randomBytes, createHash } from 'crypto'
 import { writeFileSync, existsSync, readFileSync, appendFileSync } from 'fs'
+import http from 'http'
+import { exec } from 'child_process'
+import readline from 'readline'
 
 const THALAMUS_URL = process.env.THALAMUS_URL || 'https://auth.zea.cl'
+const CLI_CLIENT_ID = 'thalamus_cli'
+const PORT = 4005
+const REDIRECT_URI = `http://localhost:${PORT}/callback`
 
-function base64url(b) {
-  return b.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+function base64URLEncode(buffer) {
+  return buffer.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+}
+
+function generatePKCE() {
+  const verifier = base64URLEncode(randomBytes(32));
+  const challenge = base64URLEncode(createHash('sha256').update(verifier).digest());
+  return { verifier, challenge };
+}
+
+function openBrowser(url) {
+  const platform = process.platform;
+  let command;
+  if (platform === 'win32') command = `start "" "${url}"`;
+  else if (platform === 'darwin') command = `open "${url}"`;
+  else command = `xdg-open "${url}"`;
+  
+  exec(command);
+}
+
+function askQuestion(query) {
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  return new Promise(resolve => rl.question(query, ans => {
+    rl.close();
+    resolve(ans);
+  }));
 }
 
 async function main() {
-  console.log('')
-  console.log('🧠  ZEA Auth — Frontend Setup')
-  console.log('')
+  console.log('\n🧠  ZEA Auth — Frontend Setup (CLI Login)\n');
 
-  // Generate a unique client_id for this app
-  const CLIENT_ID = 'app_' + base64url(randomBytes(8))
+  const { verifier, challenge } = generatePKCE();
+  const state = base64URLEncode(randomBytes(16));
+
+  const authUrl = `${THALAMUS_URL}/oauth/authorize?client_id=${CLI_CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&code_challenge_method=S256&code_challenge=${challenge}&state=${state}`;
+
+  console.log('⏳ Waiting for authentication in the browser...');
+  console.log(`(If it doesn't open automatically, click here: ${authUrl})\n`);
   
-  const envContent = `VITE_ZEA_AUTH_URL=${THALAMUS_URL}\nVITE_ZEA_CLIENT_ID=${CLIENT_ID}\n`
-  
-  if (existsSync('.env.local')) {
-    const current = readFileSync('.env.local', 'utf8')
-    if (!current.includes('VITE_ZEA_CLIENT_ID')) {
-      appendFileSync('.env.local', `\n${envContent}`)
-    }
-  } else {
-    writeFileSync('.env.local', envContent)
+  openBrowser(authUrl);
+
+  const authCode = await new Promise((resolve, reject) => {
+    const server = http.createServer((req, res) => {
+      if (req.url.startsWith('/callback')) {
+        const url = new URL(req.url, `http://localhost:${PORT}`);
+        const code = url.searchParams.get('code');
+        const returnedState = url.searchParams.get('state');
+
+        if (returnedState !== state) {
+          res.writeHead(400);
+          res.end('Invalid state parameter.');
+          reject(new Error('Invalid state'));
+          return;
+        }
+
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.end('<html><body><h2>Login successful!</h2><p>You can close this window and return to the terminal.</p></body></html>');
+        server.close();
+        resolve(code);
+      }
+    });
+    server.listen(PORT);
+  });
+
+  console.log('✅ Authenticated successfully!');
+  console.log('⏳ Exchanging code for token...');
+
+  // Exchange code for token
+  const tokenRes = await fetch(`${THALAMUS_URL}/oauth/token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      grant_type: 'authorization_code',
+      client_id: CLI_CLIENT_ID,
+      code: authCode,
+      redirect_uri: REDIRECT_URI,
+      code_verifier: verifier
+    })
+  });
+
+  if (!tokenRes.ok) {
+    const err = await tokenRes.text();
+    console.error('Failed to get token:', err);
+    process.exit(1);
   }
 
-  console.log('✅  Setup complete!')
-  console.log('   Variables appended to .env.local:')
-  console.log(`   - VITE_ZEA_AUTH_URL=${THALAMUS_URL}`)
-  console.log(`   - VITE_ZEA_CLIENT_ID=${CLIENT_ID}`)
-  console.log('')
-  console.log('   Your React components (e.g. <LoginButton />) are now ready to perform PKCE login.')
-  console.log('   (Note: If you are building a backend/agent, do NOT use this script. Use `zea token create` to get a PAT instead).')
-  console.log('')
+  const tokenData = await tokenRes.json();
+  const accessToken = tokenData.access_token;
+
+  console.log('⏳ Fetching your organizations...');
+  // Fetch organizations
+  const orgsRes = await fetch(`${THALAMUS_URL}/api/organizations`, {
+    headers: { 'Authorization': `Bearer ${accessToken}` }
+  });
+
+  if (!orgsRes.ok) {
+    console.error('Failed to fetch organizations:', await orgsRes.text());
+    process.exit(1);
+  }
+
+  const orgsResponseData = await orgsRes.json();
+  // Depending on how Thalamus structures its response (data: [] or just [])
+  const orgs = orgsResponseData.data || orgsResponseData;
+
+  if (!orgs || orgs.length === 0) {
+    console.error('No organizations found for this user.');
+    process.exit(1);
+  }
+
+  let selectedOrgId = orgs[0].id;
+
+  if (orgs.length > 1) {
+    console.log('\nYou belong to multiple organizations:');
+    orgs.forEach((org, idx) => console.log(`  ${idx + 1}) ${org.name} (${org.id})`));
+    const orgIndexStr = await askQuestion('\nSelect organization by number (default: 1): ');
+    const idx = parseInt(orgIndexStr, 10) - 1;
+    if (!isNaN(idx) && orgs[idx]) {
+      selectedOrgId = orgs[idx].id;
+    }
+  } else {
+    console.log(`\nDefaulting to your only organization: ${orgs[0].name}`);
+  }
+
+  const appName = await askQuestion('\nEnter a name for this new Frontend Application (e.g. My App Web): ');
+
+  console.log('\n⏳ Registering application in Thalamus...');
+  // Create application
+  const createRes = await fetch(`${THALAMUS_URL}/api/clients`, {
+    method: 'POST',
+    headers: { 
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${accessToken}`
+    },
+    body: JSON.stringify({
+      name: appName || 'My Frontend App',
+      organization_id: selectedOrgId,
+      client_type: 'public',
+      redirect_uris: ['http://localhost:5173/auth/callback', 'http://localhost:3000/auth/callback']
+    })
+  });
+
+  if (!createRes.ok) {
+    console.error('Failed to create application:', await createRes.text());
+    process.exit(1);
+  }
+
+  const newClientData = await createRes.json();
+  const newClient = newClientData.data || newClientData;
+  const newClientId = newClient.client_id_string || newClient.id;
+
+  const envContent = `VITE_ZEA_AUTH_URL=${THALAMUS_URL}\nVITE_ZEA_CLIENT_ID=${newClientId}\n`;
+  
+  if (existsSync('.env.local')) {
+    const current = readFileSync('.env.local', 'utf8');
+    if (!current.includes('VITE_ZEA_CLIENT_ID')) {
+      appendFileSync('.env.local', `\n${envContent}`);
+    } else {
+      console.log('\n⚠️  VITE_ZEA_CLIENT_ID already exists in .env.local. Please update it manually to:');
+      console.log(newClientId);
+    }
+  } else {
+    writeFileSync('.env.local', envContent);
+  }
+
+  console.log('\n✅ Setup complete! Application officially registered in Thalamus.');
+  console.log('   Variables set for .env.local:');
+  console.log(`   - VITE_ZEA_AUTH_URL=${THALAMUS_URL}`);
+  console.log(`   - VITE_ZEA_CLIENT_ID=${newClientId}`);
+  console.log('\n   Your React components are now ready to perform PKCE login.');
 }
 
 main().catch((err) => {
-  console.error('Fatal error:', err)
-  process.exit(1)
-})
+  console.error('\nFatal error:', err);
+  process.exit(1);
+});
