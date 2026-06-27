@@ -53,12 +53,12 @@ function askQuestion(query) {
 
 async function main() {
   const args = process.argv.slice(2);
-  let cliOrgIndex = null;
+  let cliOrgArg = null;
   let cliAppName = null;
 
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--org' && args[i + 1]) {
-      cliOrgIndex = parseInt(args[i + 1], 10);
+      cliOrgArg = args[i + 1];
       i++;
     } else if (args[i] === '--name' && args[i + 1]) {
       cliAppName = args[i + 1];
@@ -124,7 +124,9 @@ async function main() {
 </head>
 <body>
   <div class="container">
-    <div class="logo">ZEA</div>
+    <div class="logo">
+      <svg width="120" height="36" viewBox="0 0 60 18" fill="none" xmlns="http://www.w3.org/2000/svg"><g opacity="0.9"><path opacity="0.9" d="M13.5064 2.1219H1.50961V9.91821e-05H17.0022V2.1219L4.2903 14.5384H17.0817V16.896H0V14.7742L13.5064 2.1219Z" fill="white"/><path opacity="0.9" d="M23.9937 6.837V2.3576H35.276V0H21.2924V17.0532H35.355V14.6956H23.9937V9.1946H32.813V6.837H23.9937Z" fill="white"/><path opacity="0.9" d="M50.292 4.0865L56.806 16.9746H59.746L51.165 0H48.226L39.725 16.9746H42.585L49.1 4.0865H50.292Z" fill="white"/></g></svg>
+    </div>
     <h2>Login Successful!</h2>
     <p>You can safely close this window and return to your terminal.</p>
   </div>
@@ -185,13 +187,19 @@ async function main() {
 
   let selectedOrgId = orgs[0].id;
 
-  if (cliOrgIndex !== null) {
-    const idx = cliOrgIndex - 1;
-    if (orgs[idx]) {
+  if (cliOrgArg) {
+    const idx = parseInt(cliOrgArg, 10) - 1;
+    if (!isNaN(idx) && orgs[idx]) {
       selectedOrgId = orgs[idx].id;
-      console.log(`\nUsing organization from CLI argument: ${orgs[idx].name}`);
+      console.log(`\nUsing organization from CLI argument (by index): ${orgs[idx].name}`);
     } else {
-      console.warn(`\n⚠️  CLI organization index ${cliOrgIndex} not found. Falling back to default.`);
+      const foundOrg = orgs.find(o => o.name.toLowerCase().includes(cliOrgArg.toLowerCase()));
+      if (foundOrg) {
+        selectedOrgId = foundOrg.id;
+        console.log(`\nUsing organization from CLI argument (by name match): ${foundOrg.name}`);
+      } else {
+        console.warn(`\n⚠️  CLI organization '${cliOrgArg}' not found. Falling back to default.`);
+      }
     }
   } else if (orgs.length > 1) {
     console.log('\nYou belong to multiple organizations:');
