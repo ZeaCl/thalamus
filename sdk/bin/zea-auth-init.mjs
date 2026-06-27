@@ -234,7 +234,8 @@ async function main() {
       name: appName,
       organization_id: selectedOrgId,
       client_type: 'public',
-      redirect_uris: ['http://localhost:5173/auth/callback', 'http://localhost:3000/auth/callback']
+      redirect_uris: ['http://localhost:5173/auth/callback', 'http://localhost:3000/auth/callback'],
+      scopes: ['openid', 'profile', 'email']
     })
   });
 
