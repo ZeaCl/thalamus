@@ -1,6 +1,6 @@
 {
   "name": "@zea.cl/auth",
-  "version": "0.1.9",
+  "version": "0.1.11",
   "description": "ZEA Thalamus SDK — Auth, User Management, and Organization Context",
   "main": "dist/index.js",
   "module": "dist/index.mjs",

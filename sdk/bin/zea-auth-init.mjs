@@ -6,13 +6,16 @@
  * Scaffolds the environment variables needed for a frontend application 
  * to perform OAuth2 PKCE login against the ZEA Identity Provider.
  *
- * Usage: npx zea-auth-init
+ * Usage: 
+ *   npx zea-auth-init
+ *   npx zea-auth-init --org 2 --name "sudlich-app"
  */
 
 import { randomBytes, createHash } from 'crypto'
 import { writeFileSync, existsSync, readFileSync, appendFileSync } from 'fs'
 import http from 'http'
 import { exec } from 'child_process'
+import path from 'path'
 import readline from 'readline'
 
 const THALAMUS_URL = process.env.THALAMUS_URL || 'https://auth.zea.cl'
@@ -49,6 +52,20 @@ function askQuestion(query) {
 }
 
 async function main() {
+  const args = process.argv.slice(2);
+  let cliOrgIndex = null;
+  let cliAppName = null;
+
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === '--org' && args[i + 1]) {
+      cliOrgIndex = parseInt(args[i + 1], 10);
+      i++;
+    } else if (args[i] === '--name' && args[i + 1]) {
+      cliAppName = args[i + 1];
+      i++;
+    }
+  }
+
   console.log('\n🧠  ZEA Auth — Frontend Setup (CLI Login)\n');
 
   const { verifier, challenge } = generatePKCE();
@@ -75,8 +92,46 @@ async function main() {
           return;
         }
 
+        const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>ZEA Auth</title>
+  <style>
+    body {
+      background-color: #0d1117;
+      color: #e6edf3;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .container {
+      text-align: center;
+      padding: 3rem;
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      background-color: #161b22;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+    h2 { margin-top: 0; color: #ffffff; letter-spacing: -0.5px; }
+    p { color: #8b949e; margin-bottom: 0; font-size: 16px; }
+    .logo { font-size: 24px; font-weight: 800; letter-spacing: 2px; color: #ffffff; margin-bottom: 24px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">ZEA</div>
+    <h2>Login Successful!</h2>
+    <p>You can safely close this window and return to your terminal.</p>
+  </div>
+</body>
+</html>`;
         res.writeHead(200, { 'Content-Type': 'text/html' });
-        res.end('<html><body><h2>Login successful!</h2><p>You can close this window and return to the terminal.</p></body></html>');
+        res.end(html);
         server.close();
         resolve(code);
       }
@@ -121,7 +176,6 @@ async function main() {
   }
 
   const orgsResponseData = await orgsRes.json();
-  // Depending on how Thalamus structures its response (data: [] or just [])
   const orgs = orgsResponseData.data || orgsResponseData;
 
   if (!orgs || orgs.length === 0) {
@@ -131,7 +185,15 @@ async function main() {
 
   let selectedOrgId = orgs[0].id;
 
-  if (orgs.length > 1) {
+  if (cliOrgIndex !== null) {
+    const idx = cliOrgIndex - 1;
+    if (orgs[idx]) {
+      selectedOrgId = orgs[idx].id;
+      console.log(`\nUsing organization from CLI argument: ${orgs[idx].name}`);
+    } else {
+      console.warn(`\n⚠️  CLI organization index ${cliOrgIndex} not found. Falling back to default.`);
+    }
+  } else if (orgs.length > 1) {
     console.log('\nYou belong to multiple organizations:');
     orgs.forEach((org, idx) => console.log(`  ${idx + 1}) ${org.name} (${org.id})`));
     const orgIndexStr = await askQuestion('\nSelect organization by number (default: 1): ');
@@ -143,7 +205,14 @@ async function main() {
     console.log(`\nDefaulting to your only organization: ${orgs[0].name}`);
   }
 
-  const appName = await askQuestion('\nEnter a name for this new Frontend Application (e.g. My App Web): ');
+  let appName = cliAppName;
+  if (!appName) {
+    const defaultName = path.basename(process.cwd()) + ' Frontend';
+    const answer = await askQuestion(`\nEnter a name for this new Frontend Application (default: ${defaultName}): `);
+    appName = answer.trim() || defaultName;
+  } else {
+    console.log(`\nUsing application name from CLI argument: ${appName}`);
+  }
 
   console.log('\n⏳ Registering application in Thalamus...');
   // Create application
@@ -154,7 +223,7 @@ async function main() {
       'Authorization': `Bearer ${accessToken}`
     },
     body: JSON.stringify({
-      name: appName || 'My Frontend App',
+      name: appName,
       organization_id: selectedOrgId,
       client_type: 'public',
       redirect_uris: ['http://localhost:5173/auth/callback', 'http://localhost:3000/auth/callback']
