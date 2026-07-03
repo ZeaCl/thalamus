@@ -595,9 +595,9 @@ curl -X POST "https://thalamus.zea.com/oauth/introspect" \
 ## Próximos Pasos
 
 - 📖 [Admin API Keys](admin-api-keys.md) - Autenticación servicio-a-servicio
-- 📖 [OAuth2 Client Credentials](oauth2-client-credentials.md) - Flujo M2M
-- 📖 [Security Best Practices](security-best-practices.md) - Mejores prácticas de seguridad
-- 📖 [Integration Examples](integration-examples.md) - Ejemplos completos
+- 📖 [OAuth2 Client Credentials](../oauth2/client-credentials.md) - Flujo M2M
+- 📖 [API Reference](../api/rest.md) - Endpoints completos
+- 📖 [Clients API](../api/clients.md) - Gestión de clientes OAuth2
 
 ---
 

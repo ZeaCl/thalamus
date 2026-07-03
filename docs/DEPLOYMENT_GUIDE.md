@@ -24,7 +24,7 @@ This guide provides comprehensive instructions for deploying ZEA Thalamus to pro
 
 ### Required
 - **Operating System:** Linux (Ubuntu 20.04+, Debian 11+, or similar)
-- **Elixir:** 1.17+ and Erlang 26+
+- **Elixir:** 1.19+ and Erlang 27+
 - **PostgreSQL:** 16+
 - **Redis:** 7+ (optional but recommended)
 - **SSL Certificate:** For HTTPS (Let's Encrypt recommended)
@@ -267,7 +267,7 @@ sudo apt update
 sudo apt install -y esl-erlang=1:26.2.1-1
 
 # Install Elixir
-sudo apt install -y elixir=1.17.0-1
+sudo apt install -y elixir=1.19.0-1
 ```
 
 ### 2. Setup PostgreSQL

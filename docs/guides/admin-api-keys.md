@@ -416,10 +416,10 @@ node auto-register.js
 
 ## 📚 Ver También
 
-- [OAuth2 Authorization Code Flow](oauth2-authorization-code.md)
-- [OAuth2 Client Credentials (M2M)](oauth2-client-credentials.md)
-- [Integration Examples](integration-examples.md)
-- [Security Best Practices](security-best-practices.md)
+- [OAuth2 Authorization Code Flow](../oauth2/authorization-code.md)
+- [OAuth2 Client Credentials (M2M)](../oauth2/client-credentials.md)
+- [API Reference](../api/rest.md)
+- [Architecture Overview](../architecture/overview.md)
 
 ---
 

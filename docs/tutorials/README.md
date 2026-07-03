@@ -26,43 +26,20 @@ Esta sección contiene tutoriales prácticos paso a paso para integrarse con Tha
    - Deep linking
    - Refresh tokens
 
-### Por Flujo OAuth2
-5. **[Authorization Code Flow](./05-authorization-code-flow.md)**
-   - Flujo completo con código de autorización
-   - PKCE (Proof Key for Code Exchange)
-   - Estado y seguridad CSRF
+### Para Agentes de IA
+5. **[Agent Tokens](./11-agent-tokens.md)** ⭐
+   - Tokens especializados para agentes de IA
+   - Task-scoping y delegation tracking
+   - Operation limits y auto-revocación
+   - Compliance (EU AI Act)
 
-6. **[Client Credentials (M2M)](./06-client-credentials-m2m.md)**
-   - Autenticación máquina a máquina
-   - Sin interacción de usuario
-   - Service accounts
-
-7. **[Token Refresh](./07-token-refresh.md)**
-   - Renovación de tokens
-   - Manejo de expiración
-   - Rotación de refresh tokens
-
-### Temas Avanzados
-8. **[Admin API Keys](./08-admin-api-keys.md)**
-   - Auto-registro de clientes OAuth2
-   - Service-to-service authentication
-   - Gestión de permisos
-
-9. **[Multi-Factor Authentication](./09-mfa-integration.md)**
-   - Integración con TOTP/MFA
-   - Flujo de login con 2FA
-   - Backup codes
-
-10. **[Token Introspection](./10-token-introspection.md)**
-    - Validación de tokens en backend
-    - Metadatos del token
-    - Caché de validaciones
-
-11. **[Agent Tokens](./11-agent-tokens.md)** ⭐ NUEVO - Para Agentes de IA
-    - Tokens especializados para agentes de IA
-    - Task-scoping y delegation tracking
-    - Operation limits y auto-revocación
-    - Compliance (EU AI Act)
+### Referencia (documentación canónica)
+- [OAuth2 Overview](../oauth2/overview.md) — Grants, PKCE, scopes
+- [Authorization Code + PKCE](../oauth2/authorization-code.md) — Flujo completo
+- [Client Credentials (M2M)](../oauth2/client-credentials.md) — Machine-to-machine
+- [Token Introspection](../oauth2/token-introspection.md) — RFC 7662
+- [Agents Section](../agents/overview.md) — CLI + Skills
+- [API Reference](../api/rest.md) — Todos los endpoints
 
 ## 🎯 ¿Por Dónde Empezar?
 
@@ -104,9 +81,10 @@ Estos tutoriales se actualizan cuando hay cambios en el código de Thalamus. La 
 | Documento | Propósito |
 |-----------|-----------|
 | **Tutoriales** (aquí) | Paso a paso práctico basado en código real |
-| `GETTING_STARTED.md` | Vista rápida conceptual |
-| `INTEGRATION_GUIDE.md` | Referencia técnica completa |
-| `OPENAPI_SPEC.yaml` | Especificación formal de API |
+| [`getting-started.md`](../getting-started.md) | Quickstart por persona |
+| [`oauth2/`](../oauth2/overview.md) | Referencia canónica OAuth2 |
+| [`api/`](../api/rest.md) | Referencia REST API |
+| [`OPENAPI_SPEC.yaml`](../OPENAPI_SPEC.yaml) | Especificación formal |
 
 ## 🆘 Soporte
 

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**ZEA Thalamus** is a production-ready OAuth2 authentication and authorization service built with Elixir 1.17 and Phoenix 1.8. The project follows Clean Architecture with strict SOLID principles and is designed as the central authentication service for the ZEA ecosystem.
+**ZEA Thalamus** is a production-ready OAuth2 authentication and authorization service built with Elixir 1.19+ and Phoenix 1.8. The project follows Clean Architecture with strict SOLID principles and is designed as the central authentication service for the ZEA ecosystem.
 
 **Status**: Production-Ready (85% complete, v1.0.0-rc1)
 
@@ -452,16 +452,31 @@ Rate limits configured in router pipelines:
 
 - `GET /oauth/authorize` - Authorization page (user consent)
 - `POST /oauth/authorize` - Process authorization (returns code)
-- `POST /oauth/token` - Exchange code/credentials for tokens
+- `POST /oauth/token` - Exchange code/credentials for tokens (all grant types)
+- `POST /oauth/agent-token` - Agent-specific tokens with task-scoping
 - `GET /oauth/userinfo` - OpenID Connect user info endpoint
 - `POST /oauth/introspect` - Token introspection (RFC 7662)
 - `POST /oauth/revoke` - Token revocation (RFC 7009)
+- `GET /.well-known/openid-configuration` - OIDC Discovery
+- `GET /.well-known/jwks.json` - JWKS public keys for JWT verification
 
 ### Scopes
 
 **Standard OIDC**: `openid`, `profile`, `email`, `address`, `phone`, `offline_access`
 
 **ZEA Platform**: `zea:read`, `zea:write`, `zea:admin`, `synapse:events`, `cortex:chat`, `billing:read`, `organizations:write`
+
+**Custom configurable** via `config :thalamus, :oauth2_scopes`
+
+### Agent Tokens
+
+Agent tokens extend OAuth2 with task-scoping, delegation chains (max depth 4), and compliance-ready audit trails.
+
+- **Agent types**: `autonomous`, `supervisor`, `tool`
+- **Delegation**: human → agent → sub-agent chains
+- **Step authorization**: `POST /api/authorization/validate-step` called by Cerebelum before each workflow step
+- **Feature flag**: Gated behind `agent_tokens_enabled`
+- See [docs/agents/](docs/agents/) for full documentation
 
 ## Testing Strategy
 
@@ -723,6 +738,7 @@ This runs: compile (warnings as errors), format check, and full test suite.
 5. Create repository implementation in `lib/thalamus/infrastructure/repositories/`
 6. Create migration in `priv/repo/migrations/`
 7. Write tests for each layer
+8. Document the feature in `docs/api/` or `docs/oauth2/`
 
 ### Adding a New Use Case
 
@@ -739,11 +755,35 @@ This runs: compile (warnings as errors), format check, and full test suite.
 3. Call use case from controller
 4. Return proper HTTP status codes
 5. Write controller tests with database fixtures
+6. Document the endpoint in `docs/api/` with parameter tables + curl examples + error codes
+
+### Adding Documentation
+
+Follow the cerebelum-core pattern:
+1. Read the controller/ex code first — validate everything against real code
+2. Write the doc file in the appropriate `docs/` section
+3. Use the format: parameter table → curl example → response → error codes → code snippets
+4. Cross-link to related docs
+5. Update `docs/index.md` if adding a new top-level file
+6. Never reference files that don't exist
 
 ## Resources
 
-- **README.md** - Project overview and quick start
-- **docs/PROJECT_STATUS.md** - Detailed implementation status
-- **docs/OPENAPI_SPEC.yaml** - Complete API documentation
-- **docs/ARCHITECTURE.md** - System architecture details
-- **docs/DEPLOYMENT_GUIDE.md** - Production deployment guide
+- **[docs/index.md](docs/index.md)** — Documentation hub (5 personas: dev, agente, devops, admin, arquitecto)
+- **[docs/getting-started.md](docs/getting-started.md)** — Quickstart por caso de uso
+- **[docs/oauth2/](docs/oauth2/)** — OAuth2 reference (8 archivos: overview, authorization-code, client-credentials, token-introspection, token-revocation, userinfo, discovery, agent-tokens)
+- **[docs/agents/](docs/agents/)** — Agent docs (overview, CLI reference, skills catalog)
+- **[docs/api/](docs/api/)** — REST API reference (11 archivos: rest, authentication, users, organizations, clients, roles, mfa, secrets, domains, personal-access-tokens, audit-logs)
+- **[docs/architecture/overview.md](docs/architecture/overview.md)** — Clean Architecture, capas, entidades, puertos
+- **[docs/configuration.md](docs/configuration.md)** — Email, planes, scopes, feature flags, env vars
+- **[docs/deployment.md](docs/deployment.md)** — Docker, producción, reverse proxy
+- **[docs/guides/](docs/guides/)** — Guías prácticas (admin-api-keys, saml-sso, oauth2-client-management, dashboard)
+- **[docs/OPENAPI_SPEC.yaml](docs/OPENAPI_SPEC.yaml)** — OpenAPI 3.0 specification
+- **[docs/tutorials/](docs/tutorials/)** — Tutoriales paso a paso para integradores
+
+### Documentation conventions
+
+- Every doc file is validated against real code in `lib/`
+- No broken links — `index.md` only references files that exist
+- Each doc follows cereal pattern: parameter tables → curl examples → response format → error codes → code snippets
+- Persona-first: docs route readers by role (dev integrating, AI agent, devops on-prem, admin, architect)
