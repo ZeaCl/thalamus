@@ -6,6 +6,7 @@ defmodule ThalamusWeb.API.LoginControllerTest do
 
   @valid_email "test@example.com"
   @valid_password "SecurePass123!@#"
+  @org_id "ea7b11ea-852c-44e5-aee1-a761ec76eaea"
 
   describe "POST /api/public/login" do
     setup do
@@ -39,7 +40,7 @@ defmodule ThalamusWeb.API.LoginControllerTest do
       # Decode JWT and verify domain_roles claim
       [_header, payload_b64, _sig] = String.split(access_token, ".")
       {:ok, payload_json} = Base.url_decode64(payload_b64, padding: false)
-      payload = Jason.decode!(payload_json)
+      {:ok, payload} = Jason.decode(payload_json)
 
       assert is_list(payload["domain_roles"])
       assert length(payload["domain_roles"]) > 0
@@ -50,7 +51,7 @@ defmodule ThalamusWeb.API.LoginControllerTest do
       assert domain_role["scopes"] == ["read", "write"]
     end
 
-    test "successful login without domain roles returns JWT with empty domain_roles", %{
+    test "successful login without domain roles returns JWT without domain_roles claim", %{
       conn: conn
     } do
       conn =
@@ -67,9 +68,9 @@ defmodule ThalamusWeb.API.LoginControllerTest do
       # Decode JWT
       [_header, payload_b64, _sig] = String.split(access_token, ".")
       {:ok, payload_json} = Base.url_decode64(payload_b64, padding: false)
-      payload = Jason.decode!(payload_json)
+      {:ok, payload} = Jason.decode(payload_json)
 
-      # domain_roles should NOT be present (empty roles = not included)
+      # domain_roles should NOT be present (empty roles = not included by JwtSigner)
       refute Map.has_key?(payload, "domain_roles")
     end
 
@@ -190,11 +191,9 @@ defmodule ThalamusWeb.API.LoginControllerTest do
   end
 
   defp create_domain_role(user_id, domain, role, scopes) do
-    org_id = "ea7b11ea-852c-44e5-aee1-a761ec76eaea"
-
     Repo.insert(%UserDomainRoleSchema{
       user_id: user_id,
-      organization_id: org_id,
+      organization_id: @org_id,
       domain: domain,
       role: role,
       scopes: scopes
