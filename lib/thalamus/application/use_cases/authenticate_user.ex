@@ -155,7 +155,7 @@ defmodule Thalamus.Application.UseCases.AuthenticateUser do
 
   defp record_success(user, %{user_repository: repo, audit_logger: logger}) do
     # Update last login
-    now = DateTime.utc_now()
+    now = DateTime.truncate(DateTime.utc_now(), :second)
     {:ok, _updated_user} = User.record_successful_login(user)
     repo.update_last_login(user.id, now)
 
