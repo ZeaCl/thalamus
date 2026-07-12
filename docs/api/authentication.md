@@ -43,20 +43,66 @@ curl -X POST http://localhost:4000/api/public/login \
 **Success Response:**
 ```json
 {
-  "data": {
-    "access_token": "eyJhbGciOiJIUzI1NiIs...",
-    "refresh_token": "rt_abc123...",
-    "expires_in": 3600
+  "access_token": "eyJhbGciOiJSUzI1NiIs...",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "user": {
+    "id": "user_abc123",
+    "email": "user@example.com",
+    "name": "User Name",
+    "verified": true
   }
 }
 ```
+
+### JWT Claims
+
+El `access_token` es un JWT firmado con RS256. Al decodificarlo, incluye los siguientes claims:
+
+```json
+{
+  "iss": "https://auth.zea.cl",
+  "aud": "zea",
+  "iat": 1752050000,
+  "exp": 1752053600,
+  "jti": "jti_abc123...",
+  "sub": "user_c0000000-852c-44e5-aee1-a761ec76eaea",
+  "scope": "openid profile email",
+  "client_id": "thalamus_api",
+  "name": "User Name",
+  "email": "user@example.com",
+  "is_agent": false,
+  "scopes": ["funds:read", "funds:write"],
+  "domain_roles": [
+    {
+      "org_id": "ea7b11ea-852c-44e5-aee1-a761ec76eaea",
+      "domain": "funds",
+      "role": "gp_admin",
+      "scopes": ["funds:read", "funds:write"]
+    }
+  ]
+}
+```
+
+| Claim | Tipo | Descripción |
+|---|---|---|
+| `sub` | string | User ID con prefijo `user_` |
+| `scope` | string | Scopes OAuth2 solicitados (space-separated) |
+| `scopes` | string[] | **Todos** los scopes del usuario (union de todos sus domain_roles) |
+| `domain_roles` | object[] | Roles por organización/dominio. **Claim principal para autorización multi-tenant.** Cada entry tiene `org_id`, `domain`, `role`, `scopes`, y opcionalmente `entity_id` |
+| `is_agent` | boolean | `true` si el usuario es un agente AI |
+
+> ⚠️ **Importante para integradores**: Los servicios downstream (fm_funds, cerebelum, etc.) deben leer los permisos desde `domain_roles`, **no** desde `scope` ni `organization_id`. El claim `domain_roles` es la fuente canónica de autorización multi-tenant.
 
 **Error Responses:**
 
 | Status | Code | When |
 |---|---|---|
-| `400` | `invalid_credentials` | Wrong email or password |
-| `400` | `account_inactive` | Account is disabled |
+| `401` | `invalid_credentials` | Wrong email or password |
+| `401` | `account_locked` | Too many failed attempts |
+| `401` | `account_suspended` | Account is suspended |
+| `401` | `account_not_verified` | Email not verified |
+| `400` | `missing_parameter` | Email or password missing |
 
 ---
 
@@ -238,6 +284,7 @@ curl -X POST http://localhost:4000/api/public/password/confirm-reset \
 
 ## See Also
 
+- [Domains API](domains.md) — Domain-role assignment (RBAC multi-tenant)
 - [Users API](users.md) — User CRUD (authenticated)
 - [MFA API](mfa.md) — Multi-factor authentication
 - [OAuth2 Authorization Code](../oauth2/authorization-code.md) — Full OAuth2 login flow

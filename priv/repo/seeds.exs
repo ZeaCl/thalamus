@@ -3,7 +3,8 @@ alias Thalamus.Repo
 alias Thalamus.Infrastructure.Persistence.Schemas.{
   UserSchema,
   OrganizationSchema,
-  OAuth2ClientSchema
+  OAuth2ClientSchema,
+  UserDomainRoleSchema
 }
 
 import Ecto.Query
@@ -385,5 +386,33 @@ case Repo.get(OAuth2ClientSchema, cerebelum_service_id) ||
   _existing ->
     :ok
 end
+
+# 4. Domain Roles (required by subdomain services: fm_funds, fm_investors, fm_commitments, fm_capital_calls)
+# Services validate JWT claims.expect non-empty domain_roles
+# Without these, all real-mode services return 401
+
+domain_roles = [
+  # c@zea.cl — GP admin on ZEA org
+  %{user_id: c_user_id, organization_id: zea_org_id, domain: "fund_management", role: "gp_admin", scopes: ["read", "write"]},
+  # c@zea.cl — also admin on Südlich org (cross-org access)
+  %{user_id: c_user_id, organization_id: sudlich_org_id, domain: "fund_management", role: "gp_admin", scopes: ["read", "write"]},
+  # ccerda@sudlich.cl — GP admin on Südlich org
+  %{user_id: ccerda_user_id, organization_id: sudlich_org_id, domain: "fund_management", role: "gp_admin", scopes: ["read", "write"]}
+]
+
+Enum.each(domain_roles, fn attrs ->
+  existing =
+    Repo.get_by(UserDomainRoleSchema,
+      user_id: attrs.user_id,
+      organization_id: attrs.organization_id,
+      domain: attrs.domain
+    )
+
+  if is_nil(existing) do
+    %UserDomainRoleSchema{}
+    |> Ecto.Changeset.cast(attrs, [:user_id, :organization_id, :domain, :role, :scopes])
+    |> Repo.insert!()
+  end
+end)
 
 Logger.info("ZEA database seeding completed successfully!")

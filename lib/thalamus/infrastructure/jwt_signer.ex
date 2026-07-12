@@ -134,12 +134,28 @@ defmodule Thalamus.Infrastructure.JwtSigner do
 
   defp fetch_domain_roles(user_id) do
     try do
-      Repo.all(
-        from r in UserDomainRoleSchema,
-          where: r.user_id == ^user_id
-      )
+      case Ecto.UUID.cast(user_id) do
+        {:ok, uuid} ->
+          Repo.all(
+            from r in UserDomainRoleSchema,
+              where: r.user_id == ^uuid
+          )
+
+        :error ->
+          require Logger
+          Logger.warning("fetch_domain_roles: invalid user_id format: #{inspect(user_id)}")
+          []
+      end
     rescue
-      _ -> []
+      e in DBConnection.ConnectionError ->
+        require Logger
+        Logger.warning("fetch_domain_roles: DB connection error — #{Exception.message(e)}")
+        []
+
+      e in DBConnection.OwnershipError ->
+        require Logger
+        Logger.warning("fetch_domain_roles: DB ownership error — #{Exception.message(e)}")
+        []
     end
   end
 

@@ -787,3 +787,99 @@ Follow the cerebelum-core pattern:
 - No broken links — `index.md` only references files that exist
 - Each doc follows cereal pattern: parameter tables → curl examples → response format → error codes → code snippets
 - Persona-first: docs route readers by role (dev integrating, AI agent, devops on-prem, admin, architect)
+
+---
+
+## Memoria operativa (`.wiki/`)
+
+El agente mantiene un wiki de conocimiento operativo en `.wiki/`. Es **la memoria del equipo interno entre sesiones** — permite saber qué se hizo, cómo funcionan las integraciones, y qué patrones se descubrieron sin tener que re-explorar cada vez.
+
+> ⚠️ Esto NO es documentación para desarrolladores externos ni agentes que integran Thalamus (eso está en `docs/`). Esto es para el equipo que mantiene y opera Thalamus.
+
+### Estructura
+
+```
+.wiki/
+  index.md              ← catálogo de todas las páginas (el agente lo mantiene)
+  log.md                ← bitácora cronológica (qué se hizo y cuándo)
+  rules.md              ← convenciones y patrones descubiertos (evoluciona este CLAUDE.md)
+  features/
+    <feature>.md        ← una página por feature/bug (estado, decisiones, gotchas)
+  integrations/
+    <servicio>.md       ← una página por servicio/infra (endpoints, auth, quirks)
+```
+
+### Cuándo escribir
+
+| Momento | Acción |
+|---|---|
+| Al **terminar una feature o fix** (merge a main) | Crear/actualizar `.wiki/features/<feature>.md` con: qué se hizo, decisiones clave, archivos modificados, errores encontrados y cómo se resolvieron |
+| Al **descubrir un patrón o regla** | Agregar a `.wiki/rules.md` y actualizar este CLAUDE.md si corresponde |
+| Al **aprender algo nuevo sobre una integración** | Crear/actualizar `.wiki/integrations/<servicio>.md` con: conexión, auth, formato de datos, limitaciones, ejemplos |
+| **Siempre**, después de cualquier cambio significativo | Agregar entrada a `.wiki/log.md` con formato: `## [YYYY-MM-DD] <tipo> \| <descripción breve>` |
+| **Siempre** | Mantener `.wiki/index.md` actualizado con links y one-liners de cada página |
+
+### Cuándo leer
+
+| Momento | Qué leer |
+|---|---|
+| Al **iniciar una sesión nueva** | `.wiki/log.md` (últimas entradas) + `.wiki/index.md` |
+| Antes de **tocar una integración** | `.wiki/integrations/<servicio>.md` |
+| Antes de **empezar una feature** | `.wiki/features/<feature>.md` (si existe) + `.wiki/rules.md` |
+| Al **encontrar un error** | `.wiki/log.md` + `.wiki/features/` relacionadas (por si ya se resolvió antes) |
+
+### Formato de feature page
+
+```markdown
+# <Feature Name>
+
+- **Issue**: #N
+- **Rama**: feature/<nombre>
+- **Estado**: ✅ merged / 🔄 en progreso / ⬜ planeado
+
+## Qué se hizo
+[2-3 bullets]
+
+## Decisiones clave
+- [decisión 1]
+- [decisión 2]
+
+## Archivos modificados
+- `lib/...`
+
+## Errores encontrados
+- [error] → [solución]
+
+## Referencias
+- [links a PR, issues, docs]
+```
+
+### Formato de integration page
+
+```markdown
+# <Servicio>
+
+- **URL**: http://...
+- **Auth**: Bearer token / API key / etc
+- **Repositorio**: /path/to/repo
+
+## Conexión
+[comandos para conectar, health check]
+
+## Endpoints / Tablas / Schemas
+[tabla con lo relevante]
+
+## Formato de datos
+[ejemplo de request/response o schema]
+
+## Limitaciones / Quirks
+- [cosa rara que hace el servicio]
+```
+
+### Reglas de mantenimiento
+
+- El agente **SIEMPRE** actualiza el wiki después de un cambio significativo. No espera a que se lo pidan.
+- Las páginas son markdown plano. Nada de frontmatter complejo.
+- Si una página tiene más de ~50 líneas, considerar splitearla.
+- El `log.md` usa el prefijo `## [YYYY-MM-DD]` para que sea parseable con grep.
+- El wiki se commitea junto con el código. Es parte del repo.

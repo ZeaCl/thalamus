@@ -2,6 +2,8 @@
 
 Domain-agnostic RBAC system. Register resource domains, grant/revoke scoped roles, and list domain assignments.
 
+> 📌 **Relación con el JWT**: Los domain roles asignados vía esta API se persisten en la tabla `user_domain_roles`. En el próximo login del usuario, el JWT incluirá los claims `domain_roles` y `scopes` reflejando estas asignaciones. Ver [Authentication API — JWT Claims](authentication.md#jwt-claims).
+
 ---
 
 ## Endpoints
@@ -153,6 +155,8 @@ Authorization: Bearer eyJhbGciOi...
 
 ## See Also
 
+- [Authentication API](authentication.md) — JWT Claims con `domain_roles` y `scopes`
 - [Roles API](roles.md) — Global role management
 - [Users API](users.md) — User management
 - [Agent Skills](../agents/skills.md) — Domain scopes for agents
+- [Architecture Overview](../architecture/overview.md) — UserDomainRole schema

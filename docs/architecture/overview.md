@@ -117,9 +117,15 @@ Implements application ports with concrete technologies.
 | `PostgreSQLSamlIdentityProviderRepository` | `SamlIdentityProviderRepository` |
 | `PostgreSQLPersonalAccessTokenRepository` | PAT storage |
 
-### Ecto Schemas (16)
+### Ecto Schemas (17)
 
 Maps domain entities to database tables in `lib/thalamus/infrastructure/persistence/schemas/`.
+
+| Schema | Table | Purpose |
+|---|---|---|
+| `UserDomainRoleSchema` | `user_domain_roles` | Multi-tenant RBAC: asigna scopes a usuarios por organización y dominio |
+
+`UserDomainRoleSchema` es la base de la autorización multi-tenant. Cada fila asigna un `domain` (ej. `"funds"`), un `role` (ej. `"gp_admin"`), y un array de `scopes` (ej. `["funds:read", "funds:write"]`) a un usuario dentro de una organización. Estos roles se serializan en el JWT como el claim `domain_roles` y son validados por servicios downstream sin consultar la DB.
 
 ### Adapters
 
