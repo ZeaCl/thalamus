@@ -184,5 +184,5 @@ You want to understand how Thalamus is built, its design decisions, and how to e
 | Environment | URL | Auth |
 |---|---|---|
 | ZEA Cloud (production) | `https://auth.zea.cl` | JWT via OAuth2 |
-| Local development | `http://localhost:4000` | JWT via OAuth2 |
+| Local development | `http://auth.zea.localhost` | JWT via OAuth2 |
 | Internal (same network) | `http://thalamus:4000` | No auth for `/api/internal/*` |

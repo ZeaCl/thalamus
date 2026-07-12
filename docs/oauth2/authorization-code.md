@@ -97,7 +97,7 @@ Location: https://app.com/callback?error=access_denied&error_description=The+use
 The consent form posts to `POST /oauth/authorize`:
 
 ```bash
-curl -X POST http://localhost:4000/oauth/authorize \
+curl -X POST http://auth.zea.localhost/oauth/authorize \
   -H "Content-Type: application/json" \
   -d '{
     "decision": "approve",
@@ -125,7 +125,7 @@ curl -X POST http://localhost:4000/oauth/authorize \
 ## Step 4: Exchange Code for Tokens (POST)
 
 ```bash
-curl -X POST http://localhost:4000/oauth/token \
+curl -X POST http://auth.zea.localhost/oauth/token \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "grant_type=authorization_code" \
   -d "code=ac_abc123def456" \
@@ -138,7 +138,7 @@ curl -X POST http://localhost:4000/oauth/token \
 Or with HTTP Basic Auth:
 
 ```bash
-curl -X POST http://localhost:4000/oauth/token \
+curl -X POST http://auth.zea.localhost/oauth/token \
   -H "Authorization: Basic $(echo -n 'client_xxx:secret_xxx' | base64)" \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "grant_type=authorization_code" \
