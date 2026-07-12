@@ -44,6 +44,7 @@ defmodule ThalamusWeb.API.LoginControllerTest do
 
       assert is_list(payload["domain_roles"])
       assert length(payload["domain_roles"]) > 0
+      assert payload["authz_source"] == "domain_roles"
 
       domain_role = List.first(payload["domain_roles"])
       assert domain_role["domain"] == "funds"
@@ -51,7 +52,7 @@ defmodule ThalamusWeb.API.LoginControllerTest do
       assert domain_role["scopes"] == ["read", "write"]
     end
 
-    test "successful login without domain roles returns JWT without domain_roles claim", %{
+    test "successful login without domain roles returns JWT with empty domain_roles array", %{
       conn: conn
     } do
       conn =
@@ -70,8 +71,9 @@ defmodule ThalamusWeb.API.LoginControllerTest do
       {:ok, payload_json} = Base.url_decode64(payload_b64, padding: false)
       {:ok, payload} = Jason.decode(payload_json)
 
-      # domain_roles should NOT be present (empty roles = not included by JwtSigner)
-      refute Map.has_key?(payload, "domain_roles")
+      # domain_roles is always present (empty array when user has no roles)
+      assert payload["domain_roles"] == []
+      assert payload["authz_source"] == "domain_roles"
     end
 
     test "invalid credentials return 401", %{conn: conn} do

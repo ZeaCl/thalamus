@@ -101,10 +101,17 @@ defmodule ThalamusWeb.Plugs.APIAuth do
   defp validate_jwt(conn, token) do
     case decode_jwt(token) do
       {:ok, claims} ->
+        org_id =
+          claims["organization_id"] ||
+            (case claims["domain_roles"] do
+               [first | _] when is_map(first) -> Map.get(first, "org_id")
+               _ -> nil
+             end)
+
         conn
         |> assign(:auth_type, :jwt)
         |> assign(:user_id, claims["sub"])
-        |> assign(:organization_id, claims["organization_id"])
+        |> assign(:organization_id, org_id)
 
       _ ->
         # Legacy fallback: preserve existing assigns, set minimal defaults

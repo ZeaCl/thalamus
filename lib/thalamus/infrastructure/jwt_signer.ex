@@ -96,6 +96,10 @@ defmodule Thalamus.Infrastructure.JwtSigner do
 
   # Adds domain role claims to the JWT from the database.
   # Queries user_domain_roles for the user's scopes across all orgs.
+  #
+  # Always includes "domain_roles" in the JWT (empty array if no roles),
+  # so downstream services can rely on its presence for authorization.
+  # Also adds "authz_source" hint to prevent confusion with organization_id.
   defp add_domain_roles(claims) do
     sub = claims["sub"]
 
@@ -103,32 +107,31 @@ defmodule Thalamus.Infrastructure.JwtSigner do
       raw_uid = String.replace_prefix(sub, "user_", "")
       roles = fetch_domain_roles(raw_uid)
 
-      if roles == [] do
-        claims
-      else
-        all_scopes =
-          roles
-          |> Enum.flat_map(& &1.scopes)
-          |> Enum.uniq()
+      domain_roles =
+        Enum.map(roles, fn r ->
+          role_data = %{
+            "org_id" => r.organization_id,
+            "domain" => r.domain,
+            "role" => r.role,
+            "scopes" => r.scopes
+          }
 
-        claims
-        |> Map.put("scopes", all_scopes)
-        |> Map.put(
-          "domain_roles",
-          Enum.map(roles, fn r ->
-            role_data = %{
-              "org_id" => r.organization_id,
-              "domain" => r.domain,
-              "role" => r.role,
-              "scopes" => r.scopes
-            }
+          if r.entity_id, do: Map.put(role_data, "entity_id", r.entity_id), else: role_data
+        end)
 
-            if r.entity_id, do: Map.put(role_data, "entity_id", r.entity_id), else: role_data
-          end)
-        )
-      end
+      all_scopes =
+        roles
+        |> Enum.flat_map(& &1.scopes)
+        |> Enum.uniq()
+
+      claims
+      |> Map.put("scopes", all_scopes)
+      |> Map.put("domain_roles", domain_roles)
+      |> Map.put("authz_source", "domain_roles")
     else
       claims
+      |> Map.put("domain_roles", [])
+      |> Map.put("authz_source", "domain_roles")
     end
   end
 

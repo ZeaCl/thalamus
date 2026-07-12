@@ -80,7 +80,8 @@ El `access_token` es un JWT firmado con RS256. Al decodificarlo, incluye los sig
       "role": "gp_admin",
       "scopes": ["funds:read", "funds:write"]
     }
-  ]
+  ],
+  "authz_source": "domain_roles"
 }
 ```
 
@@ -89,10 +90,12 @@ El `access_token` es un JWT firmado con RS256. Al decodificarlo, incluye los sig
 | `sub` | string | User ID con prefijo `user_` |
 | `scope` | string | Scopes OAuth2 solicitados (space-separated) |
 | `scopes` | string[] | **Todos** los scopes del usuario (union de todos sus domain_roles) |
-| `domain_roles` | object[] | Roles por organización/dominio. **Claim principal para autorización multi-tenant.** Cada entry tiene `org_id`, `domain`, `role`, `scopes`, y opcionalmente `entity_id` |
+| `domain_roles` | object[] | **Siempre presente** (array vacío `[]` si el usuario no tiene roles). Claim principal para autorización multi-tenant. Cada entry tiene `org_id`, `domain`, `role`, `scopes`, y opcionalmente `entity_id` |
+| `authz_source` | string | Siempre `"domain_roles"`. Indica que `domain_roles` es la fuente canónica de autorización |
 | `is_agent` | boolean | `true` si el usuario es un agente AI |
+| `organization_id` | string | ⚠️ **Deprecated**. Usar `domain_roles[].org_id` en su lugar. Se mantiene por compatibilidad con integraciones viejas |
 
-> ⚠️ **Importante para integradores**: Los servicios downstream (fm_funds, cerebelum, etc.) deben leer los permisos desde `domain_roles`, **no** desde `scope` ni `organization_id`. El claim `domain_roles` es la fuente canónica de autorización multi-tenant.
+> ⚠️ **Importante para integradores**: Los servicios downstream (fm_funds, cerebelum, etc.) deben leer los permisos desde `domain_roles`, **no** desde `scope` ni `organization_id`. El claim `domain_roles` y `authz_source` son las fuentes canónicas de autorización multi-tenant.
 
 **Error Responses:**
 
