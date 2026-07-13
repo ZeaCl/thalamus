@@ -206,6 +206,7 @@ platform_web_uris = [
   "http://zea.localhost/auth/callback",
   "http://zea.localhost:3000/auth/callback",
   "http://sudlich.zea.localhost/auth/callback",
+  "http://sudlich-soma.zea.localhost/auth/callback",
   "http://zea.localhost:4001/auth/callback",
   "http://sudlich.zea.localhost:4001/auth/callback",
   "https://zea.cl/auth/callback",
