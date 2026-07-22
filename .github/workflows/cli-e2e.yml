@@ -60,13 +60,21 @@ jobs:
 
       - name: Start Thalamus
         run: |
-          echo "Building Thalamus (this can take 5+ minutes in CI)..."
-          docker compose build thalamus
-          docker compose up -d --wait postgres redis
-          docker compose up -d --wait thalamus
-          echo "Waiting for Thalamus to be fully ready (up to 3 minutes)..."
-          curl -fsS --retry 30 --retry-delay 6 --retry-connrefused http://localhost:4100/api/public/health
-          echo "✅ Thalamus ready"
+          echo "Building and starting Thalamus..."
+          docker compose up -d --build postgres redis thalamus
+          echo "Waiting for Thalamus to be ready (up to 3 minutes)..."
+          for i in $(seq 1 90); do
+            if curl -sf http://localhost:4100/api/public/health >/dev/null 2>&1; then
+              echo "✅ Thalamus ready (${i}s)"
+              break
+            fi
+            if [ $i -eq 90 ]; then
+              echo "❌ Thalamus failed to start after 3 minutes"
+              docker compose logs thalamus --tail 50
+              exit 1
+            fi
+            sleep 2
+          done
 
       # ── Health + OIDC ─────────────────────────────
       - name: Test — health
