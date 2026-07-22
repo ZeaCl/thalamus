@@ -1,5 +1,5 @@
 {
-  "name": "@zea-cl/thalamus",
+  "name": "@zea.cl/thalamus",
   "version": "1.0.0",
   "description": "ZEA Thalamus CLI — Identity & Access Management commands",
   "type": "module",

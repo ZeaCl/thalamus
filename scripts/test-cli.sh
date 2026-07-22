@@ -10,12 +10,12 @@
 #   ./scripts/test-cli.sh 02_auth --verbose  # verbose mode
 #
 # Environment:
-#   TEST_THALAMUS_URL  — Thalamus base URL (default: http://localhost:4000)
+#   TEST_THALAMUS_URL  — Thalamus base URL (default: http://localhost:4100)
 #   CLI_PATH           — Path to zea binary (default: zea)
 
 set -euo pipefail
 
-THALAMUS_URL="${TEST_THALAMUS_URL:-http://localhost:4000}"
+THALAMUS_URL="${TEST_THALAMUS_URL:-http://localhost:4100}"
 CLI_PATH="${CLI_PATH:-zea}"
 VERBOSE=false
 PASS=0
