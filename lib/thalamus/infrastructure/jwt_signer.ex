@@ -163,6 +163,41 @@ defmodule Thalamus.Infrastructure.JwtSigner do
   end
 
   @doc """
+  Generates a signed JWT refresh token.
+
+  Refresh tokens have a longer lifetime (30 days by default) and
+  carry only the essential claims needed for token refresh.
+
+  ## Claims
+  - sub: user_id (string)
+  - typ: "refresh"
+  - iss: issuer URL
+  - exp: expiration timestamp (now + expires_in)
+  - iat: issued at timestamp
+  - jti: unique token ID
+  """
+  def sign_refresh_token(claims_map) do
+    signer = build_signer(nil)
+    cfg = config()
+
+    now = DateTime.utc_now() |> DateTime.to_unix()
+    expires_in = Map.get(claims_map, :expires_in, 2_592_000)
+
+    claims = %{
+      "sub" => Map.get(claims_map, :user_id),
+      "typ" => "refresh",
+      "iss" => cfg[:issuer],
+      "aud" => Map.get(claims_map, :aud, "zea"),
+      "iat" => now,
+      "exp" => now + expires_in,
+      "jti" => "rti_" <> (:crypto.strong_rand_bytes(16) |> Base.url_encode64(padding: false))
+    }
+
+    {:ok, token, _claims} = Joken.encode_and_sign(claims, signer)
+    token
+  end
+
+  @doc """
   Returns JWKS (JSON Web Key Set) data for the public key.
   Used by resource servers (e.g., Cerebelum) to validate JWT signatures.
   """

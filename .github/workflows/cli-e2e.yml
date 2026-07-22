@@ -1,0 +1,146 @@
+name: CLI E2E Tests
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'lib/**'
+      - 'priv/**'
+      - 'config/**'
+      - 'mix.exs'
+      - 'mix.lock'
+      - 'Dockerfile'
+      - 'docker-entrypoint.sh'
+      - 'docker-compose.test.yml'
+      - 'test/cli/**'
+      - 'scripts/test-cli.sh'
+      - 'docs/cli/**'
+      - '.github/workflows/cli-e2e.yml'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'lib/**'
+      - 'priv/**'
+      - 'config/**'
+      - 'mix.exs'
+      - 'mix.lock'
+      - 'Dockerfile'
+      - 'docker-entrypoint.sh'
+      - 'docker-compose.test.yml'
+      - 'test/cli/**'
+      - 'scripts/test-cli.sh'
+      - 'docs/cli/**'
+      - '.github/workflows/cli-e2e.yml'
+
+# ═══════════════════════════════════════════════════════════
+# Jobs
+# ═══════════════════════════════════════════════════════════
+
+jobs:
+  # ─── Build Thalamus Docker image ──────────────────────────
+  build:
+    name: Build Thalamus Image
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.meta.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Thalamus image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile
+          push: false
+          load: true
+          tags: thalamus:e2e
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Verify image
+        run: docker image inspect thalamus:e2e > /dev/null && echo "✅ Image built"
+
+  # ─── E2E Tests (matrix: 8 suites in parallel) ─────────────
+  e2e:
+    name: CLI E2E (${{ matrix.suite }})
+    runs-on: ubuntu-latest
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        suite:
+          - "01_health"
+          - "02_auth"
+          - "03_org"
+          - "04_client"
+          - "05_token"
+          - "06_domain"
+          - "07_doctor"
+          - "08_errors"
+
+    steps:
+      - name: Checkout thalamus
+        uses: actions/checkout@v4
+
+      - name: Checkout zea-cli
+        uses: actions/checkout@v4
+        with:
+          repository: ZeaCl/zea-cli
+          path: zea-cli
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: zea-cli/package-lock.json
+
+      - name: Install zea-cli
+        working-directory: zea-cli
+        run: |
+          npm ci
+          npm link
+          which zea && zea --version || echo "⚠️ zea binary check"
+
+      - name: Start ephemeral services
+        run: |
+          docker compose -f docker-compose.test.yml up -d --wait postgres redis
+          docker compose -f docker-compose.test.yml up -d --wait thalamus
+          # Extra wait for seeds to complete
+          sleep 5
+          # Health check
+          curl -s http://localhost:4000/api/public/health | jq .
+
+      - name: Run test suite — ${{ matrix.suite }}
+        run: ./scripts/test-cli.sh ${{ matrix.suite }} --verbose
+        env:
+          TEST_THALAMUS_URL: http://localhost:4000
+          CLI_PATH: zea
+
+      # ─── Debug on failure ─────────────────────────────
+      - name: Thalamus logs
+        if: failure()
+        run: docker compose -f docker-compose.test.yml logs thalamus --tail 100
+
+      - name: Database state
+        if: failure()
+        run: |
+          docker compose -f docker-compose.test.yml exec -T postgres \
+            psql -U postgres -d thalamus_test -c "SELECT id, email, name, status FROM users;"
+          docker compose -f docker-compose.test.yml exec -T postgres \
+            psql -U postgres -d thalamus_test -c "SELECT id, name, status FROM organizations;"
+
+      - name: CLI config state
+        if: failure()
+        run: cat ~/.config/zea/config.json 2>/dev/null || echo "No config found"
+
+      # ─── Always teardown ──────────────────────────────
+      - name: Teardown
+        if: always()
+        run: |
+          docker compose -f docker-compose.test.yml down -v
+          docker system prune -f --volumes 2>/dev/null || true

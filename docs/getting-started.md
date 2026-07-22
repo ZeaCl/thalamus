@@ -30,6 +30,19 @@ Or [auto-register your service](guides/admin-api-keys.md) if you have an API key
 
 #### 3. Code it
 
+**Recommended: Use the CLI**
+
+```bash
+# Install
+npm install -g @zea-cl/cli
+
+# Setup
+zea config set-env prod
+zea thalamus auth login
+```
+
+**Or use raw HTTP**
+
 ```bash
 # Authorization Code flow
 curl "https://auth.zea.cl/oauth/authorize?response_type=code&client_id=client_xxx&redirect_uri=https://app.com/callback&scope=openid+profile+email&code_challenge=CHALLENGE&code_challenge_method=S256&state=RANDOM"
