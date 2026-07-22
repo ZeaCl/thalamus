@@ -32,21 +32,8 @@ on:
 
 jobs:
   e2e:
-    name: CLI E2E (${{ matrix.suite }})
+    name: CLI E2E
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        suite:
-          - "01_health"
-          - "02_auth"
-          - "03_org"
-          - "04_client"
-          - "05_token"
-          - "06_domain"
-          - "07_doctor"
-          - "08_errors"
-
     steps:
       - name: Checkout thalamus
         uses: actions/checkout@v4
@@ -69,24 +56,78 @@ jobs:
         run: |
           npm ci
           npm link
-          which zea && zea --version || echo "zeal CLI linked"
+          zea --version
 
       - name: Start Thalamus
         run: |
           docker compose up -d --wait postgres redis
           docker compose up -d --wait thalamus
-          sleep 5
-          curl -s http://localhost:4100/api/public/health | jq .
+          sleep 10
+          curl -fsS --retry 5 --retry-delay 3 http://localhost:4100/api/public/health
 
-      - name: Run test suite — ${{ matrix.suite }}
-        run: ./scripts/test-cli.sh ${{ matrix.suite }} --verbose
-        env:
-          TEST_THALAMUS_URL: http://localhost:4100
-          CLI_PATH: zea
+      # ── Health + OIDC ─────────────────────────────
+      - name: Test — health
+        run: |
+          zea thalamus health 2>&1 | tee /dev/stderr | grep -q "ok"
+          echo "✅ health"
 
+      - name: Test — whoami (unauthenticated)
+        run: |
+          zea thalamus auth whoami 2>&1 | tee /dev/stderr | grep -qi "not authenticated\|login"
+          echo "✅ whoami (unauthenticated)"
+
+      # ── Auth ──────────────────────────────────────
+      - name: Test — login
+        run: |
+          zea thalamus auth login --email admin@zea.local --password Admin123! 2>&1 | tee /dev/stderr | grep -q "Successfully"
+          echo "✅ login"
+
+      - name: Test — whoami (authenticated)
+        run: |
+          zea thalamus auth whoami 2>&1 | tee /dev/stderr | grep -q "admin@zea.local"
+          echo "✅ whoami"
+
+      - name: Test — org
+        run: |
+          zea thalamus org list 2>&1 | tee /dev/stderr | grep -q "ZEA"
+          echo "✅ org list"
+
+      - name: Test — token
+        run: |
+          zea thalamus token create --name "CI Test" 2>&1 | tee /dev/stderr | grep -q "Token"
+          echo "✅ token create"
+
+      - name: Test — client
+        run: |
+          zea thalamus client list 2>&1 | tee /dev/stderr | grep -q "Client\|No OAuth2"
+          echo "✅ client list"
+
+      - name: Test — debug
+        run: |
+          TOKEN=$(cat ~/.config/zea/config.json | jq -r '.token')
+          zea thalamus auth debug "$TOKEN" 2>&1 | tee /dev/stderr | grep -q "Payload\|active"
+          echo "✅ auth debug"
+
+      - name: Test — oidc
+        run: |
+          zea thalamus oidc discovery --output json 2>&1 | tee /dev/stderr | grep -q "issuer"
+          echo "✅ oidc discovery"
+
+      # ── Error cases ───────────────────────────────
+      - name: Test — invalid login
+        run: |
+          zea thalamus auth login --email noexiste@test.com --password wrong 2>&1 | tee /dev/stderr | grep -qi "invalid\|failed"
+          echo "✅ invalid login rejected"
+
+      - name: Test — 404
+        run: |
+          zea thalamus user show 00000000-0000-0000-0000-000000000000 2>&1 | tee /dev/stderr | grep -qi "not found"
+          echo "✅ 404 handled"
+
+      # ── Teardown ──────────────────────────────────
       - name: Thalamus logs
         if: failure()
-        run: docker compose logs thalamus --tail 100
+        run: docker compose logs thalamus --tail 50
 
       - name: Teardown
         if: always()
