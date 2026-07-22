@@ -1,24 +1,24 @@
 #!/bin/bash
 # Suite 02 — Auth: login, whoami, logout, debug
-# Requiere: seeds con c@zea.cl / GusVicentAnto1.
+# Requiere: seeds con admin@zea.local / Admin123!
 
 # ═══ Setup helper ═══════════════════════════════════════
 do_login() {
-  $CLI_PATH thalamus auth login --email c@zea.cl --password "GusVicentAnto1." \
+  $CLI_PATH thalamus auth login --email admin@zea.local --password "Admin123!" \
     --url "$THALAMUS_URL" > /dev/null 2>&1
 }
 
 # ── TC-05: Direct login — credenciales válidas ─────────────
 log_test "TC-05: auth login directo — credenciales válidas"
-output=$($CLI_PATH thalamus auth login --email c@zea.cl --password "GusVicentAnto1." --url "$THALAMUS_URL" 2>&1)
+output=$($CLI_PATH thalamus auth login --email admin@zea.local --password "Admin123!" --url "$THALAMUS_URL" 2>&1)
 exit_code=$?
 assert_exit_code $exit_code 0 "TC-05: exit 0"
 assert_output_contains "$output" "Successfully authenticated\|authenticated" "TC-05: authenticated message"
-assert_output_contains "$output" "c@zea.cl" "TC-05: shows user email"
+assert_output_contains "$output" "admin@zea.local" "TC-05: shows user email"
 
 # ── TC-06: Direct login — credenciales inválidas ───────────
 log_test "TC-06: auth login directo — password inválida"
-output=$($CLI_PATH thalamus auth login --email c@zea.cl --password "wrong" --url "$THALAMUS_URL" 2>&1)
+output=$($CLI_PATH thalamus auth login --email admin@zea.local --password "wrong" --url "$THALAMUS_URL" 2>&1)
 exit_code=$?
 assert_exit_code $exit_code 1 "TC-06: exit 1"
 assert_output_contains "$output" "Invalid\|invalid\|failed\|Failed" "TC-06: error message"
@@ -32,7 +32,7 @@ assert_output_contains "$output" "Invalid\|invalid\|failed\|Failed\|not found" "
 
 # ── TC-08: Login — parámetros faltantes ────────────────────
 log_test "TC-08: auth login directo — sin password"
-output=$($CLI_PATH thalamus auth login --email c@zea.cl --url "$THALAMUS_URL" 2>&1)
+output=$($CLI_PATH thalamus auth login --email admin@zea.local --url "$THALAMUS_URL" 2>&1)
 exit_code=$?
 assert_exit_code $exit_code 1 "TC-08: exit 1"
 assert_output_contains "$output" "password\|required\|missing\|error" "TC-08: pide password"
@@ -41,7 +41,7 @@ assert_output_contains "$output" "password\|required\|missing\|error" "TC-08: pi
 log_test "TC-09: whoami — después de login exitoso"
 do_login
 output=$($CLI_PATH thalamus auth whoami 2>&1)
-assert_output_contains "$output" "c@zea.cl" "TC-09: email visible"
+assert_output_contains "$output" "admin@zea.local" "TC-09: email visible"
 assert_output_contains "$output" "ZEA" "TC-09: org visible"
 
 # ── TC-10: Whoami — sin token ──────────────────────────────

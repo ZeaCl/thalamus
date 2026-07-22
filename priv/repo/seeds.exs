@@ -161,6 +161,39 @@ ccerda_user =
       existing
   end
 
+# 2b. Admin user for CLI validation (used by zea-cli validate.sh)
+admin_user_id = "a0000000-852c-44e5-aee1-a761ec76eaea"
+admin_pass_hash = Bcrypt.hash_pwd_salt("Admin123!")
+
+_admin_user =
+  case Repo.get(UserSchema, admin_user_id) || Repo.get_by(UserSchema, email: "admin@zea.local") do
+    nil ->
+      user_attrs = %{
+        id: admin_user_id,
+        email: "admin@zea.local",
+        name: "Admin Local",
+        password_hash: admin_pass_hash,
+        organization_id: zea_org_id,
+        status: :active,
+        verified_at: DateTime.truncate(DateTime.utc_now(), :second)
+      }
+
+      %UserSchema{}
+      |> Ecto.Changeset.cast(user_attrs, [
+        :id,
+        :email,
+        :name,
+        :password_hash,
+        :organization_id,
+        :status,
+        :verified_at
+      ])
+      |> Repo.insert!()
+
+    existing ->
+      existing
+  end
+
 # Update organization members arrays
 # zea members
 zea_members = [
@@ -169,11 +202,17 @@ zea_members = [
     "email" => "c@zea.cl",
     "role" => "owner",
     "joined_at" => DateTime.to_iso8601(DateTime.utc_now())
+  },
+  %{
+    "user_id" => admin_user_id,
+    "email" => "admin@zea.local",
+    "role" => "admin",
+    "joined_at" => DateTime.to_iso8601(DateTime.utc_now())
   }
 ]
 
 zea_org
-|> Ecto.Changeset.change(%{members: zea_members, current_user_count: 1})
+|> Ecto.Changeset.change(%{members: zea_members, current_user_count: 2})
 |> Repo.update!()
 
 # sudlich members: includes ccerda@sudlich.cl (owner) and c@zea.cl (admin)

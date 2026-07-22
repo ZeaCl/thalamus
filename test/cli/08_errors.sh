@@ -3,7 +3,7 @@
 # Requiere: login
 
 do_login() {
-  $CLI_PATH thalamus auth login --email c@zea.cl --password "GusVicentAnto1." \
+  $CLI_PATH thalamus auth login --email admin@zea.local --password "Admin123!" \
     --url "$THALAMUS_URL" > /dev/null 2>&1
 }
 

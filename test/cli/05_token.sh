@@ -3,7 +3,7 @@
 # Requiere: login + org ZEA activa
 
 do_login() {
-  $CLI_PATH thalamus auth login --email c@zea.cl --password "GusVicentAnto1." \
+  $CLI_PATH thalamus auth login --email admin@zea.local --password "Admin123!" \
     --url "$THALAMUS_URL" > /dev/null 2>&1
   $CLI_PATH thalamus org switch zea > /dev/null 2>&1
 }
@@ -43,7 +43,7 @@ log_test "TC-29: usar PAT via ZEA_PAT env var"
 output=$(ZEA_PAT="$TOKEN_VALUE" $CLI_PATH thalamus auth whoami --output json 2>&1)
 exit_code=$?
 assert_exit_code $exit_code 0 "TC-29: whoami con PAT exit 0"
-assert_output_contains "$output" "c@zea.cl" "TC-29: autenticado con PAT"
+assert_output_contains "$output" "admin@zea.local" "TC-29: autenticado con PAT"
 
 # ── TC-30: PAT inválido ────────────────────────────────────
 log_test "TC-30: PAT inválido"
