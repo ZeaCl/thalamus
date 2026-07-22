@@ -63,6 +63,7 @@ jobs:
       - name: Start Thalamus
         run: |
           echo "Building and starting Thalamus (CI mode)..."
+          docker compose -f docker-compose.ci.yml down -v 2>/dev/null || true
           docker compose -f docker-compose.ci.yml up -d --build postgres redis thalamus
           echo "Waiting for Thalamus to be ready (up to 3 minutes)..."
           for i in $(seq 1 90); do
