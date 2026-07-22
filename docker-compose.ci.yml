@@ -1,0 +1,79 @@
+# docker-compose.ci.yml — Contenedor efímero para tests E2E de CLI
+#
+# Uso:
+#   docker compose -f docker-compose.ci.yml up -d --wait
+#   ./scripts/test-cli.sh
+#   docker compose -f docker-compose.ci.yml down -v
+#
+# Variables de entorno:
+#   TEST_DB_PORT  — puerto externo para Postgres (default: 5533)
+#   TEST_PORT     — puerto externo para Thalamus (default: 4100)
+
+version: '3.9'
+
+services:
+  # ═══════════════════════════════════════════════════════════
+  # PostgreSQL
+  # ═══════════════════════════════════════════════════════════
+  postgres:
+    image: postgres:16-alpine
+    container_name: thalamus_test_postgres
+    environment:
+      POSTGRES_DB: thalamus_test
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "${TEST_DB_PORT:-5533}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+    restart: "no"
+
+  # ═══════════════════════════════════════════════════════════
+  # Redis
+  # ═══════════════════════════════════════════════════════════
+  redis:
+    image: redis:7-alpine
+    container_name: thalamus_test_redis
+    command: redis-server --requirepass redis_password
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "redis_password", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+    restart: "no"
+
+  # ═══════════════════════════════════════════════════════════
+  # Thalamus
+  # ═══════════════════════════════════════════════════════════
+  thalamus:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: thalamus_test_app
+    environment:
+      DATABASE_URL: "ecto://postgres:postgres@postgres/thalamus_test"
+      REDIS_URL: "redis://:redis_password@redis:6379"
+      SECRET_KEY_BASE: "test_secret_key_base_min_64_chars_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      PHX_HOST: "localhost"
+      PORT: "4000"
+      MIX_ENV: "prod"
+      SEED_ON_START: "true"
+      TEST_AUTH_ALLOWED: "true"
+    ports:
+      - "${TEST_PORT:-4100}:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:4000/api/public/health"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+      start_period: 15s
+    restart: "no"

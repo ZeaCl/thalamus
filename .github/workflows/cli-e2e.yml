@@ -11,6 +11,7 @@ on:
       - 'mix.lock'
       - 'Dockerfile'
       - 'docker-compose.yml'
+      - 'docker-compose.ci.yml'
       - 'test/cli/**'
       - 'scripts/test-cli.sh'
       - 'docs/cli/**'
@@ -25,6 +26,7 @@ on:
       - 'mix.lock'
       - 'Dockerfile'
       - 'docker-compose.yml'
+      - 'docker-compose.ci.yml'
       - 'test/cli/**'
       - 'scripts/test-cli.sh'
       - 'docs/cli/**'
@@ -60,8 +62,8 @@ jobs:
 
       - name: Start Thalamus
         run: |
-          echo "Building and starting Thalamus..."
-          docker compose up -d --build postgres redis thalamus
+          echo "Building and starting Thalamus (CI mode)..."
+          docker compose -f docker-compose.ci.yml up -d --build postgres redis thalamus
           echo "Waiting for Thalamus to be ready (up to 3 minutes)..."
           for i in $(seq 1 90); do
             if curl -sf http://localhost:4100/api/public/health >/dev/null 2>&1; then
@@ -70,7 +72,7 @@ jobs:
             fi
             if [ $i -eq 90 ]; then
               echo "❌ Thalamus failed to start after 3 minutes"
-              docker compose logs thalamus --tail 50
+              docker compose -f docker-compose.ci.yml logs thalamus --tail 50
               exit 1
             fi
             sleep 2
@@ -138,8 +140,8 @@ jobs:
       # ── Teardown ──────────────────────────────────
       - name: Thalamus logs
         if: failure()
-        run: docker compose logs thalamus --tail 50
+        run: docker compose -f docker-compose.ci.yml logs thalamus --tail 50
 
       - name: Teardown
         if: always()
-        run: docker compose down -v
+        run: docker compose -f docker-compose.ci.yml down -v
