@@ -64,8 +64,8 @@ jobs:
         run: |
           echo "Building and starting Thalamus (CI mode)..."
           docker compose -f docker-compose.ci.yml down -v 2>/dev/null || true
-          docker compose -f docker-compose.ci.yml up -d --build postgres redis thalamus
-          echo "Waiting for Thalamus..."
+          docker compose -f docker-compose.ci.yml up -d --build --wait postgres redis thalamus
+          echo "Waiting for Thalamus to finish migrations + seeds..."
           for i in $(seq 1 60); do
             if curl -sf http://localhost:4100/api/public/health >/dev/null 2>&1; then
               echo "✅ Thalamus ready (${i}s)"
@@ -73,9 +73,6 @@ jobs:
             fi
             sleep 2
           done
-          echo "Running migrations + seeds..."
-          docker compose -f docker-compose.ci.yml exec -T thalamus bin/thalamus eval 'Thalamus.Release.migrate()'
-          echo "✅ Migrations complete"
 
       # ── Health + OIDC ─────────────────────────────
       - name: Test — health

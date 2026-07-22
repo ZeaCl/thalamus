@@ -31,5 +31,6 @@ defmodule Thalamus.Release do
 
   defp load_app do
     Application.load(@app)
+    {:ok, _} = Application.ensure_all_started(@app)
   end
 end
