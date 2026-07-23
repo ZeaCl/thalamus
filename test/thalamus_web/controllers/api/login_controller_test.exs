@@ -234,7 +234,7 @@ defmodule ThalamusWeb.API.LoginControllerTest do
           mfa_required: false,
           sso_enabled: false,
           audit_logs_retention_days: 90,
-          support_level: :standard,
+          support_level: :community,
           api_calls_reset_at: DateTime.truncate(DateTime.utc_now(), :second)
         })
 
