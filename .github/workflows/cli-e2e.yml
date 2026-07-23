@@ -67,11 +67,21 @@ jobs:
           npm link
           zea --version
 
+      - name: Build Thalamus image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          target: runtime
+          load: true
+          tags: zea-thalamus:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
       - name: Start Thalamus
         run: |
-          echo "Building and starting Thalamus (CI mode)..."
+          echo "Starting Thalamus (CI mode)..."
           docker compose -f docker-compose.ci.yml down -v 2>/dev/null || true
-          docker compose -f docker-compose.ci.yml up -d --build --wait postgres redis thalamus
+          docker compose -f docker-compose.ci.yml up -d --wait
           echo "Waiting for Thalamus to finish migrations + seeds..."
           for i in $(seq 1 60); do
             if curl -sf http://localhost:4100/api/public/health >/dev/null 2>&1; then

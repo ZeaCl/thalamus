@@ -49,10 +49,7 @@ services:
   # Thalamus
   # ═══════════════════════════════════════════════════════════
   thalamus:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: runtime
+    image: zea-thalamus:ci
     container_name: thalamus_test_app
     environment:
       DATABASE_URL: "ecto://postgres:postgres@postgres/thalamus_test"
