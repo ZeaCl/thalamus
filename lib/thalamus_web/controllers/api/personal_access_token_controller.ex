@@ -68,9 +68,15 @@ defmodule ThalamusWeb.API.PersonalAccessTokenController do
     end
   end
 
-  # Fallback clause when organization_id is not in params at all
-  def create(conn, params) do
+  # Fallback clause when organization_id is not in params
+  def create(conn, %{"name" => _} = params) do
     create(conn, Map.put(params, "organization_id", nil))
+  end
+
+  def create(conn, _params) do
+    conn
+    |> put_status(:bad_request)
+    |> json(%{error: "name is required"})
   end
 
   @doc """
@@ -133,7 +139,8 @@ defmodule ThalamusWeb.API.PersonalAccessTokenController do
       {:ok, uuid} ->
         Repo.one(from u in UserSchema, where: u.id == ^uuid, select: u.organization_id)
 
-      _ -> nil
+      _ ->
+        nil
     end
   end
 
