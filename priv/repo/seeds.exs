@@ -350,7 +350,12 @@ case Repo.get(OAuth2ClientSchema, internal_client_id) ||
       client_secret: "internal_secret_do_not_expose",
       organization_id: zea_org_id,
       redirect_uris: [],
-      allowed_grant_types: ["authorization_code", "refresh_token", "client_credentials", "password"],
+      allowed_grant_types: [
+        "authorization_code",
+        "refresh_token",
+        "client_credentials",
+        "password"
+      ],
       allowed_scopes: ["openid", "profile", "email", "zea:read", "zea:write"],
       pkce_required: false
     }
