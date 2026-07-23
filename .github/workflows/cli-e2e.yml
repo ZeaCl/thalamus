@@ -83,7 +83,6 @@ jobs:
           target: runtime
           load: true
           tags: zea-thalamus:ci
-          cache-from: type=gha
 
       - name: Start Thalamus
         run: |
