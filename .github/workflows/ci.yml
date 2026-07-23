@@ -31,10 +31,10 @@ env:
 
 jobs:
   # ==========================================================================
-  # Code Quality & Linting
+  # Lint — Code Quality & Security
   # ==========================================================================
-  quality:
-    name: Code Quality
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -69,6 +69,14 @@ jobs:
 
       - name: Compile (warnings as errors)
         run: mix compile --warnings-as-errors
+
+      - name: Check for known vulnerabilities
+        run: mix deps.audit
+        continue-on-error: true
+
+      - name: Check for retired dependencies
+        run: mix hex.audit
+        continue-on-error: true
 
   # ==========================================================================
   # Unit & Integration Tests (Backend)
@@ -150,44 +158,6 @@ jobs:
           fail_ci_if_error: false
 
   # ==========================================================================
-  # Security Audit
-  # ==========================================================================
-  security:
-    name: Security Audit
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Elixir
-        uses: erlef/setup-beam@v1
-        with:
-          elixir-version: ${{ env.ELIXIR_VERSION }}
-          otp-version: ${{ env.OTP_VERSION }}
-
-      - name: Cache dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            deps
-            _build
-          key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
-          restore-keys: ${{ runner.os }}-mix-
-
-      - name: Install dependencies
-        run: mix deps.get
-
-      - name: Check for known vulnerabilities
-        run: mix deps.audit
-        continue-on-error: true
-
-      - name: Check for retired dependencies
-        run: mix hex.audit
-        continue-on-error: true
-
-  # ==========================================================================
   # Static Analysis (Dialyzer)
   # ==========================================================================
   dialyzer:
@@ -259,21 +229,20 @@ jobs:
     name: CI Summary
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: [quality, test, security, dialyzer, docker]
+    needs: [lint, test, dialyzer, docker]
     if: always()
 
     steps:
       - name: Check results
         run: |
-          echo "Quality: ${{ needs.quality.result }}"
+          echo "Lint: ${{ needs.lint.result }}"
           echo "Tests: ${{ needs.test.result }}"
-          echo "Security: ${{ needs.security.result }}"
           echo "Dialyzer: ${{ needs.dialyzer.result }}"
           echo "Docker: ${{ needs.docker.result }}"
 
       - name: Fail if required jobs failed
         if: |
-          needs.quality.result == 'failure' ||
+          needs.lint.result == 'failure' ||
           needs.test.result == 'failure' ||
           needs.docker.result == 'failure'
         run: exit 1
