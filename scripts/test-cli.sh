@@ -55,7 +55,7 @@ test_setup_oauth() {
   local response
   response=$(curl -s -X POST http://localhost:4100/oauth/token \
     -H "Content-Type: application/x-www-form-urlencoded" \
-    -d "grant_type=client_credentials&client_id=internal_login&client_secret=internal_secret_do_not_expose")
+    -d "grant_type=password&client_id=internal_login&client_secret=internal_secret_do_not_expose&username=admin@zea.local&password=Admin123!")
   local token
   token=$(echo "$response" | jq -r '.access_token')
   if [ -z "$token" ] || [ "$token" = "null" ]; then
