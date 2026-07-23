@@ -376,6 +376,97 @@ case Repo.get(OAuth2ClientSchema, internal_client_id) ||
     |> Repo.insert!()
 
   _existing ->
+    existing
+    |> Ecto.Changeset.change(%{
+      allowed_grant_types: [
+        "authorization_code",
+        "refresh_token",
+        "client_credentials",
+        "password"
+      ]
+    })
+    |> Repo.update!()
+end
+
+# Südlich Capital client 1 (prod)
+sudlich_client_1_id = "04b857b6-8298-47a4-b93b-b7c4e0d01b14"
+
+case Repo.get(OAuth2ClientSchema, sudlich_client_1_id) do
+  nil ->
+    %OAuth2ClientSchema{}
+    |> Ecto.Changeset.cast(
+      %{
+        id: sudlich_client_1_id,
+        client_id_string: "sudlich_capital_1",
+        name: "Südlich Capital",
+        client_type: :public,
+        client_secret: nil,
+        organization_id: sudlich_org_id,
+        redirect_uris: [
+          "https://sudlich.zea.cl/auth/callback",
+          "http://localhost:5173/auth/callback"
+        ],
+        allowed_grant_types: ["authorization_code", "refresh_token"],
+        allowed_scopes: ["openid", "profile", "email"],
+        pkce_required: true
+      },
+      [
+        :id,
+        :client_id_string,
+        :name,
+        :client_type,
+        :client_secret,
+        :organization_id,
+        :redirect_uris,
+        :allowed_grant_types,
+        :allowed_scopes,
+        :pkce_required
+      ]
+    )
+    |> Repo.insert!()
+
+  _existing ->
+    :ok
+end
+
+# Südlich Capital client 2 (prod)
+sudlich_client_2_id = "7ad26658-3099-4f2e-b4e4-128dc93d92ba"
+
+case Repo.get(OAuth2ClientSchema, sudlich_client_2_id) do
+  nil ->
+    %OAuth2ClientSchema{}
+    |> Ecto.Changeset.cast(
+      %{
+        id: sudlich_client_2_id,
+        client_id_string: "sudlich_capital_2",
+        name: "Südlich Capital",
+        client_type: :public,
+        client_secret: nil,
+        organization_id: sudlich_org_id,
+        redirect_uris: [
+          "https://sudlich.zea.cl/auth/callback",
+          "http://localhost:5173/auth/callback"
+        ],
+        allowed_grant_types: ["authorization_code", "refresh_token"],
+        allowed_scopes: [],
+        pkce_required: true
+      },
+      [
+        :id,
+        :client_id_string,
+        :name,
+        :client_type,
+        :client_secret,
+        :organization_id,
+        :redirect_uris,
+        :allowed_grant_types,
+        :allowed_scopes,
+        :pkce_required
+      ]
+    )
+    |> Repo.insert!()
+
+  _existing ->
     :ok
 end
 
