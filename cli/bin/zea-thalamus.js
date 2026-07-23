@@ -48,4 +48,24 @@ registerSecret(program);
 registerAdmin(program);
 registerAudit(program);
 
+// ═══ Dynamic command discovery (--zea-discover) ═════
+// Used by zea-cli to auto-discover available commands for
+// smoke testing, help generation, and validation.
+if (process.argv.includes('--zea-discover')) {
+  const commands = {};
+  function walk(cmds, prefix = '') {
+    for (const cmd of cmds) {
+      const name = prefix ? prefix + ' ' + cmd.name() : cmd.name();
+      if (cmd.description()) commands[name] = cmd.description();
+      walk(cmd.commands, name);
+    }
+  }
+  walk(program.commands);
+  console.log(JSON.stringify({
+    description: 'Identity & Access Management',
+    commands
+  }, null, 2));
+  process.exit(0);
+}
+
 program.parse(process.argv);

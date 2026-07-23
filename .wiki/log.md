@@ -1,5 +1,11 @@
 # Log
 
+## [2026-07-15] feat | #42 --zea-discover flag para dynamic command discovery
+Flag `--zea-discover` agregado en `cli/bin/zea-thalamus.js`. Expone 64 comandos como JSON para que `zea-cli` los descubra dinámicamente (smoke testing, help, validación). Mismo patrón que `zea-soma`.
+
+## [2026-07-12] feat | #14 Fase 1 defensiva: domain_roles siempre presente + authz_source
+`domain_roles` siempre incluido (vacío `[]` si no hay roles). Claim `authz_source: "domain_roles"` explícito. `api_auth.ex` fallback a `domain_roles[0].org_id`. `organization_id` deprecated en docs. 1869 tests, 0 fallos nuevos.
+
 ## [2026-07-12] fix | #9 JwtSigner.fetch_domain_roles fix aplicado
 Fix: `Ecto.UUID.cast` explícito antes de la query + rescue específico (`DBConnection.ConnectionError`, `OwnershipError`) + `Logger.warning`. Tests: login_controller_test.exs ya cubría domain_roles (2 tests), 1869 tests total, 0 fallos nuevos. Sub-issues #9 y #13 cerrados.
 
