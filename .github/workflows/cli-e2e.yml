@@ -34,10 +34,15 @@ on:
       - 'docs/cli/**'
       - '.github/workflows/cli-e2e.yml'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   e2e:
     name: CLI E2E
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout thalamus
         uses: actions/checkout@v4
