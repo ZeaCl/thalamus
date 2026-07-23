@@ -89,6 +89,15 @@ test_token() {
   run_test "token create" \
     "zea thalamus token create --name 'CI Test'" \
     "Token"
+  if [ $? -ne 0 ]; then
+    echo "       diagnostic curl:"
+    local TOKEN
+    TOKEN=$(cat ~/.config/zea/config.json | jq -r '.token')
+    curl -sv -X POST http://localhost:4100/api/personal-access-tokens \
+      -H "Authorization: Bearer $TOKEN" \
+      -H "Content-Type: application/json" \
+      -d '{"name":"CI Test"}' 2>&1 | tail -20
+  fi
 }
 
 test_404() {
