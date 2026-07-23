@@ -1,0 +1,33 @@
+name: Generate CLI Manifest
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'cli/**'
+
+jobs:
+  manifest:
+    name: Generate manifest.json
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        working-directory: cli
+        run: npm install
+
+      - name: Generate manifest
+        run: node cli/bin/zea-thalamus.js --zea-manifest > docs/cli/manifest.json
+
+      - name: Commit changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: 'docs: update CLI manifest.json [skip ci]'
+          file_pattern: docs/cli/manifest.json

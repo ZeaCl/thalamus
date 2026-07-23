@@ -68,4 +68,63 @@ if (process.argv.includes('--zea-discover')) {
   process.exit(0);
 }
 
+// ═══ Agent manifest (--zea-manifest) ═════════════════
+// Full metadata export for AI agents and doc generation.
+// Includes options, arguments, and auth requirements.
+if (process.argv.includes('--zea-manifest')) {
+  const PUBLIC_COMMANDS = new Set([
+    'health', 'oidc', 'config', 'login', 'set-token', 'whoami', 'doctor'
+  ]);
+
+  function extractOptions(cmd) {
+    return cmd.options.map(o => ({
+      name: o.long || o.short,
+      short: o.short || null,
+      type: o.attributeName?.() || 'string',
+      description: o.description || '',
+      required: o.required || false,
+      default: o.defaultValue
+    }));
+  }
+
+  function extractArgs(cmd) {
+    if (!cmd._args) return [];
+    return cmd._args.map(a => ({
+      name: a._name,
+      required: a.required || false,
+      description: a.description || ''
+    }));
+  }
+
+  const commands = {};
+  function walk(cmds, prefix = '') {
+    for (const cmd of cmds) {
+      const name = prefix ? prefix + ' ' + cmd.name() : cmd.name();
+      const isPublic = PUBLIC_COMMANDS.has(name) ||
+        [...PUBLIC_COMMANDS].some(p => name.startsWith(p + ' '));
+
+      commands[name] = {
+        description: cmd.description() || '',
+        options: extractOptions(cmd),
+        arguments: extractArgs(cmd),
+        auth: !isPublic
+      };
+      walk(cmd.commands, name);
+    }
+  }
+  walk(program.commands);
+
+  console.log(JSON.stringify({
+    service: 'thalamus',
+    version: pkg.version,
+    description: 'Identity & Access Management',
+    endpoints: {
+      default: 'http://auth.zea.localhost',
+      env_override: 'THALAMUS_API_URL | ZEA_API_URL'
+    },
+    commands
+  }, null, 2));
+  process.exit(0);
+}
+
 program.parse(process.argv);

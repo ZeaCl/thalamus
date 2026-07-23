@@ -1,0 +1,1100 @@
+{
+  "service": "thalamus",
+  "version": "1.0.0",
+  "description": "Identity & Access Management",
+  "endpoints": {
+    "default": "http://auth.zea.localhost",
+    "env_override": "THALAMUS_API_URL | ZEA_API_URL"
+  },
+  "commands": {
+    "config": {
+      "description": "Manage ZEA configuration",
+      "options": [],
+      "arguments": [],
+      "auth": false
+    },
+    "config set-env": {
+      "description": "Set standard environment profile (local or prod)",
+      "options": [],
+      "arguments": [
+        {
+          "name": "env",
+          "required": true,
+          "description": ""
+        }
+      ],
+      "auth": false
+    },
+    "config set": {
+      "description": "Set a configuration value",
+      "options": [],
+      "arguments": [
+        {
+          "name": "key",
+          "required": true,
+          "description": ""
+        },
+        {
+          "name": "value",
+          "required": true,
+          "description": ""
+        }
+      ],
+      "auth": false
+    },
+    "config get": {
+      "description": "Get a configuration value",
+      "options": [],
+      "arguments": [
+        {
+          "name": "key",
+          "required": true,
+          "description": ""
+        }
+      ],
+      "auth": false
+    },
+    "config list": {
+      "description": "List all configuration values",
+      "options": [],
+      "arguments": [],
+      "auth": false
+    },
+    "config unset": {
+      "description": "Remove a configuration value",
+      "options": [],
+      "arguments": [
+        {
+          "name": "key",
+          "required": true,
+          "description": ""
+        }
+      ],
+      "auth": false
+    },
+    "config path": {
+      "description": "Show config file path",
+      "options": [],
+      "arguments": [],
+      "auth": false
+    },
+    "login": {
+      "description": "Login interactively using browser",
+      "options": [
+        {
+          "name": "--url",
+          "short": null,
+          "type": "url",
+          "description": "ZEA API URL",
+          "required": true
+        },
+        {
+          "name": "--email",
+          "short": null,
+          "type": "email",
+          "description": "Email for direct login (requires --password)",
+          "required": true
+        },
+        {
+          "name": "--password",
+          "short": null,
+          "type": "password",
+          "description": "Password for direct login (requires --email)",
+          "required": true
+        }
+      ],
+      "arguments": [],
+      "auth": false
+    },
+    "set-token": {
+      "description": "Configure a Personal Access Token (PAT) manually",
+      "options": [
+        {
+          "name": "--url",
+          "short": null,
+          "type": "url",
+          "description": "ZEA API URL",
+          "required": true
+        }
+      ],
+      "arguments": [
+        {
+          "name": "token",
+          "required": true,
+          "description": ""
+        }
+      ],
+      "auth": false
+    },
+    "whoami": {
+      "description": "Show current authenticated user identity",
+      "options": [],
+      "arguments": [],
+      "auth": false
+    },
+    "logout": {
+      "description": "Revoke current token and clear local config",
+      "options": [],
+      "arguments": [],
+      "auth": true
+    },
+    "debug": {
+      "description": "Decode and inspect a JWT token (uses stored token if not provided)",
+      "options": [],
+      "arguments": [
+        {
+          "name": "token",
+          "required": false,
+          "description": ""
+        }
+      ],
+      "auth": true
+    },
+    "org": {
+      "description": "Organization management commands",
+      "options": [],
+      "arguments": [],
+      "auth": true
+    },
+    "org list": {
+      "description": "List organizations",
+      "options": [],
+      "arguments": [],
+      "auth": true
+    },
+    "org switch": {
+      "description": "Switch default organization context",
+      "options": [],
+      "arguments": [
+        {
+          "name": "org_id_or_slug",
+          "required": true,
+          "description": ""
+        }
+      ],
+      "auth": true
+    },
+    "org create": {
+      "description": "Create a new organization",
+      "options": [
+        {
+          "name": "--name",
+          "short": null,
+          "type": "name",
+          "description": "Name of the organization",
+          "required": true
+        },
+        {
+          "name": "--email",
+          "short": null,
+          "type": "email",
+          "description": "Owner email address",
+          "required": true
+        },
+        {
+          "name": "--plan",
+          "short": null,
+          "type": "plan",
+          "description": "Plan type (free, basic, standard, premium, enterprise)",
+          "required": true,
+          "default": "free"
+        }
+      ],
+      "arguments": [],
+      "auth": true
+    },
+    "org member": {
+      "description": "Organization member management",
+      "options": [],
+      "arguments": [],
+      "auth": true
+    },
+    "org member add": {
+      "description": "Add a member to an organization by email",
+      "options": [
+        {
+          "name": "--email",
+          "short": null,
+          "type": "email",
+          "description": "Email of the user to add",
+          "required": true
+        },
+        {
+          "name": "--role",
+          "short": null,
+          "type": "role",
+          "description": "Role (admin, member, billing)",
+          "required": true
+        }
+      ],
+      "arguments": [
+        {
+          "name": "org_slug",
+          "required": true,
+          "description": ""
+        }
+      ],
+      "auth": true
+    },
+    "org member remove": {
+      "description": "Remove a member from an organization by user ID",
+      "options": [
+        {
+          "name": "--user-id",
+          "short": null,
+          "type": "userId",
+          "description": "User ID to remove",
+          "required": true
+        }
+      ],
+      "arguments": [
+        {
+          "name": "org_slug",
+          "required": true,
+          "description": ""
+        }
+      ],
+      "auth": true
+    },
+    "org member list": {
+      "description": "List members of an organization",
+      "options": [],
+      "arguments": [
+        {
+          "name": "org_slug",
+          "required": true,
+          "description": ""
+        }
+      ],
+      "auth": true
+    },
+    "org show": {
+      "description": "Show organization details",
+      "options": [],
+      "arguments": [
+        {
+          "name": "slug_or_id",
+          "required": true,
+          "description": ""
+        }
+      ],
+      "auth": true
+    },
+    "org update": {
+      "description": "Update organization name or plan",
+      "options": [
+        {
+          "name": "--name",
+          "short": null,
+          "type": "name",
+          "description": "New organization name",
+          "required": true
+        },
+        {
+          "name": "--plan",
+          "short": null,
+          "type": "plan",
+          "description": "New plan: free, basic, standard, premium, enterprise",
+          "required": true
+        }
+      ],
+      "arguments": [
+        {
+          "name": "slug_or_id",
+          "required": true,
+          "description": ""
+        }
+      ],
+      "auth": true
+    },
+    "org saml": {
+      "description": "SAML SSO configuration",
+      "options": [],
+      "arguments": [],
+      "auth": true
+    },
+    "org saml show": {
+      "description": "Show SAML configuration",
+      "options": [],
+      "arguments": [
+        {
+          "name": "slug_or_id",
+          "required": true,
+          "description": ""
+        }
+      ],
+      "auth": true
+    },
+    "token": {
+      "description": "Personal Access Token (PAT) commands",
+      "options": [],
+      "arguments": [],
+      "auth": true
+    },
+    "token create": {
+      "description": "Create a new Personal Access Token",
+      "options": [
+        {
+          "name": "--name",
+          "short": null,
+          "type": "name",
+          "description": "Token description / name",
+          "required": true
+        }
+      ],
+      "arguments": [],
+      "auth": true
+    },
+    "token list": {
+      "description": "List active Personal Access Tokens",
+      "options": [],
+      "arguments": [],
+      "auth": true
+    },
+    "token revoke": {
+      "description": "Revoke an active Personal Access Token",
+      "options": [],
+      "arguments": [
+        {
+          "name": "token_id",
+          "required": true,
+          "description": ""
+        }
+      ],
+      "auth": true
+    },
+    "health": {
+      "description": "Check Thalamus health status (no auth required)",
+      "options": [],
+      "arguments": [],
+      "auth": false
+    },
+    "doctor": {
+      "description": "Full integration diagnostic: auth, token, database, organizations",
+      "options": [],
+      "arguments": [],
+      "auth": false
+    },
+    "client": {
+      "description": "OAuth2 Client management",
+      "options": [],
+      "arguments": [],
+      "auth": true
+    },
+    "client list": {
+      "description": "List OAuth2 clients",
+      "options": [
+        {
+          "name": "--org",
+          "short": null,
+          "type": "org",
+          "description": "Filter by organization",
+          "required": true
+        }
+      ],
+      "arguments": [],
+      "auth": true
+    },
+    "client show": {
+      "description": "Show OAuth2 client details",
+      "options": [],
+      "arguments": [
+        {
+          "name": "id",
+          "required": true,
+          "description": ""
+        }
+      ],
+      "auth": true
+    },
+    "client create": {
+      "description": "Create a new OAuth2 client",
+      "options": [
+        {
+          "name": "--name",
+          "short": null,
+          "type": "name",
+          "description": "Client name",
+          "required": true
+        },
+        {
+          "name": "--type",
+          "short": null,
+          "type": "type",
+          "description": "Client type: confidential, public, m2m",
+          "required": true,
+          "default": "confidential"
+        },
+        {
+          "name": "--redirect-uris",
+          "short": null,
+          "type": "redirectUris",
+          "description": "Comma-separated redirect URIs",
+          "required": true
+        },
+        {
+          "name": "--grants",
+          "short": null,
+          "type": "grants",
+          "description": "Comma-separated grant types",
+          "required": true,
+          "default": "authorization_code,refresh_token"
+        },
+        {
+          "name": "--scopes",
+          "short": null,
+          "type": "scopes",
+          "description": "Comma-separated scopes",
+          "required": true,
+          "default": "openid,profile,email"
+        }
+      ],
+      "arguments": [],
+      "auth": true
+    },
+    "client delete": {
+      "description": "Deactivate an OAuth2 client",
+      "options": [],
+      "arguments": [
+        {
+          "name": "id",
+          "required": true,
+          "description": ""
+        }
+      ],
+      "auth": true
+    },
+    "client rotate-secret": {
+      "description": "Rotate OAuth2 client secret",
+      "options": [],
+      "arguments": [
+        {
+          "name": "id",
+          "required": true,
+          "description": ""
+        }
+      ],
+      "auth": true
+    },
+    "client validate": {
+      "description": "Validate OAuth2 client configuration",
+      "options": [],
+      "arguments": [
+        {
+          "name": "id",
+          "required": true,
+          "description": ""
+        }
+      ],
+      "auth": true
+    },
+    "domain": {
+      "description": "Domain roles management",
+      "options": [],
+      "arguments": [],
+      "auth": true
+    },
+    "domain list": {
+      "description": "List registered domains and scopes",
+      "options": [],
+      "arguments": [],
+      "auth": true
+    },
+    "domain register": {
+      "description": "Register a domain with its scopes",
+      "options": [
+        {
+          "name": "--domain",
+          "short": null,
+          "type": "domain",
+          "description": "Domain name (e.g. venture, fund_management)",
+          "required": true
+        },
+        {
+          "name": "--scopes",
+          "short": null,
+          "type": "scopes",
+          "description": "JSON array of {scope, description} objects",
+          "required": true
+        }
+      ],
+      "arguments": [],
+      "auth": true
+    },
+    "domain grant": {
+      "description": "Grant a domain role to a user",
+      "options": [
+        {
+          "name": "--user",
+          "short": null,
+          "type": "user",
+          "description": "User ID",
+          "required": true
+        },
+        {
+          "name": "--org",
+          "short": null,
+          "type": "org",
+          "description": "Organization ID",
+          "required": true
+        },
+        {
+          "name": "--domain",
+          "short": null,
+          "type": "domain",
+          "description": "Domain name",
+          "required": true
+        },
+        {
+          "name": "--role",
+          "short": null,
+          "type": "role",
+          "description": "Role name",
+          "required": true
+        },
+        {
+          "name": "--scopes",
+          "short": null,
+          "type": "scopes",
+          "description": "Comma-separated scopes",
+          "required": true
+        },
+        {
+          "name": "--entity-id",
+          "short": null,
+          "type": "entityId",
+          "description": "Optional entity ID for scoped roles",
+          "required": true
+        }
+      ],
+      "arguments": [],
+      "auth": true
+    },
+    "domain revoke": {
+      "description": "Revoke a domain role from a user",
+      "options": [
+        {
+          "name": "--user",
+          "short": null,
+          "type": "user",
+          "description": "User ID",
+          "required": true
+        },
+        {
+          "name": "--org",
+          "short": null,
+          "type": "org",
+          "description": "Organization ID",
+          "required": true
+        },
+        {
+          "name": "--domain",
+          "short": null,
+          "type": "domain",
+          "description": "Domain name",
+          "required": true
+        },
+        {
+          "name": "--role",
+          "short": null,
+          "type": "role",
+          "description": "Role name",
+          "required": true
+        }
+      ],
+      "arguments": [],
+      "auth": true
+    },
+    "domain roles": {
+      "description": "List domain roles (with optional filters)",
+      "options": [
+        {
+          "name": "--user",
+          "short": null,
+          "type": "user",
+          "description": "Filter by user ID",
+          "required": true
+        },
+        {
+          "name": "--org",
+          "short": null,
+          "type": "org",
+          "description": "Filter by organization ID",
+          "required": true
+        },
+        {
+          "name": "--domain",
+          "short": null,
+          "type": "domain",
+          "description": "Filter by domain",
+          "required": true
+        }
+      ],
+      "arguments": [],
+      "auth": true
+    },
+    "user": {
+      "description": "User management",
+      "options": [],
+      "arguments": [],
+      "auth": true
+    },
+    "user list": {
+      "description": "List users",
+      "options": [
+        {
+          "name": "--status",
+          "short": null,
+          "type": "status",
+          "description": "Filter: active, suspended, deactivated",
+          "required": true
+        },
+        {
+          "name": "--org",
+          "short": null,
+          "type": "org",
+          "description": "Filter by organization",
+          "required": true
+        },
+        {
+          "name": "--verified",
+          "short": null,
+          "type": "verified",
+          "description": "Filter by verification status",
+          "required": true
+        },
+        {
+          "name": "--limit",
+          "short": null,
+          "type": "limit",
+          "description": "Max results",
+          "required": true,
+          "default": "50"
+        }
+      ],
+      "arguments": [],
+      "auth": true
+    },
+    "user show": {
+      "description": "Show user details",
+      "options": [],
+      "arguments": [
+        {
+          "name": "id",
+          "required": true,
+          "description": ""
+        }
+      ],
+      "auth": true
+    },
+    "user create": {
+      "description": "Create a new user",
+      "options": [
+        {
+          "name": "--email",
+          "short": null,
+          "type": "email",
+          "description": "User email",
+          "required": true
+        },
+        {
+          "name": "--password",
+          "short": null,
+          "type": "password",
+          "description": "User password",
+          "required": true
+        },
+        {
+          "name": "--name",
+          "short": null,
+          "type": "name",
+          "description": "Display name",
+          "required": true
+        },
+        {
+          "name": "--agent",
+          "short": null,
+          "type": "agent",
+          "description": "Create as agent user",
+          "required": false
+        }
+      ],
+      "arguments": [],
+      "auth": true
+    },
+    "user update": {
+      "description": "Update user status",
+      "options": [
+        {
+          "name": "--status",
+          "short": null,
+          "type": "status",
+          "description": "active, suspended, deactivated",
+          "required": true
+        },
+        {
+          "name": "--name",
+          "short": null,
+          "type": "name",
+          "description": "New display name",
+          "required": true
+        }
+      ],
+      "arguments": [
+        {
+          "name": "id",
+          "required": true,
+          "description": ""
+        }
+      ],
+      "auth": true
+    },
+    "user delete": {
+      "description": "Deactivate a user",
+      "options": [],
+      "arguments": [
+        {
+          "name": "id",
+          "required": true,
+          "description": ""
+        }
+      ],
+      "auth": true
+    },
+    "user role": {
+      "description": "User-role assignments",
+      "options": [],
+      "arguments": [],
+      "auth": true
+    },
+    "user role list": {
+      "description": "List roles assigned to a user",
+      "options": [],
+      "arguments": [
+        {
+          "name": "user_id",
+          "required": true,
+          "description": ""
+        }
+      ],
+      "auth": true
+    },
+    "user role assign": {
+      "description": "Assign a role to a user",
+      "options": [
+        {
+          "name": "--role-id",
+          "short": null,
+          "type": "roleId",
+          "description": "Role ID to assign",
+          "required": true
+        }
+      ],
+      "arguments": [
+        {
+          "name": "user_id",
+          "required": true,
+          "description": ""
+        }
+      ],
+      "auth": true
+    },
+    "user role revoke": {
+      "description": "Revoke a role from a user",
+      "options": [
+        {
+          "name": "--role-id",
+          "short": null,
+          "type": "roleId",
+          "description": "Role ID to revoke",
+          "required": true
+        }
+      ],
+      "arguments": [
+        {
+          "name": "user_id",
+          "required": true,
+          "description": ""
+        }
+      ],
+      "auth": true
+    },
+    "user scopes": {
+      "description": "Show effective scopes for a user",
+      "options": [],
+      "arguments": [
+        {
+          "name": "user_id",
+          "required": true,
+          "description": ""
+        }
+      ],
+      "auth": true
+    },
+    "mfa": {
+      "description": "Multi-Factor Authentication",
+      "options": [],
+      "arguments": [],
+      "auth": true
+    },
+    "mfa setup": {
+      "description": "Set up TOTP MFA (returns QR code data)",
+      "options": [],
+      "arguments": [],
+      "auth": true
+    },
+    "mfa verify": {
+      "description": "Verify TOTP code to enable MFA",
+      "options": [
+        {
+          "name": "--code",
+          "short": null,
+          "type": "code",
+          "description": "TOTP code from authenticator app",
+          "required": true
+        }
+      ],
+      "arguments": [],
+      "auth": true
+    },
+    "mfa disable": {
+      "description": "Disable MFA for current user",
+      "options": [],
+      "arguments": [],
+      "auth": true
+    },
+    "mfa backup-codes": {
+      "description": "Regenerate backup codes",
+      "options": [],
+      "arguments": [],
+      "auth": true
+    },
+    "secret": {
+      "description": "Secrets management",
+      "options": [],
+      "arguments": [],
+      "auth": true
+    },
+    "secret list": {
+      "description": "List secrets",
+      "options": [
+        {
+          "name": "--owner-type",
+          "short": null,
+          "type": "ownerType",
+          "description": "user or organization",
+          "required": true
+        },
+        {
+          "name": "--owner-id",
+          "short": null,
+          "type": "ownerId",
+          "description": "Owner ID",
+          "required": true
+        }
+      ],
+      "arguments": [],
+      "auth": true
+    },
+    "secret create": {
+      "description": "Create a new secret",
+      "options": [
+        {
+          "name": "--name",
+          "short": null,
+          "type": "name",
+          "description": "Secret name",
+          "required": true
+        },
+        {
+          "name": "--provider",
+          "short": null,
+          "type": "provider",
+          "description": "Provider (e.g. deepseek, openai, aws)",
+          "required": true
+        },
+        {
+          "name": "--value",
+          "short": null,
+          "type": "value",
+          "description": "Secret value",
+          "required": true
+        },
+        {
+          "name": "--owner-type",
+          "short": null,
+          "type": "ownerType",
+          "description": "user or organization",
+          "required": true
+        },
+        {
+          "name": "--owner-id",
+          "short": null,
+          "type": "ownerId",
+          "description": "Owner ID",
+          "required": true
+        }
+      ],
+      "arguments": [],
+      "auth": true
+    },
+    "secret delete": {
+      "description": "Delete a secret",
+      "options": [],
+      "arguments": [
+        {
+          "name": "id",
+          "required": true,
+          "description": ""
+        }
+      ],
+      "auth": true
+    },
+    "secret resolve": {
+      "description": "Resolve a secret value by provider",
+      "options": [
+        {
+          "name": "--provider",
+          "short": null,
+          "type": "provider",
+          "description": "Provider name",
+          "required": true
+        }
+      ],
+      "arguments": [],
+      "auth": true
+    },
+    "admin": {
+      "description": "Admin operations (super_admin required)",
+      "options": [],
+      "arguments": [],
+      "auth": true
+    },
+    "admin api-key": {
+      "description": "Admin API Key management",
+      "options": [],
+      "arguments": [],
+      "auth": true
+    },
+    "admin api-key list": {
+      "description": "List admin API keys",
+      "options": [],
+      "arguments": [],
+      "auth": true
+    },
+    "admin api-key create": {
+      "description": "Create a new admin API key",
+      "options": [
+        {
+          "name": "--name",
+          "short": null,
+          "type": "name",
+          "description": "Key name",
+          "required": true
+        },
+        {
+          "name": "--scopes",
+          "short": null,
+          "type": "scopes",
+          "description": "Comma-separated scopes",
+          "required": true,
+          "default": "clients:write"
+        }
+      ],
+      "arguments": [],
+      "auth": true
+    },
+    "admin api-key revoke": {
+      "description": "Revoke an admin API key",
+      "options": [],
+      "arguments": [
+        {
+          "name": "id",
+          "required": true,
+          "description": ""
+        }
+      ],
+      "auth": true
+    },
+    "admin api-key rotate": {
+      "description": "Rotate an admin API key",
+      "options": [],
+      "arguments": [
+        {
+          "name": "id",
+          "required": true,
+          "description": ""
+        }
+      ],
+      "auth": true
+    },
+    "audit": {
+      "description": "Audit log operations",
+      "options": [],
+      "arguments": [],
+      "auth": true
+    },
+    "audit export": {
+      "description": "Export audit logs",
+      "options": [
+        {
+          "name": "--from",
+          "short": null,
+          "type": "from",
+          "description": "Start date (ISO8601)",
+          "required": true
+        },
+        {
+          "name": "--to",
+          "short": null,
+          "type": "to",
+          "description": "End date (ISO8601)",
+          "required": true
+        },
+        {
+          "name": "--event-type",
+          "short": null,
+          "type": "eventType",
+          "description": "Filter by event type",
+          "required": true
+        },
+        {
+          "name": "--format",
+          "short": null,
+          "type": "format",
+          "description": "csv or json",
+          "required": true,
+          "default": "json"
+        },
+        {
+          "name": "--limit",
+          "short": null,
+          "type": "limit",
+          "description": "Max records",
+          "required": true,
+          "default": "100"
+        }
+      ],
+      "arguments": [],
+      "auth": true
+    },
+    "oidc": {
+      "description": "OpenID Connect Discovery",
+      "options": [],
+      "arguments": [],
+      "auth": false
+    },
+    "oidc discovery": {
+      "description": "Show OIDC discovery document",
+      "options": [],
+      "arguments": [],
+      "auth": false
+    },
+    "oidc jwks": {
+      "description": "Show JWKS public keys",
+      "options": [],
+      "arguments": [],
+      "auth": false
+    }
+  }
+}
