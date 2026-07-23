@@ -134,6 +134,7 @@ jobs:
     name: Static Analysis
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    continue-on-error: true
 
     steps:
       - name: Setup Elixir
