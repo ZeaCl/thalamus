@@ -67,6 +67,13 @@ jobs:
           npm link
           zea --version
 
+      - name: Install zea-thalamus plugin
+        working-directory: cli
+        run: npm link
+
+      - name: Configure zea endpoint
+        run: zea config set endpoint http://localhost:4100
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
