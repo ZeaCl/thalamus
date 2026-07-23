@@ -39,6 +39,9 @@ jobs:
     timeout-minutes: 10
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Setup Elixir
         uses: ./.github/actions/setup-elixir
         with:
@@ -103,6 +106,9 @@ jobs:
       REDIS_URL: redis://localhost:6379/0
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Setup Elixir
         uses: ./.github/actions/setup-elixir
         with:
@@ -137,6 +143,9 @@ jobs:
     continue-on-error: true
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Setup Elixir
         uses: ./.github/actions/setup-elixir
         with:
