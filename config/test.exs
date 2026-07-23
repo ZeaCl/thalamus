@@ -60,5 +60,4 @@ config :thalamus, :skip_health_checks, true
 
 # Security headers config for test environment
 # Explicitly mirrors config/config.exs to ensure CI parity
-config :thalamus, ThalamusWeb.Plugs.SecurityHeaders,
-  frame_options: "SAMEORIGIN"
+config :thalamus, ThalamusWeb.Plugs.SecurityHeaders, frame_options: "SAMEORIGIN"
