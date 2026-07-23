@@ -96,13 +96,15 @@ test_404() {
   echo "── diagnosing user show..."
   local TOKEN
   TOKEN=$(cat ~/.config/zea/config.json 2>/dev/null | jq -r '.token // empty')
-  echo "       curl /api/users/00000000-0000-0000-0000-000000000000:"
-  curl -sv -H "Authorization: Bearer $TOKEN" \
-    "http://localhost:4100/api/users/00000000-0000-0000-0000-000000000000" 2>&1 | tail -5
-  echo "       curl /api/organizations (should work):"
-  curl -s -H "Authorization: Bearer $TOKEN" \
-    "http://localhost:4100/api/organizations" | jq '.data | length' 2>&1
-  echo ""
+  echo "       [1] /api/users/00000000-0000-0000-0000-000000000000:"
+  curl -s -w "\n       HTTP %{http_code}\n" -H "Authorization: Bearer $TOKEN" \
+    "http://localhost:4100/api/users/00000000-0000-0000-0000-000000000000"
+  echo "       [2] /api/organizations (control):"
+  curl -s -w "\n       HTTP %{http_code}\n" -H "Authorization: Bearer $TOKEN" \
+    "http://localhost:4100/api/organizations"
+  echo "       [3] /api/organizations/00000000-0000-0000-0000-000000000000 (same UUID):"
+  curl -s -w "\n       HTTP %{http_code}\n" -H "Authorization: Bearer $TOKEN" \
+    "http://localhost:4100/api/organizations/00000000-0000-0000-0000-000000000000"
 }
 
 test_client() {
