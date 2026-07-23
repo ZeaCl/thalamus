@@ -69,6 +69,14 @@ defmodule Thalamus.CORSRegistry do
     |> Enum.map(&extract_origin/1)
     |> Enum.reject(&is_nil/1)
     |> Enum.uniq()
+  rescue
+    error in Postgrex.Error ->
+      Logger.warning("CORSRegistry: unable to load origins — #{Exception.message(error)}")
+      []
+
+    error in DBConnection.ConnectionError ->
+      Logger.warning("CORSRegistry: database unavailable — #{Exception.message(error)}")
+      []
   end
 
   defp extract_origin(uri_str) do
