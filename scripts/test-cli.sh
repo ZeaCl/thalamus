@@ -125,7 +125,7 @@ test_invalid_login() {
 }
 
 # ── Main ──────────────────────────────────────
-ALL_TESTS=(health whoami_unauth setup_oauth whoami_auth org token client debug oidc invalid_login login 404)
+ALL_TESTS=(health whoami_unauth login invalid_login setup_oauth whoami_auth org token client debug oidc 404)
 
 run_all() {
   echo "═══ CLI E2E Tests ═══"
