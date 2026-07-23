@@ -247,7 +247,8 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
          refresh_token: refresh_token,
          scope: Enum.join(scopes, " "),
          user_id: user.id,
-         client_id: client_id_string(client)
+         client_id: client_id_string(client),
+         organization_id: user.organization_id
        }}
     end
   end
