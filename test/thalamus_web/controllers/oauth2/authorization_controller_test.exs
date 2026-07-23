@@ -51,7 +51,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
       conn =
         conn
         |> Plug.Test.init_test_session(%{})
-        |> put_session(:user_id, user.id)
+        |> put_session(:user_id, to_string(user.id))
         |> get(~p"/oauth/authorize", %{
           response_type: "code",
           client_id: to_string(client.id),
@@ -79,7 +79,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
       conn =
         conn
         |> Plug.Test.init_test_session(%{})
-        |> put_session(:user_id, user.id)
+        |> put_session(:user_id, to_string(user.id))
         |> get(~p"/oauth/authorize", %{
           response_type: "code",
           client_id: to_string(client.id),
