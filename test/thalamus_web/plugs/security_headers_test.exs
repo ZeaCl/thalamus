@@ -15,14 +15,14 @@ defmodule ThalamusWeb.Plugs.SecurityHeadersTest do
     test "appends host to form-action directive dynamically" do
       # 1. Initialize conn with default headers
       conn = build_conn() |> SecurityHeaders.call(%{})
-      
+
       # 2. Get the original CSP
       [original_csp] = Plug.Conn.get_resp_header(conn, "content-security-policy")
       refute original_csp =~ "http://test-dynamic-host.com:*"
-      
+
       # 3. Call the new function
       conn = SecurityHeaders.add_form_action(conn, "test-dynamic-host.com")
-      
+
       # 4. Verify it was added
       [new_csp] = Plug.Conn.get_resp_header(conn, "content-security-policy")
       assert new_csp =~ "form-action "
@@ -33,9 +33,9 @@ defmodule ThalamusWeb.Plugs.SecurityHeadersTest do
     test "does nothing if CSP header is missing" do
       # A clean conn without SecurityHeaders.call
       conn = build_conn()
-      
+
       conn = SecurityHeaders.add_form_action(conn, "test.com")
-      
+
       assert Plug.Conn.get_resp_header(conn, "content-security-policy") == []
     end
   end

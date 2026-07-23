@@ -2,7 +2,12 @@ defmodule ThalamusWeb.API.LoginControllerTest do
   use ThalamusWeb.ConnCase, async: false
 
   alias Thalamus.Repo
-  alias Thalamus.Infrastructure.Persistence.Schemas.{UserDomainRoleSchema, UserSchema, OrganizationSchema}
+
+  alias Thalamus.Infrastructure.Persistence.Schemas.{
+    UserDomainRoleSchema,
+    UserSchema,
+    OrganizationSchema
+  }
 
   @valid_email "test@example.com"
   @valid_password "SecurePass123!@#"
@@ -15,7 +20,10 @@ defmodule ThalamusWeb.API.LoginControllerTest do
       %{user: user}
     end
 
-    test "successful login returns JWT with domain_roles, refresh_token and organization", %{conn: conn, user: user} do
+    test "successful login returns JWT with domain_roles, refresh_token and organization", %{
+      conn: conn,
+      user: user
+    } do
       # Grant a domain role so domain_roles claim is populated
       create_domain_role(user.id, "funds", "gp_admin", ["read", "write"])
 

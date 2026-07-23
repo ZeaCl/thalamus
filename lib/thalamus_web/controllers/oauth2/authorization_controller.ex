@@ -354,10 +354,10 @@ defmodule ThalamusWeb.OAuth2.AuthorizationController do
 
   defp verify_user_in_db(user_id) do
     alias Thalamus.Infrastructure.Persistence.Schemas.UserSchema
-    
+
     user_id_string = UserId.to_string(user_id)
     user_uuid = String.replace_prefix(user_id_string, "user_", "")
-    
+
     case Thalamus.Repo.get(UserSchema, user_uuid) do
       nil -> {:error, :not_authenticated}
       _user -> {:ok, user_id}
@@ -370,6 +370,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationController do
 
     # Inyectar el host del redirect_uri en la cabecera CSP (form-action)
     host = extract_host(data.redirect_uri)
+
     conn =
       if host do
         ThalamusWeb.Plugs.SecurityHeaders.add_form_action(conn, host)

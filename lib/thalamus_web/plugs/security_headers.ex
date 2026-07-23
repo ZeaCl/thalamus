@@ -101,9 +101,11 @@ defmodule ThalamusWeb.Plugs.SecurityHeaders do
     case Plug.Conn.get_resp_header(conn, "content-security-policy") do
       [csp | _] ->
         # Find form-action and append the host with both http and https and optional port
-        new_csp = String.replace(csp, "form-action ", "form-action http://#{host}:* https://#{host}:* ")
+        new_csp =
+          String.replace(csp, "form-action ", "form-action http://#{host}:* https://#{host}:* ")
+
         Plug.Conn.put_resp_header(conn, "content-security-policy", new_csp)
-        
+
       [] ->
         conn
     end

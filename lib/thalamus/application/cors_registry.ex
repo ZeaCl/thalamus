@@ -30,7 +30,7 @@ defmodule Thalamus.CORSRegistry do
   def init(_state) do
     # Create ETS table with read_concurrency: true for fast concurrent reads
     :ets.new(@table_name, [:set, :public, :named_table, read_concurrency: true])
-    
+
     # Send a message to ourselves to load initial data asynchronously
     send(self(), :load_initial_data)
     {:ok, %{}}
@@ -50,12 +50,12 @@ defmodule Thalamus.CORSRegistry do
 
   defp do_rebuild do
     origins = load_origins_from_db()
-    
+
     :ets.delete_all_objects(@table_name)
-    
+
     objects = Enum.map(origins, fn origin -> {origin, true} end)
     :ets.insert(@table_name, objects)
-    
+
     Logger.info("CORSRegistry rebuilt with #{length(origins)} origins")
   end
 

@@ -433,11 +433,29 @@ end
 
 domain_roles = [
   # c@zea.cl — GP admin on ZEA org
-  %{user_id: c_user_id, organization_id: zea_org_id, domain: "fund_management", role: "gp_admin", scopes: ["read", "write"]},
+  %{
+    user_id: c_user_id,
+    organization_id: zea_org_id,
+    domain: "fund_management",
+    role: "gp_admin",
+    scopes: ["read", "write"]
+  },
   # c@zea.cl — also admin on Südlich org (cross-org access)
-  %{user_id: c_user_id, organization_id: sudlich_org_id, domain: "fund_management", role: "gp_admin", scopes: ["read", "write"]},
+  %{
+    user_id: c_user_id,
+    organization_id: sudlich_org_id,
+    domain: "fund_management",
+    role: "gp_admin",
+    scopes: ["read", "write"]
+  },
   # ccerda@sudlich.cl — GP admin on Südlich org
-  %{user_id: ccerda_user_id, organization_id: sudlich_org_id, domain: "fund_management", role: "gp_admin", scopes: ["read", "write"]}
+  %{
+    user_id: ccerda_user_id,
+    organization_id: sudlich_org_id,
+    domain: "fund_management",
+    role: "gp_admin",
+    scopes: ["read", "write"]
+  }
 ]
 
 Enum.each(domain_roles, fn attrs ->
