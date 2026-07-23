@@ -375,7 +375,7 @@ case Repo.get(OAuth2ClientSchema, internal_client_id) ||
     ])
     |> Repo.insert!()
 
-  _existing ->
+  existing ->
     existing
     |> Ecto.Changeset.change(%{
       allowed_grant_types: [
@@ -425,7 +425,7 @@ case Repo.get(OAuth2ClientSchema, sudlich_client_1_id) do
     )
     |> Repo.insert!()
 
-  _existing ->
+  existing ->
     :ok
 end
 
@@ -466,7 +466,7 @@ case Repo.get(OAuth2ClientSchema, sudlich_client_2_id) do
     )
     |> Repo.insert!()
 
-  _existing ->
+  existing ->
     :ok
 end
 
@@ -519,7 +519,7 @@ case Repo.get(OAuth2ClientSchema, cerebelum_service_id) ||
     ])
     |> Repo.insert!()
 
-  _existing ->
+  existing ->
     :ok
 end
 
