@@ -49,7 +49,7 @@ jobs:
           otp-version: ${{ env.OTP_VERSION }}
 
       - name: Cache dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             deps
@@ -128,7 +128,7 @@ jobs:
           otp-version: ${{ env.OTP_VERSION }}
 
       - name: Cache dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             deps
@@ -152,7 +152,7 @@ jobs:
         run: mix test --cover
 
       - name: Upload coverage reports
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
@@ -176,7 +176,7 @@ jobs:
           otp-version: ${{ env.OTP_VERSION }}
 
       - name: Cache dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             deps
@@ -185,7 +185,7 @@ jobs:
           restore-keys: ${{ runner.os }}-mix-
 
       - name: Cache PLT
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: priv/plts
           key: ${{ runner.os }}-plt-${{ env.OTP_VERSION }}-${{ env.ELIXIR_VERSION }}-${{ hashFiles('**/mix.lock') }}
