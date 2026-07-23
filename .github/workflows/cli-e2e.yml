@@ -71,9 +71,6 @@ jobs:
         working-directory: cli
         run: npm link
 
-      - name: Configure zea endpoint
-        run: zea config set endpoint http://localhost:4100
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -108,6 +105,8 @@ jobs:
           echo "=== curl health ===" && curl -sv http://localhost:4100/api/public/health 2>&1 || true
 
       - name: Run CLI E2E tests
+        env:
+          THALAMUS_API_URL: http://localhost:4100
         run: bash scripts/test-cli.sh
 
       # ── Teardown ──────────────────────────────────
