@@ -67,6 +67,12 @@ test_setup_oauth() {
   pass "setup oauth token"
 }
 
+test_login() {
+  run_test "login" \
+    "zea thalamus login --email admin@zea.local --password Admin123!" \
+    "Successfully"
+}
+
 test_whoami_auth() {
   run_test "whoami (authenticated)" \
     "zea thalamus whoami" \
