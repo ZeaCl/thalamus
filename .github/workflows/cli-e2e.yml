@@ -67,6 +67,9 @@ jobs:
           npm link
           zea --version
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Build Thalamus image
         uses: docker/build-push-action@v5
         with:
@@ -75,7 +78,6 @@ jobs:
           load: true
           tags: zea-thalamus:ci
           cache-from: type=gha
-          cache-to: type=gha,mode=max
 
       - name: Start Thalamus
         run: |
