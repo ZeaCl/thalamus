@@ -46,12 +46,12 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
   # Helper function to set session with proper initialization
 
   describe "GET /oauth/authorize - authorization request" do
-    test "shows consent screen with valid parameters", %{conn: conn, client: client} do
+    test "shows consent screen with valid parameters", %{conn: conn, user: user, client: client} do
       # Simulate logged-in user
       conn =
         conn
         |> Plug.Test.init_test_session(%{})
-        |> put_session(:user_id, @test_user_id)
+        |> put_session(:user_id, user.id)
         |> get(~p"/oauth/authorize", %{
           response_type: "code",
           client_id: to_string(client.id),
@@ -72,14 +72,14 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
       assert csp =~ "https://localhost:3000:*"
     end
 
-    test "shows consent screen with PKCE parameters", %{conn: conn, client: client} do
+    test "shows consent screen with PKCE parameters", %{conn: conn, user: user, client: client} do
       code_verifier = :crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false)
       code_challenge = :crypto.hash(:sha256, code_verifier) |> Base.url_encode64(padding: false)
 
       conn =
         conn
         |> Plug.Test.init_test_session(%{})
-        |> put_session(:user_id, @test_user_id)
+        |> put_session(:user_id, user.id)
         |> get(~p"/oauth/authorize", %{
           response_type: "code",
           client_id: to_string(client.id),

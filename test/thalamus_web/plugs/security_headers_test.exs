@@ -7,7 +7,7 @@ defmodule ThalamusWeb.Plugs.SecurityHeadersTest do
     conn = build_conn() |> SecurityHeaders.call(%{})
 
     assert Plug.Conn.get_resp_header(conn, "content-security-policy") != []
-    assert Plug.Conn.get_resp_header(conn, "x-frame-options") == ["SAMEORIGIN"]
+    assert Plug.Conn.get_resp_header(conn, "x-frame-options") == ["DENY"]
     assert Plug.Conn.get_resp_header(conn, "x-content-type-options") == ["nosniff"]
   end
 
