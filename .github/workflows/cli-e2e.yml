@@ -99,13 +99,6 @@ jobs:
             sleep 2
           done
 
-      - name: Debug — zea CLI setup
-        run: |
-          echo "=== zea version ===" && zea --version
-          echo "=== zea thalamus --help ===" && zea thalamus --help 2>&1 || true
-          echo "=== which zea-thalamus ===" && which zea-thalamus 2>&1 || true
-          echo "=== curl health ===" && curl -sv http://localhost:4100/api/public/health 2>&1 || true
-
       - name: Run CLI E2E tests
         env:
           THALAMUS_API_URL: http://localhost:4100

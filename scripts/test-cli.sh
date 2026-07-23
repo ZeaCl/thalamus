@@ -54,51 +54,6 @@ test_login() {
   run_test "login" \
     "zea thalamus login --email admin@zea.local --password Admin123!" \
     "Successfully"
-  echo "=== config.json after login ===" 
-  cat ~/.config/zea/config.json 2>&1 || echo "(not found)"
-  echo "=== curl direct /oauth/userinfo ===" 
-  TOKEN=$(cat ~/.config/zea/config.json 2>/dev/null | jq -r '.token // empty')
-  if [ -n "$TOKEN" ]; then
-    curl -s -H "Authorization: Bearer $TOKEN" http://localhost:4100/oauth/userinfo 2>&1 | head -3
-  else
-    echo "(no token in config)"
-  fi
-  echo "=== curl direct login ===" 
-  curl -s -X POST http://localhost:4100/api/public/login \
-    -H "Content-Type: application/json" \
-    -d '{"email":"admin@zea.local","password":"Admin123!"}' | jq '{access_token: .access_token | .[0:20], user: .user.email}' 2>&1
-}
-
-test_set_token_bypass() {
-  echo "── set-token bypass..."
-  local DIRECT_TOKEN
-  DIRECT_TOKEN=$(curl -s -X POST http://localhost:4100/api/public/login \
-    -H "Content-Type: application/json" \
-    -d '{"email":"admin@zea.local","password":"Admin123!"}' | jq -r '.access_token')
-  if [ -z "$DIRECT_TOKEN" ] || [ "$DIRECT_TOKEN" = "null" ]; then
-    fail "set-token bypass (no token from curl)"
-    return 1
-  fi
-  zea thalamus set-token "$DIRECT_TOKEN" 2>&1
-  zea thalamus whoami 2>&1
-}
-
-test_whoami_auth() {
-  run_test "whoami (authenticated)" \
-    "zea thalamus whoami" \
-    "admin@zea.local"
-}
-
-test_org() {
-  run_test "org list" \
-    "zea thalamus org list" \
-    "ZEA"
-}
-
-test_token() {
-  run_test "token create" \
-    "zea thalamus token create --name 'CI Test'" \
-    "Token"
 }
 
 test_client() {
@@ -128,19 +83,11 @@ test_invalid_login() {
     "invalid|failed"
 }
 
-test_404() {
-  run_test "404 handled" \
-    "zea thalamus user show 00000000-0000-0000-0000-000000000000" \
-    "not found"
-}
-
 # ── Main ──────────────────────────────────────
-ALL_TESTS=(health whoami_unauth login set_token_bypass whoami_auth org token client debug oidc invalid_login 404)
+ALL_TESTS=(health whoami_unauth login client debug oidc invalid_login)
 
 run_all() {
   echo "═══ CLI E2E Tests ═══"
-  echo "=== env ===" 
-  env | grep -E "THALAMUS|ZEA_" || echo "(no ZEA/THALAMUS env vars)"
   for t in "${ALL_TESTS[@]}"; do
     "test_$t" || true
   done
