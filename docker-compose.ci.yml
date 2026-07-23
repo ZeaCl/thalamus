@@ -57,6 +57,7 @@ services:
       SECRET_KEY_BASE: "test_secret_key_base_min_64_chars_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
       PHX_HOST: "localhost"
       PORT: "4000"
+      PHX_SERVER: "true"
       MIX_ENV: "prod"
       SEED_ON_START: "true"
       TEST_AUTH_ALLOWED: "true"
