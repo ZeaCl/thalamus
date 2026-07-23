@@ -14,7 +14,12 @@ defmodule Thalamus.Domain.Services.PersonalAccessTokenGenerator do
   @doc """
   Generates a new Personal Access Token.
   """
-  def generate(env \\ Mix.env()) do
+  def generate do
+    env = Application.get_env(:thalamus, :environment, :dev)
+    generate(env)
+  end
+
+  def generate(env) when is_atom(env) do
     env_prefix = environment_prefix(env)
     random_part = generate_random_part()
 

@@ -33,7 +33,7 @@ defmodule ThalamusWeb.API.PersonalAccessTokenController do
   def create(conn, %{"name" => name, "organization_id" => organization_id} = params) do
     user_id = get_user_id(conn)
     scopes = params["scopes"] || ["openid", "profile", "email", "zea:read", "zea:write"]
-    org_id = organization_id || get_org_id(conn)
+    org_id = organization_id || get_org_id(conn) || get_first_org_id(conn, user_id)
 
     generated = PersonalAccessTokenGenerator.generate()
     id = Ecto.UUID.generate()
@@ -66,6 +66,11 @@ defmodule ThalamusWeb.API.PersonalAccessTokenController do
         |> put_status(:bad_request)
         |> json(%{error: "Failed to create token", details: inspect(reason)})
     end
+  end
+
+  # Fallback clause when organization_id is not in params at all
+  def create(conn, params) do
+    create(conn, Map.put(params, "organization_id", nil))
   end
 
   @doc """
@@ -113,11 +118,26 @@ defmodule ThalamusWeb.API.PersonalAccessTokenController do
   end
 
   defp get_org_id(conn) do
-    # Fallback: use organization_id from auth context (set by AuthenticateToken)
     auth = conn.assigns[:auth_context]
     if is_map(auth), do: auth[:organization_id], else: nil
   end
 
+  defp get_first_org_id(_conn, nil), do: nil
+
+  defp get_first_org_id(_conn, user_id) when is_binary(user_id) do
+    import Ecto.Query
+    alias Thalamus.Infrastructure.Persistence.Schemas.UserSchema
+    alias Thalamus.Repo
+
+    case Ecto.UUID.cast(user_id) do
+      {:ok, uuid} ->
+        Repo.one(from u in UserSchema, where: u.id == ^uuid, select: u.organization_id)
+
+      _ -> nil
+    end
+  end
+
+  # Fallback clause when organization_id is not in params at all
   defp pat_to_json(%PersonalAccessToken{} = pat) do
     %{
       id: pat.id,
