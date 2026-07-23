@@ -84,6 +84,10 @@ WORKDIR /app
 # Copy release from build stage
 COPY --from=build --chown=thalamus:thalamus /app/_build/prod/rel/thalamus ./
 
+# Copy entrypoint
+COPY --chown=thalamus:thalamus docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh
+
 # Switch to non-root user
 USER thalamus
 
@@ -100,7 +104,8 @@ ENV SHELL=/bin/bash
 HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
     CMD wget --spider -q http://localhost:4000/api/public/health || exit 1
 
-# Start application
+# Start application via entrypoint (handles migrations + optional seeds)
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
 CMD ["bin/thalamus", "start"]
 
 # ============================================================================

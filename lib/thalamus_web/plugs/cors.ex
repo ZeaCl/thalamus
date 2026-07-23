@@ -110,31 +110,32 @@ defmodule ThalamusWeb.Plugs.CORS do
   defp origin_allowed?(nil, _origins), do: false
 
   defp origin_allowed?(origin, origins) when is_list(origins) do
-    static_allowed? = Enum.any?(origins, fn allowed_origin ->
-      cond do
-        # Allow all
-        allowed_origin == "*" ->
-          true
+    static_allowed? =
+      Enum.any?(origins, fn allowed_origin ->
+        cond do
+          # Allow all
+          allowed_origin == "*" ->
+            true
 
-        # Exact match
-        allowed_origin == origin ->
-          true
+          # Exact match
+          allowed_origin == origin ->
+            true
 
-        # Wildcard port: http://localhost:* matches http://localhost:5299 etc
-        String.ends_with?(allowed_origin, ":*") ->
-          base = String.replace_suffix(allowed_origin, ":*", "")
-          String.starts_with?(origin, base <> ":")
+          # Wildcard port: http://localhost:* matches http://localhost:5299 etc
+          String.ends_with?(allowed_origin, ":*") ->
+            base = String.replace_suffix(allowed_origin, ":*", "")
+            String.starts_with?(origin, base <> ":")
 
-        # Wildcard subdomain (e.g., "*.example.com")
-        String.starts_with?(allowed_origin, "*.") ->
-          domain = String.replace_prefix(allowed_origin, "*", "")
-          String.ends_with?(origin, domain)
+          # Wildcard subdomain (e.g., "*.example.com")
+          String.starts_with?(allowed_origin, "*.") ->
+            domain = String.replace_prefix(allowed_origin, "*", "")
+            String.ends_with?(origin, domain)
 
-        # No match
-        true ->
-          false
-      end
-    end)
+          # No match
+          true ->
+            false
+        end
+      end)
 
     if static_allowed? do
       true

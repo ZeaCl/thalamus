@@ -22,7 +22,8 @@ defmodule ThalamusWeb.RegistrationController do
       Thalamus.Repo.transaction(fn ->
         with {:ok, email_string} <- validate_required(email, "email"),
              {:ok, password_string} <- validate_required(password, "password"),
-             {:ok, ^password_string} <- validate_password_confirmation(password, password_confirmation),
+             {:ok, ^password_string} <-
+               validate_password_confirmation(password, password_confirmation),
              {:ok, name_string} <- validate_required(name, "name"),
              {:ok, email_vo} <- Email.new(email_string),
              {:ok, nil} <- check_email_available(email_vo),

@@ -2,11 +2,17 @@ defmodule ThalamusWeb.API.LoginControllerTest do
   use ThalamusWeb.ConnCase, async: false
 
   alias Thalamus.Repo
-  alias Thalamus.Infrastructure.Persistence.Schemas.{UserDomainRoleSchema, UserSchema}
+
+  alias Thalamus.Infrastructure.Persistence.Schemas.{
+    UserDomainRoleSchema,
+    UserSchema,
+    OrganizationSchema
+  }
 
   @valid_email "test@example.com"
   @valid_password "SecurePass123!@#"
   @org_id "ea7b11ea-852c-44e5-aee1-a761ec76eaea"
+  @org_name "ZEA Test"
 
   describe "POST /api/public/login" do
     setup do
@@ -14,7 +20,10 @@ defmodule ThalamusWeb.API.LoginControllerTest do
       %{user: user}
     end
 
-    test "successful login returns JWT with domain_roles", %{conn: conn, user: user} do
+    test "successful login returns JWT with domain_roles, refresh_token and organization", %{
+      conn: conn,
+      user: user
+    } do
       # Grant a domain role so domain_roles claim is populated
       create_domain_role(user.id, "funds", "gp_admin", ["read", "write"])
 
@@ -26,16 +35,26 @@ defmodule ThalamusWeb.API.LoginControllerTest do
 
       assert %{
                "access_token" => access_token,
+               "refresh_token" => refresh_token,
                "token_type" => "Bearer",
                "expires_in" => 3600,
-               "user" => user_data
+               "user" => user_data,
+               "organization" => organization
              } = json_response(conn, 200)
 
       assert is_binary(access_token)
       assert String.starts_with?(access_token, "eyJ")
+      assert is_binary(refresh_token)
+      assert String.starts_with?(refresh_token, "eyJ")
       assert user_data["email"] == @valid_email
       assert user_data["verified"] == true
       assert is_binary(user_data["id"])
+
+      # Organization info
+      assert is_map(organization)
+      assert is_binary(organization["id"])
+      assert is_binary(organization["name"])
+      assert is_binary(organization["slug"])
 
       # Decode JWT and verify domain_roles claim
       [_header, payload_b64, _sig] = String.split(access_token, ".")
@@ -63,8 +82,13 @@ defmodule ThalamusWeb.API.LoginControllerTest do
 
       assert %{
                "access_token" => access_token,
-               "user" => _user_data
+               "refresh_token" => refresh_token,
+               "user" => _user_data,
+               "organization" => _org
              } = json_response(conn, 200)
+
+      # Refresh token present
+      assert is_binary(refresh_token)
 
       # Decode JWT
       [_header, payload_b64, _sig] = String.split(access_token, ".")
@@ -181,15 +205,42 @@ defmodule ThalamusWeb.API.LoginControllerTest do
   end
 
   defp create_active_user do
+    # Ensure organization exists
+    ensure_org()
+
     Repo.insert(
       UserSchema.create_changeset(%{
         email: @valid_email,
         name: "Test User",
         password_hash: Bcrypt.hash_pwd_salt(@valid_password),
         status: :active,
-        verified_at: DateTime.truncate(DateTime.utc_now(), :second)
+        verified_at: DateTime.truncate(DateTime.utc_now(), :second),
+        organization_id: @org_id
       })
     )
+  end
+
+  defp ensure_org do
+    case Repo.get(OrganizationSchema, @org_id) do
+      nil ->
+        Repo.insert!(%OrganizationSchema{
+          id: @org_id,
+          name: @org_name,
+          plan_type: :enterprise,
+          status: :active,
+          verified: true,
+          max_users: 100,
+          max_api_calls_per_month: 1_000_000,
+          mfa_required: false,
+          sso_enabled: false,
+          audit_logs_retention_days: 90,
+          support_level: :community,
+          api_calls_reset_at: DateTime.truncate(DateTime.utc_now(), :second)
+        })
+
+      _existing ->
+        :ok
+    end
   end
 
   defp create_domain_role(user_id, domain, role, scopes) do

@@ -1,5 +1,14 @@
 # Log
 
+## [2026-07-23] feat | #39 CLI E2E + OAuth2 ROPC + optimización pipelines
+12 tests E2E pasando con OAuth2 password grant. Fixes: Mix.env() en PAT generator, organization_id en token_data, orden de tests. Pipelines optimizados: concurrency, cache unificada, composite action, Docker compartido, script test-cli.sh. Issues #42, #44-#48, #55-#63, #64-#73 cerrados.
+
+## [2026-07-15] feat | #42 --zea-discover flag para dynamic command discovery
+Flag `--zea-discover` agregado en `cli/bin/zea-thalamus.js`. Expone 64 comandos como JSON para que `zea-cli` los descubra dinámicamente (smoke testing, help, validación). Mismo patrón que `zea-soma`.
+
+## [2026-07-12] feat | #14 Fase 1 defensiva: domain_roles siempre presente + authz_source
+`domain_roles` siempre incluido (vacío `[]` si no hay roles). Claim `authz_source: "domain_roles"` explícito. `api_auth.ex` fallback a `domain_roles[0].org_id`. `organization_id` deprecated en docs. 1869 tests, 0 fallos nuevos.
+
 ## [2026-07-12] fix | #9 JwtSigner.fetch_domain_roles fix aplicado
 Fix: `Ecto.UUID.cast` explícito antes de la query + rescue específico (`DBConnection.ConnectionError`, `OwnershipError`) + `Logger.warning`. Tests: login_controller_test.exs ya cubría domain_roles (2 tests), 1869 tests total, 0 fallos nuevos. Sub-issues #9 y #13 cerrados.
 

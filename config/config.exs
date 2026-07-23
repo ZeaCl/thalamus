@@ -163,7 +163,8 @@ config :thalamus,
   redis_url: System.get_env("REDIS_URL", "redis://localhost:6379/0"),
   # Using real Redis for production-grade caching
   redis_adapter: :redix,
-  base_url: System.get_env("BASE_URL", "http://localhost:4000")
+  base_url: System.get_env("BASE_URL", "http://localhost:4000"),
+  environment: Mix.env()
 
 # Swoosh email configuration
 config :thalamus, Thalamus.Mailer,

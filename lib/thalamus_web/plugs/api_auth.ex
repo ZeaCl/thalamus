@@ -103,10 +103,10 @@ defmodule ThalamusWeb.Plugs.APIAuth do
       {:ok, claims} ->
         org_id =
           claims["organization_id"] ||
-            (case claims["domain_roles"] do
-               [first | _] when is_map(first) -> Map.get(first, "org_id")
-               _ -> nil
-             end)
+            case claims["domain_roles"] do
+              [first | _] when is_map(first) -> Map.get(first, "org_id")
+              _ -> nil
+            end
 
         conn
         |> assign(:auth_type, :jwt)

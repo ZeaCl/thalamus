@@ -96,5 +96,30 @@ Step-by-step walkthroughs for integrating apps with Thalamus:
 
 | Resource | Description |
 |---|---|
+| [CLI Command Reference](cli/CLI_COMMANDS.md) | **Recommended** — `zea thalamus` CLI commands (724 lines, 97 test cases) |
+| [CLI Test Matrix](cli/TEST_MATRIX.md) | E2E testing strategy with ephemeral containers |
 | [OpenAPI Spec](OPENAPI_SPEC.yaml) | Full API specification (OpenAPI 3.0) |
 | [CLAUDE.md](../CLAUDE.md) | Coding agent instructions |
+
+---
+
+## CLI Quickstart
+
+The CLI is the recommended way to interact with Thalamus:
+
+```bash
+# Install
+npm install -g @zea-cl/cli
+
+# Setup
+zea config set-env local
+zea thalamus auth login
+
+# Explore
+zea thalamus health
+zea thalamus auth whoami
+zea thalamus org list
+zea thalamus doctor
+```
+
+[Full CLI Reference →](cli/CLI_COMMANDS.md)
