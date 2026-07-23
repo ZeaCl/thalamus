@@ -24,11 +24,14 @@ run_test() {
   local name="$1"
   local cmd="$2"
   local expected="$3"
+  local output
   echo -n "── ${name}... "
-  if eval "$cmd" 2>&1 | grep -qE "$expected"; then
+  output=$(eval "$cmd" 2>&1) || true
+  if echo "$output" | grep -qE "$expected"; then
     pass "$name"
   else
     fail "$name (expected: $expected)"
+    echo "       output: $output"
     return 1
   fi
 }
