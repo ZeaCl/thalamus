@@ -33,6 +33,7 @@ defmodule ThalamusWeb.API.PersonalAccessTokenController do
   def create(conn, %{"name" => name, "organization_id" => organization_id} = params) do
     user_id = get_user_id(conn)
     scopes = params["scopes"] || ["openid", "profile", "email", "zea:read", "zea:write"]
+    org_id = organization_id || get_org_id(conn)
 
     generated = PersonalAccessTokenGenerator.generate()
     id = Ecto.UUID.generate()
@@ -45,7 +46,7 @@ defmodule ThalamusWeb.API.PersonalAccessTokenController do
       scopes: scopes,
       is_active: true,
       user_id: user_id,
-      organization_id: organization_id
+      organization_id: org_id
     }
 
     with {:ok, pat} <- PersonalAccessToken.new(attrs),
@@ -109,6 +110,12 @@ defmodule ThalamusWeb.API.PersonalAccessTokenController do
     # Handle different auth assigns formats from AuthenticateToken and APIAuth
     user_id = conn.assigns[:current_user_id] || conn.assigns[:user_id]
     if is_struct(user_id), do: to_string(user_id), else: user_id
+  end
+
+  defp get_org_id(conn) do
+    # Fallback: use organization_id from auth context (set by AuthenticateToken)
+    auth = conn.assigns[:auth_context]
+    if is_map(auth), do: auth[:organization_id], else: nil
   end
 
   defp pat_to_json(%PersonalAccessToken{} = pat) do

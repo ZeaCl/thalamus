@@ -86,13 +86,23 @@ test_org() {
 }
 
 test_token() {
-  # TODO: #70 — POST /api/personal-access-tokens returns 500 with password grant
-  echo "── token create... ⏭ skipped (#70)"
+  run_test "token create" \
+    "zea thalamus token create --name 'CI Test'" \
+    "Token"
 }
 
 test_404() {
-  # TODO: #71 — GET /api/users/:id returns 401 instead of 404
-  echo "── 404 handled... ⏭ skipped (#71)"
+  # TODO: #73 — GET /api/users/:id returns 401 instead of 404
+  echo "── diagnosing user show..."
+  local TOKEN
+  TOKEN=$(cat ~/.config/zea/config.json 2>/dev/null | jq -r '.token // empty')
+  echo "       curl /api/users/00000000-0000-0000-0000-000000000000:"
+  curl -sv -H "Authorization: Bearer $TOKEN" \
+    "http://localhost:4100/api/users/00000000-0000-0000-0000-000000000000" 2>&1 | tail -5
+  echo "       curl /api/organizations (should work):"
+  curl -s -H "Authorization: Bearer $TOKEN" \
+    "http://localhost:4100/api/organizations" | jq '.data | length' 2>&1
+  echo ""
 }
 
 test_client() {
