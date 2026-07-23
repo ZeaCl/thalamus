@@ -69,7 +69,9 @@ jobs:
 
       - name: Install zea-thalamus plugin
         working-directory: cli
-        run: npm link
+        run: |
+          npm install
+          npm link
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
