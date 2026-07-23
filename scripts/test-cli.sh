@@ -49,11 +49,46 @@ test_whoami_unauth() {
     "not authenticated|login"
 }
 
-# ── Auth ──────────────────────────────────────
-test_login() {
-  run_test "login" \
-    "zea thalamus login --email admin@zea.local --password Admin123!" \
-    "Successfully"
+# ── Auth (OAuth2 client_credentials) ──────────
+test_setup_oauth() {
+  echo "── setting up OAuth2 token..."
+  local response
+  response=$(curl -s -X POST http://localhost:4100/oauth/token \
+    -H "Content-Type: application/x-www-form-urlencoded" \
+    -d "grant_type=client_credentials&client_id=internal_login&client_secret=internal_secret_do_not_expose")
+  local token
+  token=$(echo "$response" | jq -r '.access_token')
+  if [ -z "$token" ] || [ "$token" = "null" ]; then
+    echo "       OAuth2 error: $response"
+    fail "setup oauth token"
+    return 1
+  fi
+  zea thalamus set-token "$token" 2>&1
+  pass "setup oauth token"
+}
+
+test_whoami_auth() {
+  run_test "whoami (authenticated)" \
+    "zea thalamus whoami" \
+    "admin@zea.local"
+}
+
+test_org() {
+  run_test "org list" \
+    "zea thalamus org list" \
+    "ZEA"
+}
+
+test_token() {
+  run_test "token create" \
+    "zea thalamus token create --name 'CI Test'" \
+    "Token"
+}
+
+test_404() {
+  run_test "404 handled" \
+    "zea thalamus user show 00000000-0000-0000-0000-000000000000" \
+    "not found"
 }
 
 test_client() {
@@ -84,7 +119,7 @@ test_invalid_login() {
 }
 
 # ── Main ──────────────────────────────────────
-ALL_TESTS=(health whoami_unauth login client debug oidc invalid_login)
+ALL_TESTS=(health whoami_unauth setup_oauth whoami_auth org token client debug oidc invalid_login login 404)
 
 run_all() {
   echo "═══ CLI E2E Tests ═══"
