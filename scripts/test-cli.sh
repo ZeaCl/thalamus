@@ -92,19 +92,21 @@ test_token() {
 }
 
 test_404() {
-  # TODO: #73 — GET /api/users/:id returns 401 instead of 404
-  echo "── diagnosing user show..."
+  # TODO: #73 — AuthenticateToken rejects password grant token for :authenticated_api
+  echo "── diagnosing auth..."
   local TOKEN
   TOKEN=$(cat ~/.config/zea/config.json 2>/dev/null | jq -r '.token // empty')
-  echo "       [1] /api/users/00000000-0000-0000-0000-000000000000:"
-  curl -s -w "\n       HTTP %{http_code}\n" -H "Authorization: Bearer $TOKEN" \
-    "http://localhost:4100/api/users/00000000-0000-0000-0000-000000000000"
-  echo "       [2] /api/organizations (control):"
+  echo "       token length: ${#TOKEN}"
+  echo "       token prefix: ${TOKEN:0:30}..."
+  echo "       [1] /oauth/userinfo (works via CLI whoami):"
+  curl -s -o /dev/null -w "       HTTP %{http_code}\n" -H "Authorization: Bearer $TOKEN" \
+    "http://localhost:4100/oauth/userinfo"
+  echo "       [2] /api/organizations (fails now):"
   curl -s -w "\n       HTTP %{http_code}\n" -H "Authorization: Bearer $TOKEN" \
     "http://localhost:4100/api/organizations"
-  echo "       [3] /api/organizations/00000000-0000-0000-0000-000000000000 (same UUID):"
+  echo "       [3] /api/personal-access-tokens (500 before):"
   curl -s -w "\n       HTTP %{http_code}\n" -H "Authorization: Bearer $TOKEN" \
-    "http://localhost:4100/api/organizations/00000000-0000-0000-0000-000000000000"
+    "http://localhost:4100/api/personal-access-tokens"
 }
 
 test_client() {
