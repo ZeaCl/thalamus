@@ -18,4 +18,4 @@ if [ "${SEED_ON_START}" = "true" ]; then
   echo "── Starting Thalamus ──"
 fi
 
-exec bin/thalamus start
+exec "$@"
