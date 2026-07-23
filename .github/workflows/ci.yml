@@ -125,8 +125,8 @@ jobs:
           path: |
             deps
             _build
-          key: ${{ runner.os }}-mix-test-${{ hashFiles('**/mix.lock') }}
-          restore-keys: ${{ runner.os }}-mix-test-
+          key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
+          restore-keys: ${{ runner.os }}-mix-
 
       - name: Install dependencies
         run: mix deps.get
@@ -173,8 +173,8 @@ jobs:
           path: |
             deps
             _build
-          key: ${{ runner.os }}-mix-security-${{ hashFiles('**/mix.lock') }}
-          restore-keys: ${{ runner.os}}-mix-security-
+          key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
+          restore-keys: ${{ runner.os }}-mix-
 
       - name: Install dependencies
         run: mix deps.get
@@ -211,8 +211,8 @@ jobs:
           path: |
             deps
             _build
-          key: ${{ runner.os }}-mix-dialyzer-${{ hashFiles('**/mix.lock') }}
-          restore-keys: ${{ runner.os }}-mix-dialyzer-
+          key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
+          restore-keys: ${{ runner.os }}-mix-
 
       - name: Cache PLT
         uses: actions/cache@v3
