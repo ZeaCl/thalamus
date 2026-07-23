@@ -11,6 +11,8 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
     PostgreSQLOAuth2ClientRepository
   }
 
+  @test_user_id "00000000-0000-0000-0000-000000000001"
+
   setup do
     # Create organization
     {:ok, org} = Organization.new("Test Corp", "owner@test.com", :standard)
@@ -49,7 +51,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
       conn =
         conn
         |> Plug.Test.init_test_session(%{})
-        |> put_session(:user_id, "some_user_id")
+        |> put_session(:user_id, @test_user_id)
         |> get(~p"/oauth/authorize", %{
           response_type: "code",
           client_id: to_string(client.id),
@@ -77,7 +79,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
       conn =
         conn
         |> Plug.Test.init_test_session(%{})
-        |> put_session(:user_id, "some_user_id")
+        |> put_session(:user_id, @test_user_id)
         |> get(~p"/oauth/authorize", %{
           response_type: "code",
           client_id: to_string(client.id),
@@ -109,7 +111,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
       conn =
         conn
         |> Plug.Test.init_test_session(%{})
-        |> put_session(:user_id, "some_user_id")
+        |> put_session(:user_id, @test_user_id)
         |> get(~p"/oauth/authorize", %{
           client_id: to_string(client.id),
           redirect_uri: "http://localhost:3000/callback"
@@ -122,7 +124,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
       conn =
         conn
         |> Plug.Test.init_test_session(%{})
-        |> put_session(:user_id, "some_user_id")
+        |> put_session(:user_id, @test_user_id)
         |> get(~p"/oauth/authorize", %{
           # Not supported
           response_type: "token",
@@ -137,7 +139,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
       conn =
         conn
         |> Plug.Test.init_test_session(%{})
-        |> put_session(:user_id, "some_user_id")
+        |> put_session(:user_id, @test_user_id)
         |> get(~p"/oauth/authorize", %{
           response_type: "code",
           client_id: "invalid_client_id",
@@ -151,7 +153,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
       conn =
         conn
         |> Plug.Test.init_test_session(%{})
-        |> put_session(:user_id, "some_user_id")
+        |> put_session(:user_id, @test_user_id)
         |> get(~p"/oauth/authorize", %{
           response_type: "code",
           client_id: to_string(client.id),
@@ -168,7 +170,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
       conn =
         conn
         |> Plug.Test.init_test_session(%{})
-        |> put_session(:user_id, "some_user_id")
+        |> put_session(:user_id, @test_user_id)
         |> get(~p"/oauth/authorize", %{
           response_type: "code",
           client_id: to_string(client.id),
@@ -184,7 +186,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
       conn =
         conn
         |> Plug.Test.init_test_session(%{})
-        |> put_session(:user_id, "some_user_id")
+        |> put_session(:user_id, @test_user_id)
         |> get(~p"/oauth/authorize", %{
           response_type: "code",
           client_id: to_string(client.id),
