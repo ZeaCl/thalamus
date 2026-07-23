@@ -57,3 +57,8 @@ config :bcrypt_elixir, log_rounds: 4
 
 # Skip endpoint health checks in test (prevents network timeouts)
 config :thalamus, :skip_health_checks, true
+
+# Security headers config for test environment
+# Explicitly mirrors config/config.exs to ensure CI parity
+config :thalamus, ThalamusWeb.Plugs.SecurityHeaders,
+  frame_options: "SAMEORIGIN"
