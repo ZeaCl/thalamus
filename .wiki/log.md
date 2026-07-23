@@ -1,5 +1,8 @@
 # Log
 
+## [2026-07-23] feat | #39 CLI E2E + OAuth2 ROPC + optimización pipelines
+12 tests E2E pasando con OAuth2 password grant. Fixes: Mix.env() en PAT generator, organization_id en token_data, orden de tests. Pipelines optimizados: concurrency, cache unificada, composite action, Docker compartido, script test-cli.sh. Issues #42, #44-#48, #55-#63, #64-#73 cerrados.
+
 ## [2026-07-15] feat | #42 --zea-discover flag para dynamic command discovery
 Flag `--zea-discover` agregado en `cli/bin/zea-thalamus.js`. Expone 64 comandos como JSON para que `zea-cli` los descubra dinámicamente (smoke testing, help, validación). Mismo patrón que `zea-soma`.
 
