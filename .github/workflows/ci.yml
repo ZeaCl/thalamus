@@ -39,26 +39,11 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
       - name: Setup Elixir
-        uses: erlef/setup-beam@v1
+        uses: ./.github/actions/setup-elixir
         with:
           elixir-version: ${{ env.ELIXIR_VERSION }}
           otp-version: ${{ env.OTP_VERSION }}
-
-      - name: Cache dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            deps
-            _build
-          key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
-          restore-keys: ${{ runner.os }}-mix-
-
-      - name: Install dependencies
-        run: mix deps.get
 
       - name: Check code formatting
         run: mix format --check-formatted
@@ -118,26 +103,11 @@ jobs:
       REDIS_URL: redis://localhost:6379/0
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
       - name: Setup Elixir
-        uses: erlef/setup-beam@v1
+        uses: ./.github/actions/setup-elixir
         with:
           elixir-version: ${{ env.ELIXIR_VERSION }}
           otp-version: ${{ env.OTP_VERSION }}
-
-      - name: Cache dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            deps
-            _build
-          key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
-          restore-keys: ${{ runner.os }}-mix-
-
-      - name: Install dependencies
-        run: mix deps.get
 
       - name: Compile
         run: mix compile
@@ -166,23 +136,11 @@ jobs:
     timeout-minutes: 20
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
       - name: Setup Elixir
-        uses: erlef/setup-beam@v1
+        uses: ./.github/actions/setup-elixir
         with:
           elixir-version: ${{ env.ELIXIR_VERSION }}
           otp-version: ${{ env.OTP_VERSION }}
-
-      - name: Cache dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            deps
-            _build
-          key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
-          restore-keys: ${{ runner.os }}-mix-
 
       - name: Cache PLT
         uses: actions/cache@v4
@@ -190,9 +148,6 @@ jobs:
           path: priv/plts
           key: ${{ runner.os }}-plt-${{ env.OTP_VERSION }}-${{ env.ELIXIR_VERSION }}-${{ hashFiles('**/mix.lock') }}
           restore-keys: ${{ runner.os }}-plt-
-
-      - name: Install dependencies
-        run: mix deps.get
 
       - name: Run Dialyzer
         run: mix dialyzer

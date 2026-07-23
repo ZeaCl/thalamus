@@ -1,0 +1,37 @@
+name: Setup Elixir
+description: Checkout, setup Elixir/OTP, cache deps, and install dependencies
+
+inputs:
+  elixir-version:
+    description: Elixir version
+    required: false
+    default: "1.19.0"
+  otp-version:
+    description: OTP version
+    required: false
+    default: "26.2"
+
+runs:
+  using: composite
+  steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Elixir
+      uses: erlef/setup-beam@v1
+      with:
+        elixir-version: ${{ inputs.elixir-version }}
+        otp-version: ${{ inputs.otp-version }}
+
+    - name: Cache dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          deps
+          _build
+        key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
+        restore-keys: ${{ runner.os }}-mix-
+
+    - name: Install dependencies
+      shell: bash
+      run: mix deps.get
