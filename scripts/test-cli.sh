@@ -45,20 +45,20 @@ test_health() {
 
 test_whoami_unauth() {
   run_test "whoami (unauthenticated)" \
-    "zea thalamus auth whoami" \
+    "zea thalamus whoami" \
     "not authenticated|login"
 }
 
 # ── Auth ──────────────────────────────────────
 test_login() {
   run_test "login" \
-    "zea thalamus auth login --email admin@zea.local --password Admin123!" \
+    "zea thalamus login --email admin@zea.local --password Admin123!" \
     "Successfully"
 }
 
 test_whoami_auth() {
   run_test "whoami (authenticated)" \
-    "zea thalamus auth whoami" \
+    "zea thalamus whoami" \
     "admin@zea.local"
 }
 
@@ -83,8 +83,8 @@ test_client() {
 test_debug() {
   local token
   token=$(cat ~/.config/zea/config.json | jq -r '.token')
-  run_test "auth debug" \
-    "zea thalamus auth debug $token" \
+  run_test "debug" \
+    "zea thalamus debug $token" \
     "Payload|active"
 }
 
@@ -97,7 +97,7 @@ test_oidc() {
 # ── Error cases ───────────────────────────────
 test_invalid_login() {
   run_test "invalid login rejected" \
-    "zea thalamus auth login --email noexiste@test.com --password wrong" \
+    "zea thalamus login --email noexiste@test.com --password wrong" \
     "invalid|failed"
 }
 
