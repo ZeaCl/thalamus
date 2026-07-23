@@ -96,9 +96,10 @@ defmodule ThalamusWeb.API.PersonalAccessTokenControllerTest do
     test "returns 400 when name is missing", %{conn: conn} do
       org_id = Ecto.UUID.generate()
 
-      conn = post(conn, ~p"/api/personal-access-tokens", %{
-        "organization_id" => org_id
-      })
+      conn =
+        post(conn, ~p"/api/personal-access-tokens", %{
+          "organization_id" => org_id
+        })
 
       assert json_response(conn, 400) == %{"error" => "name is required"}
     end
