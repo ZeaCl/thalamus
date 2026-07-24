@@ -9,6 +9,7 @@ export function register(program) {
     .option('--email <email>', 'Email for direct login (requires --password)')
     .option('--password <password>', 'Password for direct login (requires --email)')
     .option('--device', 'Use device flow (no browser redirect needed)')
+    .option('--scopes <scopes>', 'Scopes (space-separated, default: openid profile email zea:read zea:write)')
     .action(async (options) => {
       if (options.email && options.password) {
         await handleDirectLogin(options);

@@ -19,6 +19,29 @@ export async function loadConfig() {
   }
 }
 
+export async function saveAuthConfig(accessToken, refreshToken, apiUrl) {
+  const config = await loadConfig();
+  config.token = accessToken;
+  config.refreshToken = refreshToken;
+  config.apiUrl = apiUrl;
+
+  // Try to get user info and set activeOrgId
+  try {
+    const userResp = await zeaFetch(`${apiUrl}/oauth/userinfo`, {
+      headers: { 'Authorization': `Bearer ${accessToken}` }
+    });
+    if (userResp.ok) {
+      const userinfo = await userResp.json();
+      if (userinfo.organizations && userinfo.organizations.length > 0) {
+        config.activeOrgId = userinfo.organizations[0].id;
+      }
+    }
+  } catch { /* non-critical, user can set org manually */ }
+
+  await saveConfig(config);
+  return config;
+}
+
 export async function saveConfig(config) {
   await fs.mkdir(CONFIG_DIR, { recursive: true });
   await fs.writeFile(CONFIG_FILE, JSON.stringify(config, null, 2), 'utf8');
@@ -82,23 +105,7 @@ export async function handleDirectLogin(options) {
     }
     
     const data = await response.json();
-    const config = await loadConfig();
-    config.token = data.access_token;
-    config.refreshToken = data.refresh_token;
-    config.apiUrl = apiUrl;
-    
-    const userinfoResponse = await zeaFetch(`${apiUrl}/oauth/userinfo`, {
-      headers: { 'Authorization': `Bearer ${data.access_token}` }
-    });
-    
-    if (userinfoResponse.ok) {
-      const userinfo = await userinfoResponse.json();
-      if (userinfo.organizations && userinfo.organizations.length > 0) {
-        config.activeOrgId = userinfo.organizations[0].id;
-      }
-    }
-    
-    await saveConfig(config);
+    await saveAuthConfig(data.access_token, data.refresh_token, apiUrl);
     console.log('Successfully authenticated with ZEA Platform!');
     console.log(`User: ${data.user.email} (${data.user.name})`);
     if (data.organization) {
@@ -158,24 +165,7 @@ export async function handleLogin(options) {
         }
 
         const tokenData = await tokenResponse.json();
-        const config = await loadConfig();
-        
-        config.token = tokenData.access_token;
-        config.refreshToken = tokenData.refresh_token;
-        config.apiUrl = apiUrl;
-        
-        const userinfoResponse = await zeaFetch(`${apiUrl}/oauth/userinfo`, {
-          headers: { 'Authorization': `Bearer ${tokenData.access_token}` }
-        });
-
-        if (userinfoResponse.ok) {
-          const userinfo = await userinfoResponse.json();
-          if (userinfo.organizations && userinfo.organizations.length > 0) {
-            config.activeOrgId = userinfo.organizations[0].id;
-          }
-        }
-
-        await saveConfig(config);
+        await saveAuthConfig(tokenData.access_token, tokenData.refresh_token, apiUrl);
 
         res.writeHead(200, { 'Content-Type': 'text/html' });
         res.end('<h1>Authentication Successful</h1><p>You can close this tab and return to the terminal.</p>');
@@ -220,6 +210,7 @@ export async function handleLogin(options) {
 export async function handleDeviceLogin(options) {
   const apiUrl = process.env.ZEA_API_URL || process.env.THALAMUS_API_URL || options.url || 'https://auth.zea.cl';
   const clientId = 'thalamus_cli';
+  const scopes = options.scopes || 'openid profile email zea:read zea:write';
 
   console.log('Starting device authentication flow...\n');
 
@@ -229,7 +220,7 @@ export async function handleDeviceLogin(options) {
     deviceResponse = await zeaFetch(`${apiUrl}/oauth/device`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `client_id=${encodeURIComponent(clientId)}&scope=openid%20profile%20email%20zea%3Aread%20zea%3Awrite`
+      body: `client_id=${encodeURIComponent(clientId)}&scope=${encodeURIComponent(scopes)}`
     });
   } catch (e) {
     console.error(`❌ Cannot reach ${apiUrl}. Is the server running?`);
@@ -285,27 +276,7 @@ export async function handleDeviceLogin(options) {
 
       if (tokenResponse.ok) {
         const tokenData = await tokenResponse.json();
-
-        // Save config
-        const config = await loadConfig();
-        config.token = tokenData.access_token;
-        config.refreshToken = tokenData.refresh_token;
-        config.apiUrl = apiUrl;
-
-        // Get user info
-        try {
-          const userResp = await zeaFetch(`${apiUrl}/oauth/userinfo`, {
-            headers: { 'Authorization': `Bearer ${tokenData.access_token}` }
-          });
-          if (userResp.ok) {
-            const userinfo = await userResp.json();
-            if (userinfo.organizations && userinfo.organizations.length > 0) {
-              config.activeOrgId = userinfo.organizations[0].id;
-            }
-          }
-        } catch { /* non-critical */ }
-
-        await saveConfig(config);
+        await saveAuthConfig(tokenData.access_token, tokenData.refresh_token, apiUrl);
         console.log('✅ Successfully authenticated with ZEA Platform!');
         return;
       }
