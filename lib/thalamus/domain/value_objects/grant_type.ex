@@ -8,7 +8,12 @@ defmodule Thalamus.Domain.ValueObjects.GrantType do
   """
 
   @type grant_type ::
-          :authorization_code | :client_credentials | :refresh_token | :implicit | :password | :device_code
+          :authorization_code
+          | :client_credentials
+          | :refresh_token
+          | :implicit
+          | :password
+          | :device_code
 
   @type t :: %__MODULE__{
           type: grant_type(),
@@ -26,7 +31,14 @@ defmodule Thalamus.Domain.ValueObjects.GrantType do
     :pkce_required
   ]
 
-  @valid_types [:authorization_code, :client_credentials, :refresh_token, :implicit, :password, :device_code]
+  @valid_types [
+    :authorization_code,
+    :client_credentials,
+    :refresh_token,
+    :implicit,
+    :password,
+    :device_code
+  ]
 
   # OAuth2 recommended grant types for modern applications
   @recommended_types [:authorization_code, :client_credentials, :refresh_token]
