@@ -267,7 +267,7 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
         cond do
           DeviceAuthorization.authorized?(da) ->
             with {:ok, user} <- get_user(da.user_id, deps),
-                 :ok <- deps.device_authorization_repository.expire(da) do
+                 {:ok, _expired} <- deps.device_authorization_repository.expire(da) do
               scopes = da.scopes
               refresh_token = generate_refresh_token()
 

@@ -41,12 +41,13 @@ defmodule ThalamusWeb.OAuth2.DeviceController do
   }
   """
   def create(conn, params) do
-    client_id = params["client_id"] || params[:client_id] || ""
+    client_id_string = params["client_id"] || params[:client_id] || ""
     scope = params["scope"] || params[:scope] || "openid profile email"
     scopes = String.split(scope, " ", trim: true)
 
-    with {:ok, _client} <- validate_client(client_id),
-         {:ok, device_auth} <- DeviceAuthorization.new(client_id: client_id, scopes: scopes),
+    with {:ok, client} <- validate_client(client_id_string),
+         client_uuid = extract_client_uuid(client),
+         {:ok, device_auth} <- DeviceAuthorization.new(client_id: client_uuid, scopes: scopes),
          {:ok, stored} <- @repo.store(device_auth) do
       verification_uri = build_verification_uri(conn)
 
@@ -162,6 +163,14 @@ defmodule ThalamusWeb.OAuth2.DeviceController do
   end
 
   defp validate_client(_), do: {:error, :not_found}
+
+  defp extract_client_uuid(client) do
+    if is_struct(client.id) do
+      client.id.value |> String.replace_prefix("client_", "")
+    else
+      client.id
+    end
+  end
 
   defp build_verification_uri(conn) do
     scheme = if conn.scheme == :http, do: "http", else: "https"

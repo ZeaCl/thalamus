@@ -207,7 +207,8 @@ defmodule ThalamusWeb.OAuth2.TokenController do
       code_verifier: get_param(params, "code_verifier"),
       scope: get_param(params, "scope"),
       username: get_param(params, "username"),
-      password: get_param(params, "password")
+      password: get_param(params, "password"),
+      device_code: get_param(params, "device_code")
     }
     |> Enum.reject(fn {_k, v} -> is_nil(v) end)
     |> Map.new()

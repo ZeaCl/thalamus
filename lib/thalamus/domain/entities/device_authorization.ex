@@ -119,14 +119,9 @@ defmodule Thalamus.Domain.Entities.DeviceAuthorization do
 
   defp generate_user_code do
     # RFC 8628: user_code should be human-friendly (alphanumeric, 8 chars)
-    @user_code_length
-    |> then(fn len ->
-      :crypto.strong_rand_bytes(len)
-      |> Base.encode64(padding: false)
-      |> String.replace(~r/[^A-Z0-9]/, "")
-      |> String.slice(0, len)
-    end)
-    |> format_user_code()
+    chars = Enum.to_list(?A..?Z)
+    code = for _ <- 1..@user_code_length, do: Enum.random(chars)
+    code |> List.to_string() |> format_user_code()
   end
 
   defp format_user_code(code) do
