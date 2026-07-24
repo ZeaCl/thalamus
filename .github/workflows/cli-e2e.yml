@@ -1,8 +1,17 @@
-name: CLI E2E Tests
+name: CLI E2E Tests (local only)
+
+# ═══════════════════════════════════════════════════════════
+# DISABLED — runs locally via zea/zea mirror instead
+# ═══════════════════════════════════════════════════════════
+# To run locally:
+#   cd zea/zea && docker compose -f docker-compose.local.yml up -d --build thalamus
+#   cd thalamus && THALAMUS_API_URL=http://auth.zea.localhost bash scripts/test-cli.sh
+# ═══════════════════════════════════════════════════════════
 
 on:
-  push:
-    branches: [main, develop]
+  workflow_dispatch:  # manual only
+  # push:
+  #   branches: [main, develop]
     paths:
       - 'lib/**'
       - 'priv/**'
