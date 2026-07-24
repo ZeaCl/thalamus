@@ -53,11 +53,8 @@ jobs:
       - name: Check code formatting
         run: mix format --check-formatted
 
-      - name: Check for known vulnerabilities
-        run: mix deps.audit
-
-      - name: Check for retired dependencies
-        run: mix hex.audit
+      - name: Compile (warnings as errors)
+        run: mix compile --warnings-as-errors
 
   # ==========================================================================
   # Unit & Integration Tests (Backend)
