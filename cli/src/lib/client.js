@@ -19,6 +19,29 @@ export async function loadConfig() {
   }
 }
 
+export async function saveAuthConfig(accessToken, refreshToken, apiUrl) {
+  const config = await loadConfig();
+  config.token = accessToken;
+  config.refreshToken = refreshToken;
+  config.apiUrl = apiUrl;
+
+  // Try to get user info and set activeOrgId
+  try {
+    const userResp = await zeaFetch(`${apiUrl}/oauth/userinfo`, {
+      headers: { 'Authorization': `Bearer ${accessToken}` }
+    });
+    if (userResp.ok) {
+      const userinfo = await userResp.json();
+      if (userinfo.organizations && userinfo.organizations.length > 0) {
+        config.activeOrgId = userinfo.organizations[0].id;
+      }
+    }
+  } catch { /* non-critical, user can set org manually */ }
+
+  await saveConfig(config);
+  return config;
+}
+
 export async function saveConfig(config) {
   await fs.mkdir(CONFIG_DIR, { recursive: true });
   await fs.writeFile(CONFIG_FILE, JSON.stringify(config, null, 2), 'utf8');
@@ -82,23 +105,7 @@ export async function handleDirectLogin(options) {
     }
     
     const data = await response.json();
-    const config = await loadConfig();
-    config.token = data.access_token;
-    config.refreshToken = data.refresh_token;
-    config.apiUrl = apiUrl;
-    
-    const userinfoResponse = await zeaFetch(`${apiUrl}/oauth/userinfo`, {
-      headers: { 'Authorization': `Bearer ${data.access_token}` }
-    });
-    
-    if (userinfoResponse.ok) {
-      const userinfo = await userinfoResponse.json();
-      if (userinfo.organizations && userinfo.organizations.length > 0) {
-        config.activeOrgId = userinfo.organizations[0].id;
-      }
-    }
-    
-    await saveConfig(config);
+    await saveAuthConfig(data.access_token, data.refresh_token, apiUrl);
     console.log('Successfully authenticated with ZEA Platform!');
     console.log(`User: ${data.user.email} (${data.user.name})`);
     if (data.organization) {
@@ -158,24 +165,7 @@ export async function handleLogin(options) {
         }
 
         const tokenData = await tokenResponse.json();
-        const config = await loadConfig();
-        
-        config.token = tokenData.access_token;
-        config.refreshToken = tokenData.refresh_token;
-        config.apiUrl = apiUrl;
-        
-        const userinfoResponse = await zeaFetch(`${apiUrl}/oauth/userinfo`, {
-          headers: { 'Authorization': `Bearer ${tokenData.access_token}` }
-        });
-
-        if (userinfoResponse.ok) {
-          const userinfo = await userinfoResponse.json();
-          if (userinfo.organizations && userinfo.organizations.length > 0) {
-            config.activeOrgId = userinfo.organizations[0].id;
-          }
-        }
-
-        await saveConfig(config);
+        await saveAuthConfig(tokenData.access_token, tokenData.refresh_token, apiUrl);
 
         res.writeHead(200, { 'Content-Type': 'text/html' });
         res.end('<h1>Authentication Successful</h1><p>You can close this tab and return to the terminal.</p>');
@@ -215,6 +205,121 @@ export async function handleLogin(options) {
     }
     process.exit(1);
   });
+}
+
+export async function handleDeviceLogin(options) {
+  const apiUrl = process.env.ZEA_API_URL || process.env.THALAMUS_API_URL || options.url || 'https://auth.zea.cl';
+  const clientId = 'thalamus_cli';
+  const scopes = options.scopes || 'openid profile email zea:read zea:write';
+
+  console.log('Starting device authentication flow...\n');
+
+  // Step 1: Request device code
+  let deviceResponse;
+  try {
+    deviceResponse = await zeaFetch(`${apiUrl}/oauth/device`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `client_id=${encodeURIComponent(clientId)}&scope=${encodeURIComponent(scopes)}`
+    });
+  } catch (e) {
+    console.error(`❌ Cannot reach ${apiUrl}. Is the server running?`);
+    process.exit(1);
+  }
+
+  if (!deviceResponse.ok) {
+    const err = await deviceResponse.json().catch(() => ({}));
+    console.error(`❌ Device authorization failed: ${err.error_description || err.error || `HTTP ${deviceResponse.status}`}`);
+    process.exit(1);
+  }
+
+  const deviceData = await deviceResponse.json();
+  const { device_code, user_code, verification_uri, interval } = deviceData;
+
+  // Step 2: Show the code to the user
+  console.log('┌─────────────────────────────────────────────┐');
+  console.log('│                                             │');
+  console.log(`│   Open:  ${verification_uri.padEnd(37)}│`);
+  console.log(`│   Code:  ${user_code.padEnd(37)}│`);
+  console.log('│                                             │');
+  console.log('└─────────────────────────────────────────────┘');
+  console.log('');
+
+  // Step 3: Try to open browser
+  try {
+    const open = (await import('open')).default;
+    await open(`${verification_uri}?code=${encodeURIComponent(user_code)}`);
+    console.log('Browser opened automatically. If not, use the URL above.\n');
+  } catch {
+    console.log('Copy the URL above into your browser.\n');
+  }
+
+  // Step 4: Poll for authorization
+  const pollInterval = (interval || 5) * 1000;
+  const maxAttempts = 120; // 10 minutes max (120 × 5s)
+
+  console.log('Waiting for authorization...');
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    await sleep(pollInterval);
+
+    try {
+      const tokenResponse = await zeaFetch(`${apiUrl}/oauth/token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+          device_code,
+          client_id: clientId
+        }).toString()
+      });
+
+      if (tokenResponse.ok) {
+        const tokenData = await tokenResponse.json();
+        await saveAuthConfig(tokenData.access_token, tokenData.refresh_token, apiUrl);
+        console.log('✅ Successfully authenticated with ZEA Platform!');
+        return;
+      }
+
+      const errorData = await tokenResponse.json().catch(() => ({}));
+
+      if (errorData.error === 'authorization_pending') {
+        // Still waiting — dots for progress
+        if (attempt % 6 === 0) process.stdout.write('.');
+        continue;
+      }
+
+      if (errorData.error === 'slow_down') {
+        // Server asked us to slow down — increase interval
+        await sleep(pollInterval);
+        continue;
+      }
+
+      if (errorData.error === 'expired_token') {
+        console.error('\n❌ Device code expired. Please run `zea thalamus login --device` again.');
+        process.exit(1);
+      }
+
+      // Unknown error
+      console.error(`\n❌ Authorization failed: ${errorData.error_description || errorData.error || `HTTP ${tokenResponse.status}`}`);
+      process.exit(1);
+
+    } catch (e) {
+      if (attempt >= maxAttempts - 1) {
+        console.error(`\n❌ Connection lost during authentication: ${e.message}`);
+        process.exit(1);
+      }
+      // Keep trying on network errors
+      process.stdout.write('!');
+    }
+  }
+
+  console.error('\n❌ Timed out waiting for authorization. Please try again.');
+  process.exit(1);
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 export async function resolveSecret(provider) {

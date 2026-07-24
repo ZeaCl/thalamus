@@ -8,7 +8,7 @@ defmodule Thalamus.Domain.ValueObjects.GrantType do
   """
 
   @type grant_type ::
-          :authorization_code | :client_credentials | :refresh_token | :implicit | :password
+          :authorization_code | :client_credentials | :refresh_token | :implicit | :password | :device_code
 
   @type t :: %__MODULE__{
           type: grant_type(),
@@ -26,7 +26,7 @@ defmodule Thalamus.Domain.ValueObjects.GrantType do
     :pkce_required
   ]
 
-  @valid_types [:authorization_code, :client_credentials, :refresh_token, :implicit, :password]
+  @valid_types [:authorization_code, :client_credentials, :refresh_token, :implicit, :password, :device_code]
 
   # OAuth2 recommended grant types for modern applications
   @recommended_types [:authorization_code, :client_credentials, :refresh_token]
@@ -104,6 +104,17 @@ defmodule Thalamus.Domain.ValueObjects.GrantType do
       {:ok, %GrantType{type: :password}}
   """
   def password, do: new(:password)
+
+  @doc """
+  Creates a Device Code grant type (RFC 8628).
+  For CLI and input-constrained devices.
+
+  ## Examples
+
+      iex> GrantType.device_code()
+      {:ok, %GrantType{type: :device_code}}
+  """
+  def device_code, do: new(:device_code)
 
   @doc """
   Checks if this grant type is recommended by OAuth2 best practices.
@@ -253,6 +264,16 @@ defmodule Thalamus.Domain.ValueObjects.GrantType do
       type: :password,
       requires_user: true,
       requires_client_secret: true,
+      issues_refresh_token: true,
+      pkce_required: false
+    }
+  end
+
+  defp build_grant_type(:device_code) do
+    %__MODULE__{
+      type: :device_code,
+      requires_user: true,
+      requires_client_secret: false,
       issues_refresh_token: true,
       pkce_required: false
     }

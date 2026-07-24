@@ -310,7 +310,11 @@ case Repo.get(OAuth2ClientSchema, thalamus_cli_client_id) ||
       client_secret: "cli_secret_does_not_matter_pkce_public_client",
       organization_id: zea_org_id,
       redirect_uris: cli_uris,
-      allowed_grant_types: ["authorization_code", "refresh_token"],
+      allowed_grant_types: [
+        "authorization_code",
+        "refresh_token",
+        "device_code"
+      ],
       allowed_scopes: ["openid", "profile", "email", "zea:read", "zea:write"],
       pkce_required: true
     }
@@ -332,7 +336,14 @@ case Repo.get(OAuth2ClientSchema, thalamus_cli_client_id) ||
 
   existing ->
     existing
-    |> Ecto.Changeset.change(%{redirect_uris: cli_uris})
+    |> Ecto.Changeset.change(%{
+      redirect_uris: cli_uris,
+      allowed_grant_types: [
+        "authorization_code",
+        "refresh_token",
+        "device_code"
+      ]
+    })
     |> Repo.update!()
 end
 

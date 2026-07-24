@@ -27,7 +27,9 @@ defmodule ThalamusWeb.OAuth2.TokenController do
       Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository,
     user_repository: Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository,
     token_repository: Thalamus.Infrastructure.Repositories.PostgreSQLTokenRepository,
-    audit_logger: Thalamus.Infrastructure.Adapters.AuditLoggerImpl
+    audit_logger: Thalamus.Infrastructure.Adapters.AuditLoggerImpl,
+    device_authorization_repository:
+      Thalamus.Infrastructure.Repositories.PostgreSQLDeviceAuthorizationRepository
   }
 
   @doc """
@@ -149,6 +151,22 @@ defmodule ThalamusWeb.OAuth2.TokenController do
               :internal_server_error
             )
 
+          {:error, :authorization_pending} ->
+            oauth2_error(
+              conn,
+              "authorization_pending",
+              "The authorization request is still pending",
+              :bad_request
+            )
+
+          {:error, :expired_device_code} ->
+            oauth2_error(
+              conn,
+              "expired_token",
+              "The device code has expired",
+              :bad_request
+            )
+
           {:error, reason} ->
             oauth2_error(
               conn,
@@ -189,7 +207,8 @@ defmodule ThalamusWeb.OAuth2.TokenController do
       code_verifier: get_param(params, "code_verifier"),
       scope: get_param(params, "scope"),
       username: get_param(params, "username"),
-      password: get_param(params, "password")
+      password: get_param(params, "password"),
+      device_code: get_param(params, "device_code")
     }
     |> Enum.reject(fn {_k, v} -> is_nil(v) end)
     |> Map.new()
