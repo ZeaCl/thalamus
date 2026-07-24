@@ -1,0 +1,41 @@
+name: Backup Production DB
+
+on:
+  schedule:
+    - cron: '0 6 * * *'  # daily at 6am UTC
+  workflow_dispatch:       # manual trigger
+
+jobs:
+  backup:
+    name: Backup OAuth2 clients & orgs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install SSH key
+        uses: shimataro/ssh-key-action@v2
+        with:
+          key: ${{ secrets.AWS_SSH_KEY }}
+          known_hosts: ${{ secrets.AWS_KNOWN_HOSTS }}
+
+      - name: Dump critical tables
+        run: |
+          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+          ssh ubuntu@52.67.48.59 "
+            cd zea-platform &&
+            sudo docker compose -f docker-compose.prod.yml exec -T postgres \
+              pg_dump -U postgres -d thalamus_prod \
+              --table=oauth2_clients \
+              --table=organizations \
+              --table=users \
+              --table=personal_access_tokens \
+              --data-only \
+              --column-inserts \
+              > /tmp/thalamus_backup_${TIMESTAMP}.sql &&
+            echo 'Backup created: /tmp/thalamus_backup_${TIMESTAMP}.sql'
+          "
+
+      - name: Upload backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: thalamus-backup-${{ github.run_id }}
+          path: /tmp/thalamus_backup_*.sql
+          retention-days: 30

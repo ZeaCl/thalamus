@@ -27,7 +27,7 @@ export async function saveConfig(config) {
 export async function getClient() {
   const config = await loadConfig();
   const token = process.env.ZEA_PAT || process.env.THALAMUS_PAT || process.env.ZEA_TOKEN || config.token;
-  const apiUrl = process.env.ZEA_API_URL || process.env.THALAMUS_API_URL || config.apiUrl || 'http://auth.zea.localhost';
+  const apiUrl = process.env.ZEA_API_URL || process.env.THALAMUS_API_URL || config.apiUrl || 'https://auth.zea.cl';
   const activeOrgId = config.activeOrgId || process.env.ZEA_ORG_ID || null;
   const cerebelumUrl = process.env.ZEA_CEREBELUM_URL || process.env.CEREBELUM_URL || config.cerebelumUrl || 'http://cerebelum.zea.localhost';
   const ventureUrl = process.env.ZEA_VENTURE_URL || config.ventureUrl || 'http://venture.zea.localhost';
@@ -65,7 +65,7 @@ export async function getClient() {
 }
 
 export async function handleDirectLogin(options) {
-  const apiUrl = process.env.ZEA_API_URL || process.env.THALAMUS_API_URL || options.url || 'http://auth.zea.localhost';
+  const apiUrl = process.env.ZEA_API_URL || process.env.THALAMUS_API_URL || options.url || 'https://auth.zea.cl';
   const email = options.email;
   const password = options.password;
   
@@ -111,7 +111,7 @@ export async function handleDirectLogin(options) {
 }
 
 export async function handleLogin(options) {
-  const apiUrl = process.env.ZEA_API_URL || process.env.THALAMUS_API_URL || options.url || 'http://auth.zea.localhost';
+  const apiUrl = process.env.ZEA_API_URL || process.env.THALAMUS_API_URL || options.url || 'https://auth.zea.cl';
 
   const codeVerifier = crypto.randomBytes(32).toString('base64url');
   const codeChallenge = crypto.createHash('sha256').update(codeVerifier).digest('base64url');
@@ -221,7 +221,7 @@ export async function resolveSecret(provider) {
   try {
     const config = await loadConfig();
     const token = process.env.ZEA_PAT || process.env.THALAMUS_PAT || process.env.ZEA_TOKEN || config.token;
-    const apiUrl = process.env.ZEA_API_URL || process.env.THALAMUS_API_URL || config.apiUrl || 'http://auth.zea.localhost';
+    const apiUrl = process.env.ZEA_API_URL || process.env.THALAMUS_API_URL || config.apiUrl || 'https://auth.zea.cl';
     
     if (!token) return null;
 
