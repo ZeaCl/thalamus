@@ -6,7 +6,8 @@ defmodule Thalamus.Application.DTOs.TokenRequest do
   - Single Responsibility: Only carries token request data
   """
 
-  @type grant_type :: :authorization_code | :client_credentials | :refresh_token | :password | :device_code
+  @type grant_type ::
+          :authorization_code | :client_credentials | :refresh_token | :password | :device_code
   @type t :: %__MODULE__{
           grant_type: grant_type(),
           client_id: String.t(),

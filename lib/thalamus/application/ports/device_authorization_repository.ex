@@ -13,14 +13,16 @@ defmodule Thalamus.Application.Ports.DeviceAuthorizationRepository do
 
   @callback store(device_authorization()) :: {:ok, device_authorization()} | {:error, term()}
 
-  @callback find_by_device_code(String.t()) :: {:ok, device_authorization()} | {:error, :not_found}
+  @callback find_by_device_code(String.t()) ::
+              {:ok, device_authorization()} | {:error, :not_found}
 
   @callback find_by_user_code(String.t()) :: {:ok, device_authorization()} | {:error, :not_found}
 
   @callback authorize(device_authorization(), user_id :: String.t()) ::
               {:ok, device_authorization()} | {:error, term()}
 
-  @callback record_poll(device_authorization()) :: {:ok, device_authorization()} | {:error, term()}
+  @callback record_poll(device_authorization()) ::
+              {:ok, device_authorization()} | {:error, term()}
 
   @callback expire(device_authorization()) :: {:ok, device_authorization()} | {:error, term()}
 

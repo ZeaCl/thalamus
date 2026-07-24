@@ -76,7 +76,10 @@ defmodule ThalamusWeb.OAuth2.DeviceController do
       {:error, reason} ->
         conn
         |> put_status(:bad_request)
-        |> json(%{error: "invalid_request", error_description: "Device authorization failed: #{inspect(reason)}"})
+        |> json(%{
+          error: "invalid_request",
+          error_description: "Device authorization failed: #{inspect(reason)}"
+        })
     end
   end
 
@@ -100,7 +103,7 @@ defmodule ThalamusWeb.OAuth2.DeviceController do
   Verifies the user_code and authorizes the device if valid.
   """
   def activate(conn, params) do
-    user_code = (params["user_code"] || "")
+    user_code = params["user_code"] || ""
 
     # Format the entered code (allow both "ABCD-EFGH" and "ABCDEFGH")
     formatted_code = normalize_user_code(user_code)
@@ -113,6 +116,7 @@ defmodule ThalamusWeb.OAuth2.DeviceController do
           if is_nil(user_id) do
             # User not logged in — redirect to login with return path
             return_to = ~p"/oauth/activate?code=#{formatted_code}"
+
             conn
             |> put_flash(:info, "Please log in to authorize the device.")
             |> redirect(to: ~p"/login?return_to=#{URI.encode_www_form(return_to)}")
