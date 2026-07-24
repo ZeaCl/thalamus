@@ -1,0 +1,55 @@
+<%!-- Device Activation Page — user enters the code shown in their terminal --%>
+<div class="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+  <div class="max-w-md w-full">
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
+      <div class="text-center mb-6">
+        <h1 class="text-2xl font-semibold text-gray-900">Device Activation</h1>
+        <p class="mt-2 text-sm text-gray-600">
+          Enter the code shown in your terminal to authorize the device.
+        </p>
+      </div>
+
+      <.form
+        :let={_f}
+        for={%{}}
+        action={~p"/oauth/activate"}
+        class="space-y-4"
+      >
+        <div>
+          <label for="user_code" class="block text-sm font-medium text-gray-700 mb-1">
+            Verification Code
+          </label>
+          <input
+            type="text"
+            id="user_code"
+            name="user_code"
+            value={@user_code || ""}
+            placeholder="XXXX-XXXX"
+            maxlength="9"
+            class="block w-full rounded-lg border border-gray-300 px-4 py-3 text-center text-2xl font-mono tracking-widest uppercase focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
+            autocomplete="off"
+            autofocus
+          />
+        </div>
+
+        <%= if @error do %>
+          <div class="bg-red-50 border border-red-200 rounded-lg p-3">
+            <p class="text-sm text-red-700"><%= @error %></p>
+          </div>
+        <% end %>
+
+        <button
+          type="submit"
+          class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors"
+        >
+          Authorize Device
+        </button>
+      </.form>
+
+      <p class="mt-6 text-xs text-gray-400 text-center">
+        This code expires in 10 minutes.
+        If it expires, run <code class="bg-gray-100 px-1 rounded">zea thalamus login</code> again.
+      </p>
+    </div>
+  </div>
+</div>

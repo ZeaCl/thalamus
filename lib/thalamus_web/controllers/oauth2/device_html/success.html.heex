@@ -1,0 +1,23 @@
+<%!-- Device Authorization Success Page --%>
+<div class="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+  <div class="max-w-md w-full">
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 text-center">
+      <div class="mb-4">
+        <svg class="mx-auto h-16 w-16 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      </div>
+
+      <h1 class="text-2xl font-semibold text-gray-900 mb-2">Device Authorized!</h1>
+      <p class="text-sm text-gray-600 mb-6">
+        Your device has been authorized successfully.
+        You can close this tab and return to your terminal.
+      </p>
+
+      <div class="bg-gray-50 rounded-lg p-4">
+        <p class="text-xs text-gray-400">Device code</p>
+        <p class="text-lg font-mono font-semibold text-gray-700"><%= @user_code %></p>
+      </div>
+    </div>
+  </div>
+</div>

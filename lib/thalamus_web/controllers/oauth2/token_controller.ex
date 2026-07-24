@@ -27,7 +27,9 @@ defmodule ThalamusWeb.OAuth2.TokenController do
       Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository,
     user_repository: Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository,
     token_repository: Thalamus.Infrastructure.Repositories.PostgreSQLTokenRepository,
-    audit_logger: Thalamus.Infrastructure.Adapters.AuditLoggerImpl
+    audit_logger: Thalamus.Infrastructure.Adapters.AuditLoggerImpl,
+    device_authorization_repository:
+      Thalamus.Infrastructure.Repositories.PostgreSQLDeviceAuthorizationRepository
   }
 
   @doc """
@@ -147,6 +149,22 @@ defmodule ThalamusWeb.OAuth2.TokenController do
               "server_error",
               "Failed to store generated token",
               :internal_server_error
+            )
+
+          {:error, :authorization_pending} ->
+            oauth2_error(
+              conn,
+              "authorization_pending",
+              "The authorization request is still pending",
+              :bad_request
+            )
+
+          {:error, :expired_device_code} ->
+            oauth2_error(
+              conn,
+              "expired_token",
+              "The device code has expired",
+              :bad_request
             )
 
           {:error, reason} ->

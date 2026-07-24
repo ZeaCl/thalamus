@@ -116,6 +116,10 @@ defmodule ThalamusWeb.Router do
     # Authorization endpoint (RFC 6749 Section 3.1)
     get "/authorize", AuthorizationController, :new
     post "/authorize", AuthorizationController, :create
+
+    # Device Activation (RFC 8628)
+    get "/activate", DeviceController, :new
+    post "/activate", DeviceController, :activate
   end
 
   # OpenID Connect Discovery (public, no auth required)
@@ -132,6 +136,9 @@ defmodule ThalamusWeb.Router do
   # OAuth2 Token Endpoints (API-based, NO CSRF protection)
   scope "/oauth", ThalamusWeb.OAuth2 do
     pipe_through :oauth2_api
+
+    # Device Authorization endpoint (RFC 8628)
+    post "/device", DeviceController, :create
 
     # Token endpoint - POST only
     post "/token", TokenController, :create

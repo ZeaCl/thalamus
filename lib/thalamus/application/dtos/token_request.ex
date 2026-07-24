@@ -6,7 +6,7 @@ defmodule Thalamus.Application.DTOs.TokenRequest do
   - Single Responsibility: Only carries token request data
   """
 
-  @type grant_type :: :authorization_code | :client_credentials | :refresh_token | :password
+  @type grant_type :: :authorization_code | :client_credentials | :refresh_token | :password | :device_code
   @type t :: %__MODULE__{
           grant_type: grant_type(),
           client_id: String.t(),
@@ -17,7 +17,8 @@ defmodule Thalamus.Application.DTOs.TokenRequest do
           username: String.t() | nil,
           password: String.t() | nil,
           scope: String.t() | nil,
-          code_verifier: String.t() | nil
+          code_verifier: String.t() | nil,
+          device_code: String.t() | nil
         }
 
   defstruct [
@@ -30,7 +31,8 @@ defmodule Thalamus.Application.DTOs.TokenRequest do
     :username,
     :password,
     :scope,
-    :code_verifier
+    :code_verifier,
+    :device_code
   ]
 
   @doc """
@@ -63,7 +65,8 @@ defmodule Thalamus.Application.DTOs.TokenRequest do
             username: params["username"] || params[:username],
             password: params["password"] || params[:password],
             scope: params["scope"] || params[:scope],
-            code_verifier: params["code_verifier"] || params[:code_verifier]
+            code_verifier: params["code_verifier"] || params[:code_verifier],
+            device_code: params["device_code"] || params[:device_code]
           }
 
           case validate(request) do
@@ -83,6 +86,7 @@ defmodule Thalamus.Application.DTOs.TokenRequest do
   defp parse_grant_type("client_credentials"), do: {:ok, :client_credentials}
   defp parse_grant_type("refresh_token"), do: {:ok, :refresh_token}
   defp parse_grant_type("password"), do: {:ok, :password}
+  defp parse_grant_type("urn:ietf:params:oauth:grant-type:device_code"), do: {:ok, :device_code}
   defp parse_grant_type(:authorization_code), do: {:ok, :authorization_code}
   defp parse_grant_type(:client_credentials), do: {:ok, :client_credentials}
   defp parse_grant_type(:refresh_token), do: {:ok, :refresh_token}
@@ -116,6 +120,14 @@ defmodule Thalamus.Application.DTOs.TokenRequest do
   defp validate(%__MODULE__{grant_type: :password} = req) do
     cond do
       is_nil(req.client_id) -> {:error, :client_id_required}
+      true -> :ok
+    end
+  end
+
+  defp validate(%__MODULE__{grant_type: :device_code} = req) do
+    cond do
+      is_nil(req.client_id) -> {:error, :client_id_required}
+      is_nil(req.device_code) -> {:error, :device_code_required}
       true -> :ok
     end
   end
