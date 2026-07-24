@@ -173,7 +173,13 @@ defmodule ThalamusWeb.OAuth2.DeviceController do
   end
 
   defp build_verification_uri(conn) do
-    scheme = if conn.scheme == :http, do: "http", else: "https"
+    # Check X-Forwarded-Proto for reverse proxy (Caddy, nginx)
+    scheme =
+      case Plug.Conn.get_req_header(conn, "x-forwarded-proto") do
+        ["https" | _] -> "https"
+        _ -> if conn.scheme == :http, do: "http", else: "https"
+      end
+
     host = conn.host
     port = if conn.port in [80, 443], do: "", else: ":#{conn.port}"
     "#{scheme}://#{host}#{port}/oauth/activate"
@@ -187,7 +193,9 @@ defmodule ThalamusWeb.OAuth2.DeviceController do
       <<a::binary-size(4), b::binary-size(4)>> = cleaned
       "#{a}-#{b}"
     else
-      code
+      # Return cleaned version — find_by_user_code will return :not_found
+      # and the controller will show "Invalid code" to the user
+      cleaned
     end
   end
 end

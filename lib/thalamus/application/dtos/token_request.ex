@@ -91,6 +91,7 @@ defmodule Thalamus.Application.DTOs.TokenRequest do
   defp parse_grant_type(:client_credentials), do: {:ok, :client_credentials}
   defp parse_grant_type(:refresh_token), do: {:ok, :refresh_token}
   defp parse_grant_type(:password), do: {:ok, :password}
+  defp parse_grant_type(:device_code), do: {:ok, :device_code}
   defp parse_grant_type(_), do: {:error, :unsupported_grant_type}
 
   defp validate(%__MODULE__{grant_type: :authorization_code} = req) do

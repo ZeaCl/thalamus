@@ -99,17 +99,6 @@ defmodule Thalamus.Domain.Entities.DeviceAuthorization do
   def authorized?(%__MODULE__{status: :authorized}), do: true
   def authorized?(_), do: false
 
-  @doc """
-  Verifies a user_code matches this device authorization.
-  """
-  def verify_user_code(%__MODULE__{user_code: code}, code), do: :ok
-  def verify_user_code(_, _), do: {:error, :invalid_user_code}
-
-  @doc """
-  The polling interval in seconds that the client should use.
-  """
-  def polling_interval(%__MODULE__{interval: interval}), do: interval
-
   # ── Private helpers ─────────────────────────────────────────
 
   defp generate_device_code do

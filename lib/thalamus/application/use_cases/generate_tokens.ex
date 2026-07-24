@@ -266,36 +266,43 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
       {:ok, da} ->
         cond do
           DeviceAuthorization.authorized?(da) ->
-            with {:ok, user} <- get_user(da.user_id, deps),
-                 {:ok, _expired} <- deps.device_authorization_repository.expire(da) do
-              scopes = da.scopes
-              refresh_token = generate_refresh_token()
+            scopes = da.scopes
 
-              access_token =
-                generate_jwt_access_token(%{
-                  user_id: user.id,
-                  client_id: client_id_string(client),
-                  scope: Enum.join(scopes, " "),
-                  expires_in: @access_token_ttl,
-                  aud: client_id_string(client),
-                  sub: UserId.to_string(user.id),
-                  name: user.name,
-                  email: Email.to_string(user.email),
-                  is_agent: user.is_agent,
-                  organization_id: user.organization_id
-                })
+            unless OAuth2Client.valid_scopes?(client, scopes) do
+              {:error, :invalid_scope}
+            else
+              with {:ok, user} <- get_user(da.user_id, deps) do
+                refresh_token = generate_refresh_token()
 
-              {:ok,
-               %{
-                 access_token: access_token,
-                 token_type: "Bearer",
-                 expires_in: @access_token_ttl,
-                 refresh_token: refresh_token,
-                 scope: Enum.join(scopes, " "),
-                 user_id: user.id,
-                 client_id: client_id_string(client),
-                 organization_id: user.organization_id
-               }}
+                access_token =
+                  generate_jwt_access_token(%{
+                    user_id: user.id,
+                    client_id: client_id_string(client),
+                    scope: Enum.join(scopes, " "),
+                    expires_in: @access_token_ttl,
+                    aud: client_id_string(client),
+                    sub: UserId.to_string(user.id),
+                    name: user.name,
+                    email: Email.to_string(user.email),
+                    is_agent: user.is_agent,
+                    organization_id: user.organization_id
+                  })
+
+                # Only expire the device code AFTER successfully generating the token
+                _ = deps.device_authorization_repository.expire(da)
+
+                {:ok,
+                 %{
+                   access_token: access_token,
+                   token_type: "Bearer",
+                   expires_in: @access_token_ttl,
+                   refresh_token: refresh_token,
+                   scope: Enum.join(scopes, " "),
+                   user_id: user.id,
+                   client_id: client_id_string(client),
+                   organization_id: user.organization_id
+                 }}
+              end
             end
 
           DeviceAuthorization.pending?(da) ->
