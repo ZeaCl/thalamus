@@ -36,13 +36,11 @@ defmodule Mix.Tasks.Cli.Test.E2e do
 
     Mix.shell().info("═══ CLI E2E Tests ═══")
 
-    started = false
-
     try do
       start_postgres!()
       setup_database!()
-      _server_pid = start_thalamus_subprocess!()
-      _started = true
+      start_thalamus_subprocess!()
+      Process.put(:e2e_started, true)
       wait_for_healthy!()
 
       script = Path.expand("scripts/test-cli.sh", File.cwd!())
@@ -62,7 +60,7 @@ defmodule Mix.Tasks.Cli.Test.E2e do
         Mix.shell().info("All E2E tests passed ✅")
       end
     after
-      if started do
+      if Process.get(:e2e_started) do
         stop_thalamus_subprocess()
       end
 
