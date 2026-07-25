@@ -21,6 +21,9 @@ defmodule Thalamus.Application.Ports.OAuth2ClientRepository do
 
   @callback delete(ClientId.t()) :: :ok | {:error, term()}
 
+  @callback mark_trusted(ClientId.t(), boolean()) ::
+              {:ok, OAuth2Client.t()} | {:error, term()}
+
   @callback list(keyword()) :: {:ok, [OAuth2Client.t()]} | {:error, term()}
 
   @callback count_by_organization(OrganizationId.t()) ::

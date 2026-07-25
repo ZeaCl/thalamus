@@ -130,6 +130,25 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository 
   end
 
   @impl true
+  def mark_trusted(%ClientId{} = client_id, trusted?) when is_boolean(trusted?) do
+    client_id_string = ClientId.to_string(client_id)
+    uuid = String.replace_prefix(client_id_string, "client_", "")
+
+    case Repo.get(OAuth2ClientSchema, uuid) do
+      nil ->
+        {:error, :not_found}
+
+      schema ->
+        changeset = OAuth2ClientSchema.trust_changeset(schema, trusted?)
+
+        case Repo.update(changeset) do
+          {:ok, saved_schema} -> schema_to_entity(saved_schema)
+          {:error, changeset} -> {:error, changeset}
+        end
+    end
+  end
+
+  @impl true
   def list(filters \\ %{}) do
     query = build_query(filters)
 

@@ -765,4 +765,73 @@ defmodule ThalamusWeb.API.OAuth2ClientControllerTest do
       assert grant_check["status"] == "fail"
     end
   end
+
+  describe "PATCH /api/clients/:id/trust" do
+    test "marks client as trusted", %{conn: conn, org: org, access_token: token} do
+      {:ok, client} =
+        TestHelpers.create_test_client(
+          "Trust Me",
+          org.id,
+          ["openid"],
+          redirect_uris: ["http://localhost:3000/callback"],
+          grant_types: [:authorization_code]
+        )
+
+      {:ok, client} = PostgreSQLOAuth2ClientRepository.save(client)
+      refute client.trusted
+
+      conn =
+        conn
+        |> put_req_header("authorization", "Bearer #{token}")
+        |> patch(~p"/api/clients/#{to_string(client.id)}/trust", %{
+          trusted: true
+        })
+
+      assert %{
+               "data" => %{
+                 "trusted" => true
+               },
+               "message" => message
+             } = json_response(conn, 200)
+
+      assert String.contains?(message, "true")
+
+      # Verify persisted
+      {:ok, reloaded} = PostgreSQLOAuth2ClientRepository.find_by_id(client.id)
+      assert reloaded.trusted == true
+    end
+
+    test "returns 404 for non-existent client", %{conn: conn, access_token: token} do
+      {:ok, fake_id} = Thalamus.Domain.ValueObjects.ClientId.generate()
+
+      conn =
+        conn
+        |> put_req_header("authorization", "Bearer #{token}")
+        |> patch(~p"/api/clients/#{to_string(fake_id)}/trust", %{
+          trusted: true
+        })
+
+      assert %{"error" => _} = json_response(conn, 404)
+    end
+
+    test "requires authentication", %{conn: conn, org: org} do
+      {:ok, client} =
+        TestHelpers.create_test_client(
+          "No Auth Trust",
+          org.id,
+          ["openid"],
+          redirect_uris: ["http://localhost:3000/callback"],
+          grant_types: [:authorization_code]
+        )
+
+      {:ok, client} = PostgreSQLOAuth2ClientRepository.save(client)
+
+      conn =
+        patch(conn, ~p"/api/clients/#{to_string(client.id)}/trust", %{
+          trusted: true
+        })
+
+      assert json_response(conn, 401)
+    end
+  end
 end

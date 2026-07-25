@@ -230,6 +230,56 @@ defmodule ThalamusWeb.API.OAuth2ClientController do
   end
 
   @doc """
+  PATCH /api/clients/:id/trust
+
+  Toggle a client's trusted (auto_approve) status.
+  Trusted clients bypass the OAuth2 consent screen.
+
+  ## Path Parameters
+  - id: Client UUID
+
+  ## Request Body (JSON)
+  { "trusted": true }
+
+  ## Response
+  - 200 OK: Trust status updated
+  - 404 Not Found: Client not found
+  - 400 Bad Request: Invalid input
+  """
+  def trust(conn, %{"id" => id} = params) do
+    with {:ok, trusted?} <- parse_trusted_param(params),
+         {:ok, client_id} <- ClientId.from_string(id),
+         {:ok, client} <- PostgreSQLOAuth2ClientRepository.mark_trusted(client_id, trusted?) do
+      conn
+      |> put_status(:ok)
+      |> json(%{
+        data: client_to_json(client),
+        message: "Client trust status updated to #{trusted?}"
+      })
+    else
+      {:error, :missing_trusted_param} ->
+        conn
+        |> put_status(:bad_request)
+        |> json(%{error: "Missing required parameter: trusted (boolean)"})
+
+      {:error, :invalid_trusted_param} ->
+        conn
+        |> put_status(:bad_request)
+        |> json(%{error: "Invalid value for 'trusted'. Must be true or false"})
+
+      {:error, :not_found} ->
+        conn
+        |> put_status(:not_found)
+        |> json(%{error: "Client not found"})
+
+      {:error, reason} ->
+        conn
+        |> put_status(:internal_server_error)
+        |> json(%{error: "Failed to update trust status", details: inspect(reason)})
+    end
+  end
+
+  @doc """
   DELETE /api/clients/:id
 
   Delete an OAuth2 client (soft delete by deactivating).
@@ -263,6 +313,17 @@ defmodule ThalamusWeb.API.OAuth2ClientController do
   end
 
   # Private helper functions
+
+  defp parse_trusted_param(params) do
+    case params["trusted"] do
+      nil -> {:error, :missing_trusted_param}
+      true -> {:ok, true}
+      false -> {:ok, false}
+      "true" -> {:ok, true}
+      "false" -> {:ok, false}
+      _ -> {:error, :invalid_trusted_param}
+    end
+  end
 
   defp build_filters(params) do
     filters = %{}

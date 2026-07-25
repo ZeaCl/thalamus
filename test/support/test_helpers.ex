@@ -46,7 +46,8 @@ defmodule Thalamus.TestHelpers do
         redirect_uris: parsed_redirect_uris,
         allowed_scopes: parsed_scopes,
         description: Keyword.get(opts, :description),
-        client_secret: client_secret
+        client_secret: client_secret,
+        trusted: Keyword.get(opts, :trusted, false)
       })
     end
   end
