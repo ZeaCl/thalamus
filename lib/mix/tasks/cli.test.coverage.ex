@@ -94,8 +94,15 @@ defmodule Mix.Tasks.Cli.Test.Coverage do
     Mix.shell().info("")
     Mix.shell().info("═══ CLI Test Coverage (real) ═══")
     Mix.shell().info("Commands:       #{summary["total_commands"]}")
-    Mix.shell().info("Avg line cov:   #{summary["unit_avg_line_coverage"]}% (#{summary["unit_files_covered"]}/#{summary["unit_files"]} files)")
-    Mix.shell().info("E2E functions:  #{summary["e2e_functions"]} (#{summary["e2e_commands_covered"]} commands)")
+
+    Mix.shell().info(
+      "Avg line cov:   #{summary["unit_avg_line_coverage"]}% (#{summary["unit_files_covered"]}/#{summary["unit_files"]} files)"
+    )
+
+    Mix.shell().info(
+      "E2E functions:  #{summary["e2e_functions"]} (#{summary["e2e_commands_covered"]} commands)"
+    )
+
     Mix.shell().info("Untested:       #{summary["commands_with_neither"]}")
 
     if no_tests != [] do

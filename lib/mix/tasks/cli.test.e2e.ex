@@ -82,13 +82,22 @@ defmodule Mix.Tasks.Cli.Test.E2e do
     System.cmd("docker", ["rm", "-f", @container_name], stderr_to_stdout: true)
 
     {_output, 0} =
-      System.cmd("docker", [
-        "run", "-d", "--rm",
-        "--name", @container_name,
-        "-e", "POSTGRES_PASSWORD=#{@db_pass}",
-        "-p", "#{@db_port}:5432",
-        "postgres:16-alpine"
-      ], stderr_to_stdout: true)
+      System.cmd(
+        "docker",
+        [
+          "run",
+          "-d",
+          "--rm",
+          "--name",
+          @container_name,
+          "-e",
+          "POSTGRES_PASSWORD=#{@db_pass}",
+          "-p",
+          "#{@db_port}:5432",
+          "postgres:16-alpine"
+        ],
+        stderr_to_stdout: true
+      )
 
     unless wait_for_pg(30) do
       Mix.raise("PostgreSQL did not become ready")
@@ -98,11 +107,17 @@ defmodule Mix.Tasks.Cli.Test.E2e do
   end
 
   defp wait_for_pg(0), do: false
+
   defp wait_for_pg(retries) do
     case System.cmd("pg_isready", ["-h", "localhost", "-p", "#{@db_port}", "-U", @db_user],
-           stderr_to_stdout: true) do
-      {output, 0} -> String.contains?(output, "accepting")
-      _ -> :timer.sleep(1000); wait_for_pg(retries - 1)
+           stderr_to_stdout: true
+         ) do
+      {output, 0} ->
+        String.contains?(output, "accepting")
+
+      _ ->
+        :timer.sleep(1000)
+        wait_for_pg(retries - 1)
     end
   end
 
@@ -138,6 +153,7 @@ defmodule Mix.Tasks.Cli.Test.E2e do
     Mix.Task.run("compile")
 
     db_url = db_url()
+
     env = [
       {"DATABASE_URL", db_url},
       {"MIX_ENV", "test"},
@@ -148,9 +164,10 @@ defmodule Mix.Tasks.Cli.Test.E2e do
 
     # Start phx.server in background via Task.async
     # Precompile above means this starts in ~5s instead of ~30s
-    task = Task.async(fn ->
-      System.cmd("mix", ["phx.server"], env: env, stderr_to_stdout: true)
-    end)
+    task =
+      Task.async(fn ->
+        System.cmd("mix", ["phx.server"], env: env, stderr_to_stdout: true)
+      end)
 
     Process.put(:e2e_server_task, task)
     Mix.shell().info("  Waiting for server (precompiled, ~10s)...")
@@ -159,6 +176,7 @@ defmodule Mix.Tasks.Cli.Test.E2e do
 
   defp stop_thalamus_subprocess do
     task = Process.get(:e2e_server_task)
+
     if task && Process.alive?(task.pid) do
       Task.shutdown(task, :brutal_kill)
     end
@@ -180,12 +198,17 @@ defmodule Mix.Tasks.Cli.Test.E2e do
   end
 
   defp wait_for_http(0), do: false
+
   defp wait_for_http(retries) do
     url = "http://localhost:#{@app_port}/api/public/health"
 
     case System.cmd("curl", ["-s", "-o", "/dev/null", "-w", "%{http_code}", url]) do
-      {"200", 0} -> true
-      _ -> :timer.sleep(2000); wait_for_http(retries - 1)
+      {"200", 0} ->
+        true
+
+      _ ->
+        :timer.sleep(2000)
+        wait_for_http(retries - 1)
     end
   end
 

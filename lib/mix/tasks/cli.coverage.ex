@@ -30,9 +30,7 @@ defmodule Mix.Tasks.Cli.Coverage do
     print_report(covered, missing, extra)
 
     if missing != [] or extra != [] do
-      Mix.raise(
-        "CLI coverage FAILED: #{length(missing)} routes missing, #{length(extra)} stale"
-      )
+      Mix.raise("CLI coverage FAILED: #{length(missing)} routes missing, #{length(extra)} stale")
     end
   end
 
@@ -119,6 +117,7 @@ defmodule Mix.Tasks.Cli.Coverage do
           # PUT/PATCH equivalence: Phoenix generates both for resources
           String.starts_with?(route, "PUT ") ->
             patch_route = String.replace(route, "PUT ", "PATCH ")
+
             if Map.has_key?(cli_routes, patch_route) do
               {[{route, cli_routes[patch_route]} | cov], miss}
             else
@@ -148,6 +147,7 @@ defmodule Mix.Tasks.Cli.Coverage do
 
     if missing != [] do
       Mix.shell().error("MISSING #{length(missing)} route(s) — no CLI command calls them:")
+
       Enum.each(missing, fn route ->
         Mix.shell().error("   #{route}")
       end)
@@ -155,6 +155,7 @@ defmodule Mix.Tasks.Cli.Coverage do
 
     if extra != [] do
       Mix.shell().info("STALE #{length(extra)} — CLI calls these but they're not in the router:")
+
       Enum.each(extra, fn route ->
         Mix.shell().info("   #{route}")
       end)
@@ -163,7 +164,9 @@ defmodule Mix.Tasks.Cli.Coverage do
     if missing == [] and extra == [] do
       Mix.shell().info("#{total} routes, #{total} covered ✅")
     else
-      Mix.shell().info("#{total} routes, #{length(covered)} covered, #{length(missing)} missing, #{length(extra)} stale")
+      Mix.shell().info(
+        "#{total} routes, #{length(covered)} covered, #{length(missing)} missing, #{length(extra)} stale"
+      )
     end
 
     Mix.shell().info("")

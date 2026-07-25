@@ -14,11 +14,17 @@ defmodule Thalamus.Application.UseCases.ManageSecrets do
       cond do
         Map.has_key?(attrs, :provider) ->
           provider = String.downcase(attrs.provider || "")
-          if provider == "", do: raise(ArgumentError, "provider cannot be empty"), else: %{attrs | provider: provider}
+
+          if provider == "",
+            do: raise(ArgumentError, "provider cannot be empty"),
+            else: %{attrs | provider: provider}
 
         Map.has_key?(attrs, "provider") ->
           provider = String.downcase(attrs["provider"] || "")
-          if provider == "", do: raise(ArgumentError, "provider cannot be empty"), else: %{attrs | "provider" => provider}
+
+          if provider == "",
+            do: raise(ArgumentError, "provider cannot be empty"),
+            else: %{attrs | "provider" => provider}
 
         true ->
           attrs
