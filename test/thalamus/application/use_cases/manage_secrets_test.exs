@@ -32,6 +32,32 @@ defmodule Thalamus.Application.UseCases.ManageSecretsTest do
       assert {:error, changeset} = ManageSecrets.create_secret(%{})
       assert "can't be blank" in errors_on(changeset).provider
     end
+
+    test "normalizes provider to lowercase" do
+      attrs = %{
+        owner_type: "user",
+        owner_id: Ecto.UUID.generate(),
+        provider: "DeepSeek",
+        name: "Test Key",
+        value: "sk-test"
+      }
+
+      assert {:ok, %Secret{} = secret} = ManageSecrets.create_secret(attrs)
+      assert secret.provider == "deepseek"
+    end
+
+    test "normalizes provider to lowercase (string keys)" do
+      attrs = %{
+        "owner_type" => "user",
+        "owner_id" => Ecto.UUID.generate(),
+        "provider" => "OpenAI",
+        "name" => "Test Key",
+        "value" => "sk-test"
+      }
+
+      assert {:ok, %Secret{} = secret} = ManageSecrets.create_secret(attrs)
+      assert secret.provider == "openai"
+    end
   end
 
   describe "list_by_owner/2" do

@@ -11,6 +11,11 @@ defmodule Thalamus.MixProject do
       aliases: aliases(),
       deps: deps(),
       compilers: [:phoenix_live_view] ++ Mix.compilers(),
+      dialyzer: [
+        plt_add_apps: [:ex_unit, :mix],
+        flags: [:error_handling, :missing_return, :extra_return, :underspecs],
+        list_unused_filters: true
+      ],
       listeners: [Phoenix.CodeReloader],
       test_coverage: [tool: ExCoveralls],
       preferred_cli_env: [
@@ -161,7 +166,23 @@ defmodule Thalamus.MixProject do
         "esbuild thalamus --minify",
         "phx.digest"
       ],
-      precommit: ["compile --warnings-as-errors", "deps.unlock --unused", "format", "test"]
+      # CLI coverage: every route must have a command, every command must have tests.
+      # Runs only in dev/test — skips if Node.js is not available.
+      compile:
+        if Mix.env() in [:dev, :test] do
+          ["compile", "cli.coverage", "cli.test.coverage"]
+        else
+          ["compile"]
+        end,
+      # Precommit: full validation including E2E tests (Docker required).
+      # Skips E2E gracefully if Docker is not available.
+      precommit: [
+        "compile --warnings-as-errors",
+        "deps.unlock --unused",
+        "format",
+        "test",
+        "cli.test.e2e"
+      ]
     ]
   end
 end

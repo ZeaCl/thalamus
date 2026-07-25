@@ -67,6 +67,28 @@ export function register(program) {
       } catch (e) { handleError(e); process.exit(1); }
     });
 
+  // ── verify-code ────────────────────────────────────
+  mfaCmd.command('verify-code')
+    .description('Verify TOTP code during login (MFA challenge)')
+    .requiredOption('--code <code>', 'TOTP code from authenticator app')
+    .action(async (options) => {
+      try {
+        const client = await getClient();
+        const resp = await zeaFetch(`${client.apiUrl}/api/mfa/verify`, {
+          method: 'POST', headers: client.headers,
+          body: JSON.stringify({ code: options.code })
+        });
+
+        if (!resp.ok) {
+          const err = await resp.json().catch(() => ({}));
+          console.error(`❌ ${err.error || 'Invalid TOTP code.'}`);
+          process.exit(1);
+        }
+
+        console.log('✅ MFA verified.');
+      } catch (e) { handleError(e); process.exit(1); }
+    });
+
   // ── disable ────────────────────────────────────────
   mfaCmd.command('disable')
     .description('Disable MFA for current user')

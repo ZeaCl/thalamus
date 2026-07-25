@@ -9,6 +9,8 @@ defmodule Thalamus.Application.UseCases.ResolveAgentSecret do
   """
   def execute(provider, org_id, user_id, opts \\ [], deps \\ default_deps()) do
     prefer_user? = Keyword.get(opts, :prefer_user, false)
+    # Normalize provider to lowercase (defense in depth — also done on write)
+    provider = String.downcase(provider || "")
 
     if prefer_user? do
       resolve_preferring_user(provider, org_id, user_id, deps)

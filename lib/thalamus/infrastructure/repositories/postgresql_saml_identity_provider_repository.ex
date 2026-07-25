@@ -17,7 +17,10 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLSamlIdentityProviderRep
 
   import Ecto.Query
 
+  @type repo_result :: {:ok, SamlIdentityProvider.t()} | {:error, :not_found}
+
   @impl true
+  @spec find_by_organization_id(OrganizationId.t()) :: repo_result()
   def find_by_organization_id(%OrganizationId{} = org_id) do
     org_uuid = extract_uuid(OrganizationId.to_string(org_id))
 
@@ -32,6 +35,7 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLSamlIdentityProviderRep
   end
 
   @impl true
+  @spec find_by_email_domain(String.t()) :: repo_result()
   def find_by_email_domain(email_domain) when is_binary(email_domain) do
     domain = String.downcase(email_domain)
 

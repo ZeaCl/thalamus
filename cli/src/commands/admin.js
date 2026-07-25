@@ -34,6 +34,29 @@ export function register(program) {
       } catch (e) { handleError(e); process.exit(1); }
     });
 
+  // ── show ───────────────────────────────────────────
+  apiKeyCmd.command('show <id>')
+    .description('Show admin API key details')
+    .action(async (id) => {
+      const opts = getGlobalOpts();
+      try {
+        const client = await getClient();
+        const resp = await zeaFetch(`${client.apiUrl}/api/admin/api-keys/${id}`, { headers: client.headers });
+
+        if (resp.status === 403) { console.error('❌ Forbidden — super_admin role required'); process.exit(1); }
+        if (resp.status === 404) { console.error('❌ API Key not found'); process.exit(1); }
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+        const k = (await resp.json()).data;
+        if (opts.output === 'json') { console.log(JSON.stringify(k, null, 2)); return; }
+        console.log(`   Name:    ${k.name}`);
+        console.log(`   ID:      ${k.id}`);
+        console.log(`   Status:  ${k.is_active ? 'active' : 'inactive'}`);
+        console.log(`   Scopes:  ${(k.scopes || []).join(', ') || '(none)'}`);
+        if (k.created_at) console.log(`   Created: ${k.created_at}`);
+      } catch (e) { handleError(e); process.exit(1); }
+    });
+
   // ── create ─────────────────────────────────────────
   apiKeyCmd.command('create')
     .description('Create a new admin API key')

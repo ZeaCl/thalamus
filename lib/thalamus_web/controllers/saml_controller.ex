@@ -32,6 +32,8 @@ defmodule ThalamusWeb.SamlController do
   Detects the user's organization by email domain and initiates
   the SAML SSO flow by redirecting to the configured IdP.
   """
+  # dialyzer false-positive: can't resolve :esaml_sp types from Erlang
+  @dialyzer {:nowarn_function, init: 2}
   def init(conn, params) do
     email = Map.get(params, "email", "")
 
@@ -59,12 +61,13 @@ defmodule ThalamusWeb.SamlController do
                 redirect_with_error(conn, "SSO configuration error")
             end
 
-          {:error, :not_found} ->
-            redirect(conn, to: "/login?email=#{URI.encode_www_form(email)}")
-
           {:error, reason} ->
-            Logger.error("SAML repo error: #{inspect(reason)}")
-            redirect_with_error(conn, "SSO service unavailable")
+            if reason == :not_found do
+              redirect(conn, to: "/login?email=#{URI.encode_www_form(email)}")
+            else
+              Logger.error("SAML repo error: #{inspect(reason)}")
+              redirect_with_error(conn, "SSO service unavailable")
+            end
         end
     end
   end
@@ -126,14 +129,15 @@ defmodule ThalamusWeb.SamlController do
   Returns the SP metadata XML for a specific organization.
   The client uses this XML to configure their IdP (Azure AD, Okta, etc.).
   """
+  # dialyzer false-positive: can't resolve :esaml_sp types from Erlang
+  @dialyzer {:nowarn_function, metadata: 2}
   def metadata(conn, %{"id" => id}) do
     result =
       try do
         with {:ok, org_id} <- OrganizationId.from_string(id),
              {:ok, idp_config} <-
-               PostgreSQLSamlIdentityProviderRepository.find_by_organization_id(org_id),
-             {:ok, xml} <- SamlyAssertionValidator.build_sp_metadata(idp_config) do
-          {:ok, xml}
+               PostgreSQLSamlIdentityProviderRepository.find_by_organization_id(org_id) do
+          SamlyAssertionValidator.build_sp_metadata(idp_config)
         end
       rescue
         _ -> {:error, :not_found}

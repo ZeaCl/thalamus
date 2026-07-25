@@ -19,6 +19,10 @@ import { register as registerMfa } from '../src/commands/mfa.js';
 import { register as registerSecret } from '../src/commands/secret.js';
 import { register as registerAdmin } from '../src/commands/admin.js';
 import { register as registerAudit } from '../src/commands/audit.js';
+import { register as registerAccount } from '../src/commands/account.js';
+import { register as registerRole } from '../src/commands/role.js';
+import { register as registerAuthorization } from '../src/commands/authorization.js';
+import { register as registerInternal } from '../src/commands/internal.js';
 
 // ═══ Program ════════════════════════════════════════════
 const program = new Command();
@@ -47,6 +51,10 @@ registerMfa(program);
 registerSecret(program);
 registerAdmin(program);
 registerAudit(program);
+registerAccount(program);
+registerRole(program);
+registerAuthorization(program);
+registerInternal(program);
 
 // ═══ Dynamic command discovery (--zea-discover) ═════
 // Used by zea-cli to auto-discover available commands for

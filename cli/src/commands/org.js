@@ -265,6 +265,36 @@ export function register(program) {
       }
     });
 
+  // ── delete ─────────────────────────────────────────
+  org.command('delete <slug_or_id>')
+    .description('Delete an organization')
+    .action(async (target) => {
+      const opts = getGlobalOpts();
+      try {
+        const client = await getClient();
+        const response = await zeaFetch(`${client.apiUrl}/oauth/userinfo`, { headers: client.headers });
+        if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+
+        const info = await response.json();
+        const orgs = info.organizations || [];
+        const org = orgs.find(o => o.id === target || o.slug === target);
+        if (!org) throw new Error(`Organization '${target}' not found.`);
+
+        if (opts.dryRun) {
+          console.log(`⚠️  DRY RUN — would DELETE /api/organizations/${org.id}`);
+          return;
+        }
+
+        const delResp = await zeaFetch(`${client.apiUrl}/api/organizations/${org.id}`, {
+          method: 'DELETE', headers: client.headers
+        });
+        if (!delResp.ok) throw new Error(`HTTP error ${delResp.status}`);
+        console.log('✅ Organization deleted.');
+      } catch (e) {
+        handleError(e);
+      }
+    });
+
   // ── saml ───────────────────────────────────────────
   const samlCmd = org.command('saml').description('SAML SSO configuration');
 
@@ -291,6 +321,70 @@ export function register(program) {
         console.log(`   Enabled:      ${data.enabled ? '✅' : '❌'}`);
         console.log(`   JIT:          ${data.jit_provisioning ? '✅' : '❌'}`);
         if (data.allowed_domains?.length) console.log(`   Domains:      ${data.allowed_domains.join(', ')}`);
+      } catch (e) {
+        handleError(e);
+      }
+    });
+
+  samlCmd.command('set <slug_or_id>')
+    .description('Set SAML configuration')
+    .requiredOption('--entity-id <id>', 'Identity Provider entity ID')
+    .requiredOption('--sso-url <url>', 'Identity Provider SSO URL')
+    .requiredOption('--cert <cert>', 'Identity Provider X.509 certificate (PEM)')
+    .option('--name <name>', 'Configuration name')
+    .option('--enable', 'Enable SAML')
+    .option('--disable', 'Disable SAML')
+    .option('--jit', 'Enable Just-In-Time provisioning')
+    .option('--domains <domains>', 'Comma-separated allowed domains')
+    .action(async (target, options) => {
+      try {
+        const client = await getClient();
+        const infoResp = await zeaFetch(`${client.apiUrl}/oauth/userinfo`, { headers: client.headers });
+        if (!infoResp.ok) throw new Error(`HTTP error ${infoResp.status}`);
+        const orgs = (await infoResp.json()).organizations || [];
+        const org = orgs.find(o => o.id === target || o.slug === target);
+        if (!org) throw new Error(`Organization '${target}' not found.`);
+
+        const body = {
+          idp_entity_id: options.entityId,
+          idp_sso_url: options.ssoUrl,
+          idp_cert: options.cert,
+        };
+        if (options.name) body.name = options.name;
+        if (options.enable) body.enabled = true;
+        if (options.disable) body.enabled = false;
+        if (options.jit) body.jit_provisioning = true;
+        if (options.domains) body.allowed_domains = options.domains.split(',').map(s => s.trim()).filter(Boolean);
+
+        const resp = await zeaFetch(`${client.apiUrl}/api/organizations/${org.id}/saml-config`, {
+          method: 'PUT', headers: client.headers, body: JSON.stringify(body)
+        });
+        if (!resp.ok) {
+          const err = await resp.json().catch(() => ({}));
+          throw new Error(err.error || `HTTP error ${resp.status}`);
+        }
+        console.log('✅ SAML configuration updated.');
+      } catch (e) {
+        handleError(e);
+      }
+    });
+
+  samlCmd.command('delete <slug_or_id>')
+    .description('Delete SAML configuration')
+    .action(async (target) => {
+      try {
+        const client = await getClient();
+        const infoResp = await zeaFetch(`${client.apiUrl}/oauth/userinfo`, { headers: client.headers });
+        if (!infoResp.ok) throw new Error(`HTTP error ${infoResp.status}`);
+        const orgs = (await infoResp.json()).organizations || [];
+        const org = orgs.find(o => o.id === target || o.slug === target);
+        if (!org) throw new Error(`Organization '${target}' not found.`);
+
+        const resp = await zeaFetch(`${client.apiUrl}/api/organizations/${org.id}/saml-config`, {
+          method: 'DELETE', headers: client.headers
+        });
+        if (!resp.ok) throw new Error(`HTTP error ${resp.status}`);
+        console.log('✅ SAML configuration deleted.');
       } catch (e) {
         handleError(e);
       }

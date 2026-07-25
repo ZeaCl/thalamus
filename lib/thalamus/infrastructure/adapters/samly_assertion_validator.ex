@@ -18,7 +18,10 @@ defmodule Thalamus.Infrastructure.Adapters.SamlyAssertionValidator do
 
   require Logger
 
+  @type saml_result :: {:ok, String.t()} | {:error, atom()}
+
   @impl true
+  @spec build_sp_metadata(SamlIdentityProvider.t()) :: saml_result()
   def build_sp_metadata(%SamlIdentityProvider{} = idp) do
     sp_entity_id = resolve_sp_entity_id(idp)
     {_private_key, cert_pem} = load_sp_keys()
@@ -53,6 +56,7 @@ defmodule Thalamus.Infrastructure.Adapters.SamlyAssertionValidator do
   end
 
   @impl true
+  @spec build_authn_request(SamlIdentityProvider.t(), String.t()) :: saml_result()
   def build_authn_request(%SamlIdentityProvider{} = idp, relay_state) do
     sp_entity_id = resolve_sp_entity_id(idp)
     base_url = base_url()
