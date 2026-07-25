@@ -42,10 +42,10 @@ try {
 
 // ── 2. Find unit test files ────────────────────────────────────
 const testFiles = fs.readdirSync(COMMANDS_DIR).filter(f => f.endsWith('.test.js'));
+const unitCoveredModules = new Set(testFiles.map(f => f.replace('.test.js', '')));
 const unitCovered = new Set();
 for (const file of testFiles) {
   const cmdName = file.replace('.test.js', '');
-  // Mark the base command file as having unit tests
   unitCovered.add(cmdName);
   // Also find describe/test blocks within
   const src = fs.readFileSync(path.join(COMMANDS_DIR, file), 'utf8');
@@ -94,9 +94,21 @@ function e2eMatches(cmd, fns) {
 const commands = {};
 for (const cmd of allCommands) {
   const e2eFn = e2eMatches(cmd, e2eFns);
+  // Manual module-to-command mappings for top-level commands that
+  // don't match their module name (e.g., 'logout' is in auth.js)
+  const moduleMap = {
+    logout: 'auth', 'set-token': 'auth',
+    avatar: 'account', 'register': 'account',
+    'verify-email': 'account', 'resend-verification': 'account',
+  };
+
   const unit = unitCovered.has(cmd.replace(/\s+/g, '_')) ||
                unitCovered.has(cmd.split(' ')[0]) ||
-               [...unitCovered].some(d => d.includes(cmd.split(' ')[0]));
+               unitCoveredModules.has(cmd.split(' ')[0]) ||
+               (moduleMap[cmd.split(' ')[0]] && unitCoveredModules.has(moduleMap[cmd.split(' ')[0]])) ||
+               [...unitCovered, ...unitCoveredModules].some(d =>
+                 d.includes(cmd.split(' ')[0]) || cmd.startsWith(d + ' ')
+               );
 
   commands[cmd] = {
     cmd,
