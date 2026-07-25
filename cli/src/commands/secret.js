@@ -11,15 +11,16 @@ export function register(program) {
     .description('List secrets')
     .option('--owner-type <type>', 'user or organization')
     .option('--owner-id <id>', 'Owner ID')
-    .action(async (options) => {
+    .action(async (options = {}) => {
       const opts = getGlobalOpts();
       try {
         const client = await getClient();
         const params = new URLSearchParams();
         if (options.ownerType) params.set('owner_type', options.ownerType);
         if (options.ownerId) params.set('owner_id', options.ownerId);
+        const qs = params.toString();
 
-        const resp = await zeaFetch(`${client.apiUrl}/api/secrets?${params}`, { headers: client.headers });
+        const resp = await zeaFetch(`${client.apiUrl}/api/secrets${qs ? '?' + qs : ''}`, { headers: client.headers });
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
 
         const result = await resp.json();
@@ -30,8 +31,9 @@ export function register(program) {
 
         console.log('Secrets:');
         for (const s of secrets) {
+          const idStr = s.id || '(no id)';
           const valMasked = s.value ? '••••' + s.value.slice(-4) : '(empty)';
-          console.log(`   ${s.name} — provider: ${s.provider} — value: ${valMasked}`);
+          console.log(`   ${idStr}  ${s.name} — provider: ${s.provider} — value: ${valMasked}`);
         }
       } catch (e) { handleError(e); process.exit(1); }
     });
@@ -44,7 +46,7 @@ export function register(program) {
     .requiredOption('--value <value>', 'Secret value')
     .option('--owner-type <type>', 'user or organization')
     .option('--owner-id <id>', 'Owner ID')
-    .action(async (options) => {
+    .action(async (options = {}) => {
       const opts = getGlobalOpts();
       try {
         const body = {
@@ -93,7 +95,7 @@ export function register(program) {
   secretCmd.command('resolve')
     .description('Resolve a secret value by provider')
     .requiredOption('--provider <provider>', 'Provider name')
-    .action(async (options) => {
+    .action(async (options = {}) => {
       const opts = getGlobalOpts();
       try {
         const client = await getClient();
