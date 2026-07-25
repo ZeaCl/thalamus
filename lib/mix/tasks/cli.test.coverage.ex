@@ -19,6 +19,14 @@ defmodule Mix.Tasks.Cli.Test.Coverage do
   def run(_args) do
     script = Path.join(@cli_dir, "scripts/extract-test-coverage.cjs")
 
+    unless System.find_executable("node") do
+      Mix.shell().error("Node.js not found in PATH — skipping CLI test coverage check")
+    else
+      do_run(script)
+    end
+  end
+
+  defp do_run(script) do
     unless File.exists?(script) do
       Mix.raise("Test coverage script not found: #{script}")
     end
@@ -39,7 +47,12 @@ defmodule Mix.Tasks.Cli.Test.Coverage do
     print_report(report)
 
     summary = report["_summary"]
-    missing = summary["total_commands"] - summary["unit_covered"] - summary["e2e_covered"]
+    commands = report["commands"]
+
+    # Count commands that have NEITHER unit NOR e2e coverage
+    missing =
+      commands
+      |> Enum.count(fn {_k, v} -> !v["unit"] && !v["e2e"] end)
 
     if missing > 0 do
       Mix.raise(

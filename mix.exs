@@ -166,9 +166,14 @@ defmodule Thalamus.MixProject do
         "esbuild thalamus --minify",
         "phx.digest"
       ],
-      # CLI coverage: every API route MUST have a CLI command (cli = api).
-      # Fails compilation if any route is missing from priv/cli_coverage.json.
-      compile: ["compile", "cli.coverage", "cli.test.coverage"],
+      # CLI coverage: every route must have a command, every command must have tests.
+      # Runs only in dev/test — skips if Node.js is not available.
+      compile:
+        if Mix.env() in [:dev, :test] do
+          ["compile", "cli.coverage", "cli.test.coverage"]
+        else
+          ["compile"]
+        end,
       precommit: ["compile --warnings-as-errors", "deps.unlock --unused", "format", "test"]
     ]
   end

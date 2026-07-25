@@ -41,6 +41,15 @@ defmodule Mix.Tasks.Cli.Coverage do
   defp extract_cli_coverage do
     script = Path.join(@cli_dir, "scripts/extract-coverage.cjs")
 
+    unless System.find_executable("node") do
+      Mix.shell().error("Node.js not found in PATH — skipping CLI coverage check")
+      %{}
+    else
+      do_extract(script)
+    end
+  end
+
+  defp do_extract(script) do
     unless File.exists?(script) do
       Mix.raise("CLI coverage script not found: #{script}")
     end
