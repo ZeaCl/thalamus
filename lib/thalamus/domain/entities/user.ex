@@ -472,6 +472,29 @@ defmodule Thalamus.Domain.Entities.User do
   def reactivate(_), do: {:error, :cannot_reactivate}
 
   @doc """
+  Unlocks a user account by clearing brute-force protection state.
+
+  Resets `locked_until` and `failed_login_attempts` without changing the
+  user's status. Use this to unlock accounts that were temporarily locked
+  after too many failed login attempts.
+
+  ## Examples
+
+      iex> user = %User{status: :active, locked_until: DateTime.utc_now(), failed_login_attempts: 5}
+      iex> {:ok, unlocked} = User.unlock(user)
+      iex> unlocked.locked_until
+      nil
+      iex> unlocked.failed_login_attempts
+      0
+      iex> unlocked.status
+      :active
+  """
+  def unlock(%__MODULE__{} = user) do
+    now = DateTime.truncate(DateTime.utc_now(), :second)
+    {:ok, %{user | locked_until: nil, failed_login_attempts: 0, updated_at: now}}
+  end
+
+  @doc """
   Deactivates a user account permanently.
 
   ## Examples

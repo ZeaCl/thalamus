@@ -21,11 +21,6 @@ defmodule ThalamusWeb.API.UserController do
   alias Thalamus.Domain.Entities.User
   alias Thalamus.Domain.ValueObjects.{UserId, Email}
 
-  # TODO: Add proper authentication middleware
-  # plug :authenticate_api_request
-  # plug :require_scope, ["users:read"] when action in [:index, :show]
-  # plug :require_scope, ["users:write"] when action in [:create, :update, :delete]
-
   @doc """
   GET /api/users
 
@@ -334,8 +329,17 @@ defmodule ThalamusWeb.API.UserController do
           updated
 
         "active" ->
-          {:ok, updated} = User.reactivate(user)
-          updated
+          # Reactivate if suspended; if already active, that's fine
+          user =
+            case User.reactivate(user) do
+              {:ok, updated} -> updated
+              {:error, :already_active} -> user
+              _ -> user
+            end
+
+          # Unlock brute-force protection (resets locked_until + failed_login_attempts)
+          {:ok, unlocked} = User.unlock(user)
+          unlocked
 
         "deactivated" ->
           {:ok, updated} = User.deactivate(user)

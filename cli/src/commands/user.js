@@ -143,6 +143,48 @@ export function register(program) {
       } catch (e) { handleError(e); process.exit(1); }
     });
 
+  // ── unlock ─────────────────────────────────────────
+  userCmd.command('unlock <email>')
+    .description('Unlock a user account (brute-force protection reset)')
+    .action(async (email) => {
+      const opts = getGlobalOpts();
+      try {
+        if (opts.dryRun) {
+          console.log('⚠️  DRY RUN — would unlock account for:');
+          console.log(`   Email: ${email}`);
+          return;
+        }
+
+        const client = await getClient();
+
+        // 1. Look up user by email
+        const searchResp = await zeaFetch(`${client.apiUrl}/api/users?username=${encodeURIComponent(email)}`, {
+          headers: client.headers
+        });
+        if (!searchResp.ok) throw new Error(`HTTP ${searchResp.status}`);
+
+        const searchResult = await searchResp.json();
+        const users = searchResult.data || [];
+        const user = users.find(u => u.email === email);
+        if (!user) {
+          console.error(`❌ No user found with email: ${email}`);
+          process.exit(1);
+        }
+
+        // 2. Unlock via status=active (resets locked_until + failed_login_attempts)
+        const resp = await zeaFetch(`${client.apiUrl}/api/users/${user.id}`, {
+          method: 'PATCH', headers: client.headers, body: JSON.stringify({ status: 'active' })
+        });
+
+        if (!resp.ok) {
+          const err = await resp.json().catch(() => ({}));
+          throw new Error(err.error || `HTTP ${resp.status}`);
+        }
+
+        console.log(`✅ Account unlocked: ${email}`);
+      } catch (e) { handleError(e); process.exit(1); }
+    });
+
   // ── delete ─────────────────────────────────────────
   userCmd.command('delete <id>')
     .description('Deactivate a user')

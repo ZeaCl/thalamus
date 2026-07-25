@@ -199,6 +199,14 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.UserSchema do
     |> change(%{status: :deactivated})
   end
 
+  @doc """
+  Changeset for unlocking a user account (brute-force protection reset).
+  """
+  def unlock_changeset(user) do
+    user
+    |> change(%{locked_until: nil, failed_login_attempts: 0})
+  end
+
   # Private functions
 
   defp validate_email(changeset) do
