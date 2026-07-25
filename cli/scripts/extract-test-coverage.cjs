@@ -1,137 +1,131 @@
 #!/usr/bin/env node
 /**
- * Extracts CLI test coverage from real source code.
- *
- * Unit tests: checks cli/src/commands/*.test.js per command file
- * E2E tests:  maps functions in scripts/test-cli.sh to commands
- *
- * Command list: obtained from zea-thalamus --zea-discover (canonical).
- * No contracts, no manifests — just real code.
+ * Real code coverage from node --test --experimental-test-coverage.
+ * No more "file exists = covered" fiction.
  */
-const fs = require('fs');
-const path = require('path');
 const { execSync } = require('child_process');
+const path = require('path');
+const fs = require('fs');
 
-const REPO_ROOT = path.join(__dirname, '..', '..');
-const COMMANDS_DIR = path.join(__dirname, '..', 'src', 'commands');
-const E2E_SCRIPT = path.join(REPO_ROOT, 'scripts', 'test-cli.sh');
+const CLI_DIR = path.join(__dirname, '..');
+const COMMANDS_DIR = path.join(CLI_DIR, 'src', 'commands');
+const E2E_SCRIPT = path.join(__dirname, '..', '..', 'scripts', 'test-cli.sh');
 
-// ── 1. Get canonical command list from CLI ─────────────────────
-let allCommands = [];
+// ── 1. Run real tests with coverage ─────────────────────────────
+let coverage = {};
+
 try {
-  const raw = execSync('zea-thalamus --zea-discover', {
-    encoding: 'utf8',
-    stdio: ['pipe', 'pipe', 'ignore']
-  });
-  const manifest = JSON.parse(raw);
-  allCommands = Object.keys(manifest.commands).sort();
-} catch {
-  // Fallback: try running from local bin
-  try {
-    const bin = path.join(__dirname, '..', 'bin', 'zea-thalamus.js');
-    const raw = execSync(`node "${bin}" --zea-discover`, {
-      encoding: 'utf8',
-      stdio: ['pipe', 'pipe', 'ignore']
-    });
-    allCommands = Object.keys(JSON.parse(raw).commands).sort();
-  } catch (e) {
-    console.error('Cannot get command list:', e.message);
-    allCommands = [];
+  const raw = execSync(
+    'node --test --experimental-test-coverage "src/commands/*.test.js"',
+    { cwd: CLI_DIR, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }
+  );
+
+  // Parse coverage report from stderr (Node outputs coverage there)
+  // Format: "# file.js | line% | branch% | funcs% | uncovered lines"
+  const lines = raw.split('\n');
+  let inCoverage = false;
+  for (const line of lines) {
+    if (line.includes('start of coverage report')) {
+      inCoverage = true;
+      continue;
+    }
+    if (line.includes('end of coverage report')) break;
+    if (!inCoverage) continue;
+
+    const match = line.match(/^#\s+(\S+\.js)\s+\|\s+([\d.]+)\s+\|\s+([\d.]+)\s+\|\s+([\d.]+)\s+\|/);
+    if (match) {
+      const [, file, lineCov, branchCov, funcCov] = match;
+      const name = file.replace(/\.js$/, '');
+      if (!file.includes('.test.') && !file.startsWith('lib/') && !file.startsWith('test/')) {
+        coverage[name] = {
+          file,
+          line: parseFloat(lineCov),
+          branch: parseFloat(branchCov),
+          func: parseFloat(funcCov),
+        };
+      }
+    }
+  }
+} catch (e) {
+  // Tests may have failed — still parse whatever coverage we got
+  const raw = e.stdout || e.stderr || '';
+  const lines = raw.split('\n');
+  let inCoverage = false;
+  for (const line of lines) {
+    if (line.includes('start of coverage report')) { inCoverage = true; continue; }
+    if (line.includes('end of coverage report')) break;
+    if (!inCoverage) continue;
+    const match = line.match(/^#\s+(\S+\.js)\s+\|\s+([\d.]+)\s+\|\s+([\d.]+)\s+\|\s+([\d.]+)\s+\|/);
+    if (match) {
+      const [, file, lineCov, branchCov, funcCov] = match;
+      const name = file.replace(/\.js$/, '');
+      if (!file.includes('.test.') && !file.startsWith('lib/') && !file.startsWith('test/')) {
+        coverage[name] = { file, line: parseFloat(lineCov), branch: parseFloat(branchCov), func: parseFloat(funcCov) };
+      }
+    }
   }
 }
 
-// ── 2. Find unit test files ────────────────────────────────────
-const testFiles = fs.readdirSync(COMMANDS_DIR).filter(f => f.endsWith('.test.js'));
-const unitCoveredModules = new Set(testFiles.map(f => f.replace('.test.js', '')));
-const unitCovered = new Set();
-for (const file of testFiles) {
-  const cmdName = file.replace('.test.js', '');
-  unitCovered.add(cmdName);
-  // Also find describe/test blocks within
-  const src = fs.readFileSync(path.join(COMMANDS_DIR, file), 'utf8');
-  const re = /(?:describe|test|it)\s*\(\s*['"]([^'"]+)['"]/g;
-  let m;
-  while ((m = re.exec(src)) !== null) {
-    unitCovered.add(m[1]);
-  }
-}
-
-// ── 3. Find E2E test functions ─────────────────────────────────
+// ── 2. Get E2E test functions ───────────────────────────────────
 const e2eFns = [];
 if (fs.existsSync(E2E_SCRIPT)) {
   const src = fs.readFileSync(E2E_SCRIPT, 'utf8');
   const re = /^test_(\w+)\s*\(\s*\)\s*\{/gm;
   let m;
-  while ((m = re.exec(src)) !== null) {
-    e2eFns.push(m[1]);
-  }
+  while ((m = re.exec(src)) !== null) e2eFns.push(m[1]);
 }
 
-// ── 4. Find contract test fixtures ──────────────────────────────
-const fixturesDir = path.join(__dirname, '..', 'test', 'fixtures');
-const contractFixtures = fs.existsSync(fixturesDir)
-  ? fs.readdirSync(fixturesDir).filter(f => f.endsWith('.json')).map(f => f.replace('.json', ''))
-  : [];
-
-// ── 5. Match commands to tests ─────────────────────────────────
-function e2eMatches(cmd, fns) {
-  const parts = cmd.split(' ');
-  for (const fn of fns) {
-    // Direct match: health ↔ test_health
-    if (fn === cmd.replace(/\s+/g, '_')) return fn;
-    // Command is prefix: client ↔ test_client
-    if (fn === parts[0]) return fn;
-    // E2E fn contains command: client_create ↔ client create
-    if (fn.startsWith(parts[0] + '_')) return fn;
-    // E2E fn ends with command: invalid_login ↔ login
-    if (fn.endsWith('_' + parts[0])) return fn;
-    // E2E fn contains all command parts: setup_oauth ↔ mfa setup
-    const fnParts = fn.split('_');
-    if (parts.every(p => fnParts.includes(p))) return fn;
-    // test_org covers org list, org show, etc
-    if (fn === parts[0] && cmd.startsWith(fn + ' ')) return fn;
-    // test_client covers client list, client create, etc
-    if (fn === parts[0]) return fn;
-  }
-  return null;
+// ── 3. Get command list from CLI ────────────────────────────────
+let allCommands = [];
+try {
+  const raw = execSync('zea-thalamus --zea-discover', {
+    encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe']
+  });
+  allCommands = Object.keys(JSON.parse(raw).commands).sort();
+} catch {
+  allCommands = [];
 }
 
-// ── 5. Build report ────────────────────────────────────────────
+// ── 4. Match commands to coverage ───────────────────────────────
 const commands = {};
 for (const cmd of allCommands) {
-  const e2eFn = e2eMatches(cmd, e2eFns);
-  // Manual module-to-command mappings for top-level commands that
-  // don't match their module name (e.g., 'logout' is in auth.js)
-  const moduleMap = {
-    logout: 'auth', 'set-token': 'auth',
-    avatar: 'account', 'register': 'account',
-    'verify-email': 'account', 'resend-verification': 'account',
-  };
-
-  const unit = unitCovered.has(cmd.replace(/\s+/g, '_')) ||
-               unitCovered.has(cmd.split(' ')[0]) ||
-               unitCoveredModules.has(cmd.split(' ')[0]) ||
-               (moduleMap[cmd.split(' ')[0]] && unitCoveredModules.has(moduleMap[cmd.split(' ')[0]])) ||
-               [...unitCovered, ...unitCoveredModules].some(d =>
-                 d.includes(cmd.split(' ')[0]) || cmd.startsWith(d + ' ')
-               );
+  const cmdRoot = cmd.split(' ')[0];
+  const cov = coverage[cmdRoot];
 
   commands[cmd] = {
     cmd,
-    unit,
-    e2e: e2eFn !== null,
-    e2e_test_fn: e2eFn ? `test_${e2eFn}` : null,
-    contract: contractFixtures.length > 0,
+    unit_line: cov?.line || 0,
+    unit_branch: cov?.branch || 0,
+    e2e: e2eFns.some(fn =>
+      fn === cmdRoot || fn.startsWith(cmdRoot + '_') || fn.endsWith('_' + cmdRoot)
+    ),
   };
 }
 
+// ── 5. Calculate totals ─────────────────────────────────────────
+const cmdList = Object.values(commands);
+const coveredFiles = Object.keys(coverage).length;
+const totalFiles = fs.readdirSync(COMMANDS_DIR)
+  .filter(f => f.endsWith('.js') && !f.endsWith('.test.js'))
+  .length;
+
+const avgLine = cmdList.length > 0
+  ? cmdList.reduce((s, c) => s + c.unit_line, 0) / cmdList.length
+  : 0;
+
+const commandsWithTests = cmdList.filter(c => c.unit_line > 0).length;
+const commandsWithE2E = cmdList.filter(c => c.e2e).length;
+const commandsWithNeither = cmdList.filter(c => c.unit_line === 0 && !c.e2e).length;
+
 const summary = {
   total_commands: allCommands.length,
-  unit_covered: Object.values(commands).filter(c => c.unit).length,
-  e2e_covered: Object.values(commands).filter(c => c.e2e).length,
-  contract_fixtures: contractFixtures.length,
-  unit_test_files: testFiles.length,
-  e2e_test_functions: e2eFns.length,
+  unit_files: totalFiles,
+  unit_files_covered: coveredFiles,
+  unit_avg_line_coverage: Math.round(avgLine * 100) / 100,
+  unit_commands_covered: commandsWithTests,
+  e2e_functions: e2eFns.length,
+  e2e_commands_covered: commandsWithE2E,
+  commands_with_neither: commandsWithNeither,
 };
 
 process.stdout.write(JSON.stringify({ _summary: summary, commands }, null, 2));

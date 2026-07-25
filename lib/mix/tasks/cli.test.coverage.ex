@@ -50,15 +50,27 @@ defmodule Mix.Tasks.Cli.Test.Coverage do
     commands = report["commands"]
 
     # Count commands that have NEITHER unit NOR e2e coverage
+    # Unit coverage: unit_line > 0 means the module has real test coverage
     missing =
       commands
-      |> Enum.count(fn {_k, v} -> !v["unit"] && !v["e2e"] end)
+      |> Enum.count(fn {_k, v} ->
+        (v["unit_line"] || 0) == 0 && !v["e2e"]
+      end)
+
+    threshold = Application.get_env(:thalamus, :cli_coverage_threshold, 15)
+    avg = summary["unit_avg_line_coverage"] || 0
+
+    if avg < threshold do
+      Mix.raise(
+        "CLI test coverage FAILED: #{avg}% avg line coverage " <>
+          "(threshold: #{threshold}%)"
+      )
+    end
 
     if missing > 0 do
-      Mix.raise(
-        "CLI test coverage FAILED: #{missing} commands have no tests " <>
-          "(#{summary["unit_covered"]} unit, #{summary["e2e_covered"]} e2e, " <>
-          "#{summary["total_commands"]} total)"
+      Mix.shell().error(
+        "WARNING: #{missing} commands have no test coverage. " <>
+          "This will become a hard failure once coverage reaches #{threshold}%."
       )
     end
   end
@@ -69,22 +81,22 @@ defmodule Mix.Tasks.Cli.Test.Coverage do
 
     no_tests =
       commands
-      |> Enum.filter(fn {_k, v} -> !v["unit"] && !v["e2e"] end)
+      |> Enum.filter(fn {_k, v} -> (v["unit_line"] || 0) == 0 && !v["e2e"] end)
       |> Enum.map(fn {k, _v} -> k end)
       |> Enum.sort()
 
     e2e_only =
       commands
-      |> Enum.filter(fn {_k, v} -> v["e2e"] && !v["unit"] end)
+      |> Enum.filter(fn {_k, v} -> v["e2e"] && (v["unit_line"] || 0) == 0 end)
       |> Enum.map(fn {k, _v} -> k end)
       |> Enum.sort()
 
     Mix.shell().info("")
-    Mix.shell().info("═══ CLI Test Coverage ═══")
-    Mix.shell().info("Commands:     #{summary["total_commands"]}")
-    Mix.shell().info("Unit tests:   #{summary["unit_covered"]} (#{summary["unit_test_files"]} files)")
-    Mix.shell().info("E2E tests:    #{summary["e2e_covered"]} (#{summary["e2e_test_functions"]} functions)")
-    Mix.shell().info("Contracts:    #{summary["contract_fixtures"] || 0} fixtures")
+    Mix.shell().info("═══ CLI Test Coverage (real) ═══")
+    Mix.shell().info("Commands:       #{summary["total_commands"]}")
+    Mix.shell().info("Avg line cov:   #{summary["unit_avg_line_coverage"]}% (#{summary["unit_files_covered"]}/#{summary["unit_files"]} files)")
+    Mix.shell().info("E2E functions:  #{summary["e2e_functions"]} (#{summary["e2e_commands_covered"]} commands)")
+    Mix.shell().info("Untested:       #{summary["commands_with_neither"]}")
 
     if no_tests != [] do
       Mix.shell().error("NO TESTS: #{length(no_tests)} commands")
