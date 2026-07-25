@@ -168,7 +168,7 @@ defmodule Thalamus.MixProject do
       ],
       # CLI coverage: every API route MUST have a CLI command (cli = api).
       # Fails compilation if any route is missing from priv/cli_coverage.json.
-      compile: ["compile", "cli.coverage"],
+      compile: ["compile", "cli.coverage", "cli.test.coverage"],
       precommit: ["compile --warnings-as-errors", "deps.unlock --unused", "format", "test"]
     ]
   end
