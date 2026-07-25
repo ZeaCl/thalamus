@@ -11,6 +11,11 @@ defmodule Thalamus.MixProject do
       aliases: aliases(),
       deps: deps(),
       compilers: [:phoenix_live_view] ++ Mix.compilers(),
+      dialyzer: [
+        plt_add_apps: [:ex_unit, :mix],
+        flags: [:error_handling, :missing_return, :extra_return, :underspecs],
+        list_unused_filters: true
+      ],
       listeners: [Phoenix.CodeReloader],
       test_coverage: [tool: ExCoveralls],
       preferred_cli_env: [
