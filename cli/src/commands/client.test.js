@@ -1,42 +1,43 @@
-import { describe, it } from 'node:test';
+import { describe, it, beforeEach, afterEach, mock } from 'node:test';
 import assert from 'node:assert';
-import { makeProgram, assertRegistered } from '../../test/helpers.js';
-import { register } from './client.js';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { makeProgram } from '../../test/helpers.js';
+import { createTestServer } from '../../test/test-server.js';
+
+const CFG = path.join(os.homedir(), '.config', 'zea', 'config.json');
+let server, output;
+
+function h(prog, cmd) {
+  const parts = cmd.split(' '); let cur = { _subcommands: prog._subcommands };
+  for (const p of parts) { const k = Object.keys(cur._subcommands).find(k => k === p || k.startsWith(p + ' ')); if (!k) return null; cur = cur._subcommands[k]; }
+  return cur?._handler;
+}
+mock.method(process, 'exit', (c) => { if (c !== 0) throw new Error(`exit(${c})`); });
 
 describe('client', () => {
-  const p = makeProgram();
-  register(p);
-
-  it('registers client commands', () => {
-    assertRegistered(p, 'client');
-    assertRegistered(p, 'client list');
-    assertRegistered(p, 'client show');
-    assertRegistered(p, 'client create');
-    assertRegistered(p, 'client update');
-    assertRegistered(p, 'client delete');
-    assertRegistered(p, 'client rotate-secret');
-    assertRegistered(p, 'client validate');
-    assertRegistered(p, 'client trust');
-    assertRegistered(p, 'client add-redirect-uri');
+  beforeEach(async () => {
+    output = ''; server = createTestServer();
+    fs.mkdirSync(path.dirname(CFG), { recursive: true });
+    mock.method(console, 'log', (...a) => { output += a.join(' ') + '\n'; });
+    mock.method(console, 'error', () => {});
   });
+  afterEach(async () => { await server.stop(); mock.restoreAll(); });
 
-  it('client create has required options', () => {
-    const cmd = assertRegistered(p, 'client create');
-    const opts = cmd._options.map(o => o.flags);
-    assert(opts.some(o => o.includes('name')), 'should have --name');
-    assert(opts.some(o => o.includes('type')), 'should have --type');
-  });
+  async function setup(apiUrl) {
+    fs.writeFileSync(CFG, JSON.stringify({ apiUrl, token: 'tok', activeOrgId: 'org1' }));
+    const m = await import('./client.js'); const p = makeProgram(); m.register(p); return p;
+  }
 
-  it('client trust has --on/--off', () => {
-    const cmd = assertRegistered(p, 'client trust');
-    const opts = cmd._options.map(o => o.flags);
-    assert(opts.some(o => o.includes('on')), 'should have --on');
-  });
+  const clientData = { id: 'client_c1', name: 'MyApp', client_type: 'confidential', redirect_uris: ['http://localhost/cb'], grant_types: ['authorization_code'], scopes: ['openid'], is_active: true, trusted: false };
 
-  it('all commands have handlers', () => {
-    for (const name of ['list', 'show', 'create', 'update', 'delete', 'trust']) {
-      const cmd = assertRegistered(p, `client ${name}`);
-      assert(typeof cmd._handler === 'function', `client ${name} should have handler`);
-    }
-  });
+  it('list', async () => { const API = await server.start(); server.get('/api/clients', 200, { data: [clientData] }); const p = await setup(API); await h(p, 'client list')(); assert.match(output, /MyApp/); });
+  it('list error', async () => { const API = await server.start(); server.get('/api/clients', 500, {}); const p = await setup(API); try { await h(p, 'client list')(); } catch(e) {} assert.match(output, /Error|500/); });
+  it('show', async () => { const API = await server.start(); server.get('/api/clients/c1', 200, { data: clientData }); const p = await setup(API); await h(p, 'client show')('c1'); assert.match(output, /MyApp/); });
+  it('show not found', async () => { const API = await server.start(); server.get('/api/clients/x', 404, { error: 'not found' }); const p = await setup(API); try { await h(p, 'client show')('x'); } catch(e) {} assert.match(output, /not found/); });
+  it('create', async () => { const API = await server.start(); server.post('/api/clients', 201, { data: { id: 'c1', name: 'New', client_type: 'confidential', client_secret: 'sec' }, message: 'created' }); const p = await setup(API); await h(p, 'client create')({ name: 'New' }); assert.match(output, /created/); });
+  it('delete', async () => { const API = await server.start(); server.delete('/api/clients/c1', 200, {}); const p = await setup(API); await h(p, 'client delete')('c1'); assert.match(output, /deactivated/); });
+  it('trust', async () => { const API = await server.start(); server.patch('/api/clients/c1/trust', 200, { data: { id: 'c1', trusted: true } }); const p = await setup(API); await h(p, 'client trust')('c1', { on: true }); assert.match(output, /trusted/); });
+  it('validate', async () => { const API = await server.start(); server.get('/api/clients/c1/validate', 200, { client_name: 'App', status: 'pass', summary: { pass: 3, warn: 0, fail: 0 }, checks: [] }); const p = await setup(API); await h(p, 'client validate')('c1'); assert.match(output, /pass/); });
 });

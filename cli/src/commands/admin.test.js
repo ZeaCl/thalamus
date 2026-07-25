@@ -1,18 +1,24 @@
-import { describe, it } from 'node:test';
-import { makeProgram, assertRegistered } from '../../test/helpers.js';
-import { register } from './admin.js';
+import { describe, it, beforeEach, afterEach, mock } from 'node:test';
+import assert from 'node:assert';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { makeProgram } from '../../test/helpers.js';
+import { createTestServer } from '../../test/test-server.js';
+
+const CFG = path.join(os.homedir(), '.config', 'zea', 'config.json');
+let server, output;
+function h(prog, cmd) { const parts = cmd.split(' '); let cur = { _subcommands: prog._subcommands }; for (const p of parts) { const k = Object.keys(cur._subcommands).find(k => k === p || k.startsWith(p + ' ')); if (!k) return null; cur = cur._subcommands[k]; } return cur?._handler; }
+mock.method(process, 'exit', (c) => { if (c !== 0) throw new Error(`exit(${c})`); });
 
 describe('admin', () => {
-  const p = makeProgram();
-  register(p);
+  beforeEach(async () => { output = ''; server = createTestServer(); fs.mkdirSync(path.dirname(CFG), { recursive: true }); mock.method(console, 'log', (...a) => { output += a.join(' ') + '\n'; }); mock.method(console, 'error', () => {}); });
+  afterEach(async () => { await server.stop(); mock.restoreAll(); });
+  async function setup(apiUrl) { fs.writeFileSync(CFG, JSON.stringify({ apiUrl, token: 'tok' })); const m = await import('./admin.js'); const p = makeProgram(); m.register(p); return p; }
 
-  it('registers admin api-key commands', () => {
-    assertRegistered(p, 'admin');
-    assertRegistered(p, 'admin api-key');
-    assertRegistered(p, 'admin api-key list');
-    assertRegistered(p, 'admin api-key show');
-    assertRegistered(p, 'admin api-key create');
-    assertRegistered(p, 'admin api-key revoke');
-    assertRegistered(p, 'admin api-key rotate');
-  });
+  it('list', async () => { const API = await server.start(); server.get('/api/admin/api-keys', 200, { data: [{ id: 'k1', name: 'Key1', is_active: true, scopes: ['clients:write'] }] }); const p = await setup(API); await h(p, 'admin api-key list')(); assert.match(output, /Key1/); });
+  it('list forbidden', async () => { const API = await server.start(); server.get('/api/admin/api-keys', 403, { error: 'forbidden' }); const p = await setup(API); try { await h(p, 'admin api-key list')(); } catch(e) {} assert.match(output, /Forbidden/); });
+  it('create', async () => { const API = await server.start(); server.post('/api/admin/api-keys', 201, { data: { id: 'k1', api_key: 'ak-123', name: 'K' } }); const p = await setup(API); await h(p, 'admin api-key create')({ name: 'K', scopes: 'x' }); assert.match(output, /created/); });
+  it('revoke', async () => { const API = await server.start(); server.delete('/api/admin/api-keys/k1', 200, {}); const p = await setup(API); await h(p, 'admin api-key revoke')('k1'); assert.match(output, /revoked/); });
+  it('rotate', async () => { const API = await server.start(); server.post('/api/admin/api-keys/k1/rotate', 200, { data: { api_key: 'new-key' } }); const p = await setup(API); await h(p, 'admin api-key rotate')('k1'); });
 });
