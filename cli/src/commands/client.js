@@ -260,4 +260,106 @@ export function register(program) {
         process.exit(1);
       }
     });
+
+  // ── update ─────────────────────────────────────────
+  clientCmd.command('update <id>')
+    .description('Update an OAuth2 client')
+    .option('--name <name>', 'New client name')
+    .option('--redirect-uris <uris>', 'Comma-separated redirect URIs')
+    .option('--scopes <scopes>', 'Comma-separated scopes')
+    .option('--grants <grants>', 'Comma-separated grant types')
+    .option('--deactivate', 'Deactivate the client')
+    .option('--activate', 'Activate the client')
+    .action(async (id, options) => {
+      const opts = getGlobalOpts();
+      try {
+        const body = {};
+        if (options.name) body.name = options.name;
+        if (options.redirectUris) body.redirect_uris = options.redirectUris.split(',').map(s => s.trim()).filter(Boolean);
+        if (options.scopes) body.scopes = options.scopes.split(',').map(s => s.trim()).filter(Boolean);
+        if (options.grants) body.grant_types = options.grants.split(',').map(s => s.trim()).filter(Boolean);
+        if (options.deactivate) body.status = 'inactive';
+        if (options.activate) body.status = 'active';
+
+        if (Object.keys(body).length === 0) {
+          console.error('❌ Nothing to update.');
+          process.exit(1);
+        }
+
+        if (opts.dryRun) {
+          console.log('⚠️  DRY RUN — would execute:');
+          console.log(`   PATCH /api/clients/${id}`);
+          console.log(`   Body: ${JSON.stringify(body, null, 2)}`);
+          return;
+        }
+
+        const client = await getClient();
+        const response = await zeaFetch(`${client.apiUrl}/api/clients/${id}`, {
+          method: 'PATCH', headers: client.headers, body: JSON.stringify(body)
+        });
+
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        console.log('✅ Client updated.');
+      } catch (e) { handleError(e); process.exit(1); }
+    });
+
+  // ── trust ──────────────────────────────────────────
+  clientCmd.command('trust <id>')
+    .description('Toggle OAuth2 client trusted status (skip consent screen)')
+    .option('--on', 'Mark as trusted')
+    .option('--off', 'Remove trusted status')
+    .action(async (id, options) => {
+      const opts = getGlobalOpts();
+      try {
+        const trusted = options.off ? false : true;
+
+        if (opts.dryRun) {
+          console.log(`⚠️  DRY RUN — would PATCH /api/clients/${id}/trust with trusted=${trusted}`);
+          return;
+        }
+
+        const client = await getClient();
+        const response = await zeaFetch(`${client.apiUrl}/api/clients/${id}/trust`, {
+          method: 'PATCH', headers: client.headers,
+          body: JSON.stringify({ trusted })
+        });
+
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.error || `HTTP ${response.status}`);
+        }
+
+        const result = await response.json();
+        const label = result.data?.trusted ? 'trusted ✅' : 'not trusted';
+        console.log(`✅ Client trust status: ${label}`);
+      } catch (e) { handleError(e); process.exit(1); }
+    });
+
+  // ── add-redirect-uri ──────────────────────────────
+  clientCmd.command('add-redirect-uri <id>')
+    .description('Add a redirect URI to an OAuth2 client')
+    .requiredOption('--uri <uri>', 'Redirect URI to add')
+    .action(async (id, options) => {
+      const opts = getGlobalOpts();
+      try {
+        if (opts.dryRun) {
+          console.log(`⚠️  DRY RUN — would POST /api/clients/${id}/add-redirect-uri`);
+          console.log(`   URI: ${options.uri}`);
+          return;
+        }
+
+        const client = await getClient();
+        const response = await zeaFetch(`${client.apiUrl}/api/clients/${id}/add-redirect-uri`, {
+          method: 'POST', headers: client.headers,
+          body: JSON.stringify({ redirect_uri: options.uri })
+        });
+
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.error || err.details || `HTTP ${response.status}`);
+        }
+
+        console.log(`✅ Redirect URI added: ${options.uri}`);
+      } catch (e) { handleError(e); process.exit(1); }
+    });
 }
