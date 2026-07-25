@@ -20,7 +20,7 @@ export function register(program) {
         if (options.ownerId) params.set('owner_id', options.ownerId);
         const qs = params.toString();
 
-        const resp = await zeaFetch(`${client.apiUrl}/api/secrets${qs ? '?' + qs : ''}`, { headers: client.headers });
+        const resp = await zeaFetch(qs ? `${client.apiUrl}/api/secrets?${qs}` : `${client.apiUrl}/api/secrets`, { headers: client.headers });
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
 
         const result = await resp.json();
@@ -33,7 +33,7 @@ export function register(program) {
         for (const s of secrets) {
           const idStr = s.id || '(no id)';
           const valMasked = s.value ? '••••' + s.value.slice(-4) : '(empty)';
-          console.log(`   ${idStr}  ${s.name} — provider: ${s.provider} — value: ${valMasked}`);
+          console.log(`   ${idStr} ${s.name} — provider: ${s.provider} — value: ${valMasked}`);
         }
       } catch (e) { handleError(e); process.exit(1); }
     });
@@ -117,7 +117,9 @@ export function register(program) {
           org_id: orgId,
         });
 
-        const resp = await zeaFetch(`${client.apiUrl}/api/internal/secrets/resolve?${params}`);
+        const qs2 = params.toString();
+
+        const resp = await zeaFetch(qs2 ? `${client.apiUrl}/api/internal/secrets/resolve?${qs2}` : `${client.apiUrl}/api/internal/secrets/resolve`, { headers: client.headers });
         if (!resp.ok) {
           if (resp.status === 404) {
             console.error(`❌ No secret found for provider '${options.provider}'`);
