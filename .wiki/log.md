@@ -1,5 +1,12 @@
 # Log
 
+## [2026-07-25] fix | #107 secret list muestra IDs + #108 bug infraestructura tests CLI
+- `secret list` ahora muestra el ID completo (UUID) de cada secret para usar con `secret delete`
+- Fix: `options = {}` default en list/create/resolve evita crash `Cannot read properties of undefined`
+- Fix: URL sin `?` vacío cuando no hay filtros en list
+- Tests: `mock.method(process, 'exit')` movido a `beforeEach`, `console.error` captura output
+- Descubierto bug sistémico: misma falla en 13/15 archivos de test CLI → issue #108
+
 ## [2026-07-23] feat | #39 CLI E2E + OAuth2 ROPC + optimización pipelines
 12 tests E2E pasando con OAuth2 password grant. Fixes: Mix.env() en PAT generator, organization_id en token_data, orden de tests. Pipelines optimizados: concurrency, cache unificada, composite action, Docker compartido, script test-cli.sh. Issues #42, #44-#48, #55-#63, #64-#73 cerrados.
 
