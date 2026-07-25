@@ -71,6 +71,7 @@ defmodule Mix.Tasks.Cli.Test.Coverage do
     Mix.shell().info("Commands:     #{summary["total_commands"]}")
     Mix.shell().info("Unit tests:   #{summary["unit_covered"]} (#{summary["unit_test_files"]} files)")
     Mix.shell().info("E2E tests:    #{summary["e2e_covered"]} (#{summary["e2e_test_functions"]} functions)")
+    Mix.shell().info("Contracts:    #{summary["contract_fixtures"] || 0} fixtures")
 
     if no_tests != [] do
       Mix.shell().error("NO TESTS: #{length(no_tests)} commands")

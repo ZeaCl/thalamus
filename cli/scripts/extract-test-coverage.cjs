@@ -67,7 +67,13 @@ if (fs.existsSync(E2E_SCRIPT)) {
   }
 }
 
-// ── 4. Match commands to tests ─────────────────────────────────
+// ── 4. Find contract test fixtures ──────────────────────────────
+const fixturesDir = path.join(__dirname, '..', 'test', 'fixtures');
+const contractFixtures = fs.existsSync(fixturesDir)
+  ? fs.readdirSync(fixturesDir).filter(f => f.endsWith('.json')).map(f => f.replace('.json', ''))
+  : [];
+
+// ── 5. Match commands to tests ─────────────────────────────────
 function e2eMatches(cmd, fns) {
   const parts = cmd.split(' ');
   for (const fn of fns) {
@@ -115,6 +121,7 @@ for (const cmd of allCommands) {
     unit,
     e2e: e2eFn !== null,
     e2e_test_fn: e2eFn ? `test_${e2eFn}` : null,
+    contract: contractFixtures.length > 0,
   };
 }
 
@@ -122,6 +129,7 @@ const summary = {
   total_commands: allCommands.length,
   unit_covered: Object.values(commands).filter(c => c.unit).length,
   e2e_covered: Object.values(commands).filter(c => c.e2e).length,
+  contract_fixtures: contractFixtures.length,
   unit_test_files: testFiles.length,
   e2e_test_functions: e2eFns.length,
 };
