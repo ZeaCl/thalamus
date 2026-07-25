@@ -1,0 +1,18 @@
+#!/bin/bash
+# Pre-push hook: corre todas las validaciones de calidad antes de pushear.
+# Si algo falla, el push se cancela.
+#
+# Para activar: git config core.hooksPath .githooks
+# O automáticamente con: make setup
+
+set -e
+
+echo ""
+echo "═══ pre-push: mix precommit ═══"
+echo ""
+
+mix precommit
+
+echo ""
+echo "✅ pre-push OK"
+echo ""

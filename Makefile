@@ -24,6 +24,7 @@ help: ## Show this help message
 # ============================================================================
 setup: ## Initial project setup (install deps, create DB, migrate)
 	@./scripts/setup.sh dev
+	@git config core.hooksPath .githooks 2>/dev/null || true
 
 setup-test: ## Setup test environment
 	@./scripts/setup.sh test
