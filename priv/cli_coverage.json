@@ -1,0 +1,92 @@
+{
+  "_description": "Maps Thalamus API routes to CLI commands. Used by mix cli.coverage to detect gaps at compile time.",
+  "_updated": "2026-07-25",
+  "routes": {
+    "POST /api/public/login": "zea thalamus login --email",
+    "POST /api/public/register": "zea thalamus register",
+    "POST /api/public/verify-email": null,
+    "POST /api/public/resend-verification": null,
+    "POST /api/public/password/reset": null,
+    "POST /api/public/password/confirm-reset": null,
+    "GET /api/public/health": "zea thalamus health",
+
+    "GET /api/users": "zea thalamus users list",
+    "GET /api/users/:id": "zea thalamus users get",
+    "POST /api/users": null,
+    "PUT /api/users/:id": null,
+    "PATCH /api/users/:id": null,
+    "DELETE /api/users/:id": null,
+
+    "GET /api/organizations": "zea thalamus orgs list",
+    "GET /api/organizations/:id": "zea thalamus orgs get",
+    "POST /api/organizations": "zea thalamus orgs create",
+    "PUT /api/organizations/:id": null,
+    "PATCH /api/organizations/:id": null,
+    "DELETE /api/organizations/:id": null,
+    "POST /api/organizations/:id/members": null,
+    "DELETE /api/organizations/:id/members/:user_id": null,
+
+    "GET /api/clients": "zea thalamus clients list",
+    "GET /api/clients/:id": "zea thalamus clients get",
+    "POST /api/clients": "zea thalamus clients create",
+    "PUT /api/clients/:id": "zea thalamus clients update",
+    "PATCH /api/clients/:id": "zea thalamus clients update",
+    "DELETE /api/clients/:id": "zea thalamus clients delete",
+    "POST /api/clients/:client_id/rotate-secret": "zea thalamus clients rotate-secret",
+    "POST /api/clients/:client_id/add-redirect-uri": null,
+    "GET /api/clients/:client_id/validate": "zea thalamus clients validate",
+    "PATCH /api/clients/:id/trust": null,
+
+    "GET /api/personal-access-tokens": "zea thalamus pats list",
+    "POST /api/personal-access-tokens": "zea thalamus pats create",
+    "DELETE /api/personal-access-tokens/:id": "zea thalamus pats revoke",
+
+    "POST /api/mfa/totp/setup": "zea thalamus mfa setup",
+    "POST /api/mfa/totp/verify": "zea thalamus mfa verify",
+    "POST /api/mfa/verify": null,
+    "DELETE /api/mfa/disable": "zea thalamus mfa disable",
+    "POST /api/mfa/backup-codes/regenerate": null,
+
+    "GET /api/roles": null,
+    "POST /api/roles": null,
+    "GET /api/roles/:id": null,
+    "PUT /api/roles/:id": null,
+    "PATCH /api/roles/:id": null,
+    "DELETE /api/roles/:id": null,
+
+    "POST /api/users/:user_id/roles": null,
+    "DELETE /api/users/:user_id/roles/:role_id": null,
+    "GET /api/users/:user_id/roles": null,
+    "GET /api/users/:user_id/effective-scopes": null,
+
+    "GET /api/secrets": "zea thalamus secrets list",
+    "POST /api/secrets": "zea thalamus secrets set",
+    "DELETE /api/secrets/:id": "zea thalamus secrets delete",
+
+    "PUT /api/password/change": null,
+    "POST /api/avatar": null,
+    "DELETE /api/avatar": null,
+    "GET /api/audit-logs/export": null,
+    "POST /api/authorization/validate-step": null,
+
+    "GET /api/domains": null,
+    "POST /api/domains/register": null,
+    "POST /api/domains/roles/grant": null,
+    "DELETE /api/domains/roles/revoke": null,
+    "GET /api/domains/roles": null,
+
+    "GET /api/organizations/:id/saml-config": null,
+    "PUT /api/organizations/:id/saml-config": null,
+    "DELETE /api/organizations/:id/saml-config": null,
+
+    "GET /api/admin/api-keys": null,
+    "GET /api/admin/api-keys/:id": null,
+    "POST /api/admin/api-keys": null,
+    "DELETE /api/admin/api-keys/:id": null,
+    "POST /api/admin/api-keys/:id/rotate": null,
+
+    "GET /api/internal/secrets/resolve": null,
+    "POST /api/internal/agent-token": null,
+    "GET /api/internal/users/:id/agent-config": null
+  }
+}

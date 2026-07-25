@@ -161,6 +161,8 @@ defmodule Thalamus.MixProject do
         "esbuild thalamus --minify",
         "phx.digest"
       ],
+      # CLI coverage check runs after every compilation
+      compile: ["compile", "cli.coverage"],
       precommit: ["compile --warnings-as-errors", "deps.unlock --unused", "format", "test"]
     ]
   end
