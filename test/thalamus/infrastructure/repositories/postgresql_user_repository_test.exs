@@ -404,6 +404,28 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLUserRepositoryTest do
       assert is_list(users)
     end
 
+    test "filters by is_agent = true" do
+      {:ok, user1} = create_user_entity(email: "agent1@example.com", is_agent: true)
+      {:ok, user2} = create_user_entity(email: "user1@example.com")
+      {:ok, _saved1} = PostgreSQLUserRepository.save(user1)
+      {:ok, _saved2} = PostgreSQLUserRepository.save(user2)
+
+      assert {:ok, agents} = PostgreSQLUserRepository.list(%{is_agent: true})
+      assert length(agents) >= 1
+      assert Enum.all?(agents, fn u -> u.is_agent == true end)
+    end
+
+    test "filters by is_agent = false" do
+      {:ok, user1} = create_user_entity(email: "agent2@example.com", is_agent: true)
+      {:ok, user2} = create_user_entity(email: "user2@example.com")
+      {:ok, _saved1} = PostgreSQLUserRepository.save(user1)
+      {:ok, _saved2} = PostgreSQLUserRepository.save(user2)
+
+      assert {:ok, non_agents} = PostgreSQLUserRepository.list(%{is_agent: false})
+      assert length(non_agents) >= 1
+      assert Enum.all?(non_agents, fn u -> u.is_agent == false or is_nil(u.is_agent) end)
+    end
+
     test "combines multiple filters" do
       org_id = create_organization()
 
@@ -559,7 +581,8 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLUserRepositoryTest do
       name: name,
       password_hash: password_hash,
       status: Keyword.get(opts, :status, :pending_verification),
-      mfa_methods: Keyword.get(opts, :mfa_methods, [])
+      mfa_methods: Keyword.get(opts, :mfa_methods, []),
+      is_agent: Keyword.get(opts, :is_agent, false)
     })
   end
 

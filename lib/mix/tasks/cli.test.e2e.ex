@@ -130,9 +130,14 @@ defmodule Mix.Tasks.Cli.Test.E2e do
   defp setup_database! do
     Mix.shell().info("Setting up database...")
     db_url = db_url()
-    env = [{"DATABASE_URL", db_url}, {"MIX_ENV", "test"}]
+    env = [{"DATABASE_URL", db_url}, {"MIX_ENV", "test"}, {"E2E_DB", "true"}]
 
-    {_, 0} = System.cmd("mix", ["ecto.create", "--quiet"], env: env, stderr_to_stdout: true)
+    {_, 0} =
+      System.cmd("mix", ["ecto.create", "--quiet", "--no-compile"],
+        env: env,
+        stderr_to_stdout: true
+      )
+
     {_, 0} = System.cmd("mix", ["ecto.migrate", "--quiet"], env: env, stderr_to_stdout: true)
     {_, 0} = System.cmd("mix", ["run", "priv/repo/seeds.exs"], env: env, stderr_to_stdout: true)
     Mix.shell().info("  Database ready ✅")
@@ -155,6 +160,7 @@ defmodule Mix.Tasks.Cli.Test.E2e do
     env = [
       {"DATABASE_URL", db_url},
       {"MIX_ENV", "test"},
+      {"E2E_DB", "true"},
       {"PORT", "#{@app_port}"},
       {"PHX_HOST", "localhost"},
       {"SECRET_KEY_BASE", String.duplicate("a", 64)}

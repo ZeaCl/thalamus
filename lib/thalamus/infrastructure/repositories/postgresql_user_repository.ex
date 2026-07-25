@@ -288,6 +288,7 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository do
     |> filter_by_verified(filters[:verified])
     |> filter_by_organization(filters[:organization_id])
     |> filter_by_username(filters[:username])
+    |> filter_by_is_agent(filters[:is_agent])
     |> order_by_field(filters[:order_by])
     |> limit_results(filters[:limit])
     |> offset_results(filters[:offset])
@@ -324,6 +325,16 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository do
   end
 
   defp filter_by_username(query, _), do: query
+
+  defp filter_by_is_agent(query, nil), do: query
+
+  defp filter_by_is_agent(query, true) do
+    where(query, [u], u.is_agent == true)
+  end
+
+  defp filter_by_is_agent(query, false) do
+    where(query, [u], u.is_agent == false or is_nil(u.is_agent))
+  end
 
   defp order_by_field(query, nil), do: order_by(query, [u], desc: u.inserted_at)
   defp order_by_field(query, :email), do: order_by(query, [u], asc: u.email)

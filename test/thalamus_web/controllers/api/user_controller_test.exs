@@ -201,6 +201,53 @@ defmodule ThalamusWeb.API.UserControllerTest do
       assert Enum.any?(users, fn u -> u["email"] == "unique_search_target@example.com" end)
     end
 
+    test "filters by is_agent = true", %{conn: conn, access_token: token} do
+      # Create an agent user via domain entity
+      {:ok, agent_user} =
+        Thalamus.Domain.Entities.User.new(%{
+          id: elem(Thalamus.Domain.ValueObjects.UserId.generate(), 1),
+          email: elem(Thalamus.Domain.ValueObjects.Email.new("agent_test@test.com"), 1),
+          password_hash:
+            elem(Thalamus.Domain.ValueObjects.PasswordHash.from_password("AgentPass123!"), 1),
+          name: "Test Agent",
+          is_agent: true
+        })
+
+      {:ok, agent_user} = Thalamus.Domain.Entities.User.verify_email(agent_user)
+      {:ok, _} = PostgreSQLUserRepository.save(agent_user)
+
+      conn =
+        conn
+        |> put_req_header("authorization", "Bearer #{token}")
+        |> get(~p"/api/users?is_agent=true")
+
+      assert %{
+               "data" => users
+             } = json_response(conn, 200)
+
+      assert length(users) >= 1
+
+      Enum.each(users, fn user ->
+        assert user["is_agent"] == true
+      end)
+    end
+
+    test "is_agent=false returns non-agent users", %{conn: conn, access_token: token} do
+      conn =
+        conn
+        |> put_req_header("authorization", "Bearer #{token}")
+        |> get(~p"/api/users?is_agent=false")
+
+      assert %{
+               "data" => users
+             } = json_response(conn, 200)
+
+      # All returned users should NOT be agents
+      Enum.each(users, fn user ->
+        assert user["is_agent"] == false or user["is_agent"] == nil
+      end)
+    end
+
     test "requires authentication", %{conn: conn} do
       conn = get(conn, ~p"/api/users")
 

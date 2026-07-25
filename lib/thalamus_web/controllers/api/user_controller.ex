@@ -278,6 +278,13 @@ defmodule ThalamusWeb.API.UserController do
       end
 
     filters =
+      if is_agent = params["is_agent"] do
+        Map.put(filters, :is_agent, is_agent == "true")
+      else
+        filters
+      end
+
+    filters =
       if limit = params["limit"] do
         limit_int = min(String.to_integer(limit), 100)
         Map.put(filters, :limit, limit_int)
