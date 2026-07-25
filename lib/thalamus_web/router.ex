@@ -249,6 +249,9 @@ defmodule ThalamusWeb.Router do
     # Rotate OAuth2 client secret
     post "/clients/:client_id/rotate-secret", OAuth2ClientController, :rotate_secret
 
+    # Toggle OAuth2 client trusted (auto_approve) status
+    patch "/clients/:id/trust", OAuth2ClientController, :trust
+
     # Add dynamic redirect URI for subdomains
     post "/clients/:client_id/add-redirect-uri", OAuth2ClientController, :add_redirect_uri
 

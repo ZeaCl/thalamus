@@ -139,6 +139,17 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.OAuth2ClientSchema do
   end
 
   @doc """
+  Changeset for toggling a client's trusted (auto_approve) status.
+
+  When trusted, the client bypasses the OAuth2 consent screen.
+  Only usable via the dedicated trust endpoint, not the generic update.
+  """
+  def trust_changeset(client, trusted?) when is_boolean(trusted?) do
+    client
+    |> change(%{auto_approve: trusted?})
+  end
+
+  @doc """
   Changeset for adding a grant type.
   """
   def add_grant_type_changeset(client, grant_type) do

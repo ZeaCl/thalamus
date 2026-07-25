@@ -845,6 +845,59 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepositoryT
     end
   end
 
+  describe "mark_trusted/2" do
+    test "marks a client as trusted" do
+      {:ok, client} = create_client_entity(trusted: false)
+      {:ok, saved} = PostgreSQLOAuth2ClientRepository.save(client)
+
+      assert saved.trusted == false
+
+      assert {:ok, updated} = PostgreSQLOAuth2ClientRepository.mark_trusted(saved.id, true)
+      assert updated.trusted == true
+
+      # Verify persisted
+      assert {:ok, reloaded} = PostgreSQLOAuth2ClientRepository.find_by_id(saved.id)
+      assert reloaded.trusted == true
+    end
+
+    test "marks a trusted client as untrusted" do
+      {:ok, client} = create_client_entity(trusted: true)
+      {:ok, saved} = PostgreSQLOAuth2ClientRepository.save(client)
+
+      assert saved.trusted == true
+
+      assert {:ok, updated} = PostgreSQLOAuth2ClientRepository.mark_trusted(saved.id, false)
+      assert updated.trusted == false
+
+      # Verify persisted
+      assert {:ok, reloaded} = PostgreSQLOAuth2ClientRepository.find_by_id(saved.id)
+      assert reloaded.trusted == false
+    end
+
+    test "returns :not_found for non-existent client" do
+      {:ok, fake_id} = ClientId.generate()
+
+      assert {:error, :not_found} =
+               PostgreSQLOAuth2ClientRepository.mark_trusted(fake_id, true)
+    end
+
+    test "trusted flag survives save/load roundtrip" do
+      {:ok, client} = create_client_entity(trusted: true)
+      {:ok, saved} = PostgreSQLOAuth2ClientRepository.save(client)
+      assert saved.trusted == true
+
+      {:ok, updated} = PostgreSQLOAuth2ClientRepository.mark_trusted(saved.id, false)
+      assert updated.trusted == false
+
+      {:ok, re_trusted} = PostgreSQLOAuth2ClientRepository.mark_trusted(saved.id, true)
+      assert re_trusted.trusted == true
+
+      # Full roundtrip via find_by_id
+      {:ok, found} = PostgreSQLOAuth2ClientRepository.find_by_id(saved.id)
+      assert found.trusted == true
+    end
+  end
+
   # --- Test Helpers ---
 
   defp create_client_entity(opts \\ []) do
