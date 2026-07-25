@@ -6,14 +6,15 @@ defmodule Thalamus.Repo.Migrations.AddAutoApproveToOauth2Clients do
       add :auto_approve, :boolean, default: false, null: false
     end
 
-    # Mark existing first-party clients as auto_approve
+    # Mark existing first-party clients as auto_approve.
+    # Only clients that go through the authorization_code flow are relevant.
+    # internal_login uses password/client_credentials grants — auto_approve has no effect.
+    # cerebelum_service uses client_credentials (M2M) — same.
     execute """
     UPDATE oauth2_clients SET auto_approve = true
     WHERE client_id_string IN (
       'platform_web',
-      'thalamus_cli',
-      '59991e63-852c-44e5-aee1-a761ec76eaea',
-      'internal_login'
+      'thalamus_cli'
     )
     OR client_id_string LIKE 'app_%'
     """
