@@ -52,8 +52,14 @@ test_whoami_unauth() {
 # ── Auth (OAuth2 client_credentials) ──────────
 test_setup_oauth() {
   echo "── setting up OAuth2 token..."
+
+  # Configure CLI to use the E2E API URL
+  local API
+  API="${THALAMUS_API_URL:-http://localhost:4100}"
+  zea thalamus config set apiUrl "$API" 2>/dev/null || true
+
   local response
-  response=$(curl -s -X POST http://localhost:4100/oauth/token \
+  response=$(curl -s -X POST "$API/oauth/token" \
     -H "Content-Type: application/x-www-form-urlencoded" \
     -d "grant_type=password&client_id=internal_login&client_secret=internal_secret_do_not_expose&username=admin@zea.local&password=Admin123!")
   local token
