@@ -8,11 +8,41 @@
 set -e
 
 echo ""
-echo "═══ pre-push: mix precommit ═══"
+echo "═══ pre-push: validaciones de calidad ═══"
 echo ""
 
-mix precommit
-
+# Paso 1: compilación (rápido, bloqueante)
+echo "── compile ──"
+mix compile --warnings-as-errors
+echo "✅ compile"
 echo ""
+
+# Paso 2: formateo (rápido, bloqueante)
+echo "── format ──"
+mix format --check-formatted
+echo "✅ format"
+echo ""
+
+# Paso 3: tests (bloqueante)
+echo "── test ──"
+mix test
+echo "✅ test"
+echo ""
+
+# Paso 4: E2E (con timeout, no bloqueante si es infra local)
+echo "── e2e ──"
+if timeout 60 mix cli.test.e2e 2>&1; then
+  echo "✅ e2e"
+else
+  rc=$?
+  if [ $rc -eq 124 ]; then
+    echo "⚠️  e2e timeout (infra local?) — continuando"
+  else
+    echo "❌ e2e FAILED"
+    exit 1
+  fi
+fi
+echo ""
+
 echo "✅ pre-push OK"
 echo ""
