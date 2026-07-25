@@ -76,12 +76,8 @@ defmodule ThalamusWeb.OAuth2.AuthorizationController do
       # Check if user is authenticated
       case get_authenticated_user(conn) do
         {:ok, user_id} ->
-          if client_id_string in [
-               "platform_web",
-               "thalamus_cli",
-               "59991e63-852c-44e5-aee1-a761ec76eaea"
-             ] or String.starts_with?(client_id_string, "app_") do
-            # First-party client: bypass consent and auto-approve
+          if client.trusted do
+            # Trusted client: bypass consent and auto-approve
             generate_authorization_code(conn, %{
               client_id: client.id,
               user_id: user_id,
