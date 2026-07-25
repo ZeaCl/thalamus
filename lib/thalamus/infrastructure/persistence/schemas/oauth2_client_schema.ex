@@ -42,6 +42,7 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.OAuth2ClientSchema do
 
     # Security settings
     field :pkce_required, :boolean, default: false
+    field :auto_approve, :boolean, default: false
     field :token_endpoint_auth_method, :string, default: "client_secret_post"
 
     # Token lifetimes (in seconds)
@@ -76,6 +77,7 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.OAuth2ClientSchema do
       :description,
       :logo_url,
       :pkce_required,
+      :auto_approve,
       :allowed_grant_types,
       :allowed_scopes,
       :redirect_uris
@@ -100,6 +102,7 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.OAuth2ClientSchema do
       :privacy_policy_url,
       :is_active,
       :pkce_required,
+      :auto_approve,
       :allowed_grant_types,
       :allowed_scopes,
       :redirect_uris,

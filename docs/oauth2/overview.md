@@ -124,14 +124,34 @@ client_id=client_xxx&client_secret=secret_xxx
 
 ## First-Party Client Auto-Approval
 
-Clients with these `client_id` prefixes **bypass the consent screen** and auto-approve:
+Trusted clients (those with `auto_approve = true` in the database) **bypass the consent screen** and auto-approve authorization requests. This is managed via the `auto_approve` column on `oauth2_clients` — no hardcoded lists.
 
-- `platform_web`
-- `thalamus_cli`
-- `59991e63-852c-44e5-aee1-a761ec76eaea` (fixed UUID)
-- Any client starting with `app_`
+### Bootstrap Client Pattern
 
-All other clients show the consent screen to the user.
+`thalamus_cli` is the **bootstrap client** — a shared OAuth2 client used by CLI tools and other ZEA ecosystem apps to authenticate developers. It is a public client (no secret) with PKCE required.
+
+**Clients that use `thalamus_cli`:**
+- `npx zea-auth-init` — logs in a developer and registers a new OAuth2 app
+- `cerebelum login` — logs in a developer and stores a JWT for API access
+
+**When to use `thalamus_cli` vs. registering your own client:**
+
+| Scenario | Use |
+|---|---|
+| CLI tool that needs to authenticate a developer | `thalamus_cli` |
+| Web app / SPA with its own callback URL | Register your own client via `npx zea-auth-init` |
+| Backend service (M2M) | Register a confidential client with `client_credentials` grant |
+| Mobile app | Register your own public client |
+
+### Registered OAuth2 Clients Reference
+
+| Client ID | Type | Purpose | Auto-Approve |
+|---|---|---|---|
+| `thalamus_cli` | public | Bootstrap — authenticates developers for CLI tools | ✅ Yes |
+| `platform_web` | public | ZEA Platform web application | ✅ Yes |
+| `cerebelum_service` | confidential | M2M — Cerebelum Workflow Engine ↔ Thalamus | N/A (M2M) |
+| `internal_login` | confidential | API login endpoint (`/api/public/login`) | N/A (API) |
+| `app_*` | public | User-registered apps via `zea-auth-init` | ✅ Yes |
 
 ---
 

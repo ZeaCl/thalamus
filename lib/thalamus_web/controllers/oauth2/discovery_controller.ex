@@ -146,8 +146,13 @@ defmodule ThalamusWeb.OAuth2.DiscoveryController do
   # Private helper functions
 
   defp get_base_url(conn) do
-    # Get scheme (http or https)
-    scheme = if conn.scheme == :https, do: "https", else: "http"
+    # Get scheme (http or https), respecting X-Forwarded-Proto from reverse proxy.
+    # Default to http unless explicitly told otherwise (defense in depth).
+    scheme =
+      case Plug.Conn.get_req_header(conn, "x-forwarded-proto") do
+        ["https" | _] -> "https"
+        _ -> if conn.scheme == :https, do: "https", else: "http"
+      end
 
     # Get host from configuration or request
     host = get_host(conn)

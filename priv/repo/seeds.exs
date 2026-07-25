@@ -270,7 +270,8 @@ case Repo.get(OAuth2ClientSchema, platform_web_client_id) ||
       redirect_uris: platform_web_uris,
       allowed_grant_types: ["authorization_code", "refresh_token"],
       allowed_scopes: ["openid", "profile", "email", "zea:read", "zea:write"],
-      pkce_required: true
+      pkce_required: true,
+      auto_approve: true
     }
 
     %OAuth2ClientSchema{}
@@ -284,13 +285,14 @@ case Repo.get(OAuth2ClientSchema, platform_web_client_id) ||
       :redirect_uris,
       :allowed_grant_types,
       :allowed_scopes,
-      :pkce_required
+      :pkce_required,
+      :auto_approve
     ])
     |> Repo.insert!()
 
   existing ->
     existing
-    |> Ecto.Changeset.change(%{redirect_uris: platform_web_uris})
+    |> Ecto.Changeset.change(%{redirect_uris: platform_web_uris, auto_approve: true})
     |> Repo.update!()
 end
 
@@ -307,7 +309,7 @@ case Repo.get(OAuth2ClientSchema, thalamus_cli_client_id) ||
       client_id_string: "thalamus_cli",
       name: "Thalamus CLI",
       client_type: :public,
-      client_secret: "cli_secret_does_not_matter_pkce_public_client",
+      client_secret: nil,
       organization_id: zea_org_id,
       redirect_uris: cli_uris,
       allowed_grant_types: [
@@ -316,7 +318,8 @@ case Repo.get(OAuth2ClientSchema, thalamus_cli_client_id) ||
         "device_code"
       ],
       allowed_scopes: ["openid", "profile", "email", "zea:read", "zea:write"],
-      pkce_required: true
+      pkce_required: true,
+      auto_approve: true
     }
 
     %OAuth2ClientSchema{}
@@ -330,7 +333,8 @@ case Repo.get(OAuth2ClientSchema, thalamus_cli_client_id) ||
       :redirect_uris,
       :allowed_grant_types,
       :allowed_scopes,
-      :pkce_required
+      :pkce_required,
+      :auto_approve
     ])
     |> Repo.insert!()
 
@@ -342,7 +346,8 @@ case Repo.get(OAuth2ClientSchema, thalamus_cli_client_id) ||
         "authorization_code",
         "refresh_token",
         "device_code"
-      ]
+      ],
+      auto_approve: true
     })
     |> Repo.update!()
 end

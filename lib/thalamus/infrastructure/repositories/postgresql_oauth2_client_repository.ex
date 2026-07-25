@@ -227,7 +227,7 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository 
         allowed_scopes: scopes,
         redirect_uris: redirect_uris,
         is_active: schema.is_active,
-        trusted: false,
+        trusted: schema.auto_approve,
         created_at: schema.inserted_at,
         updated_at: schema.updated_at
       }
@@ -287,6 +287,7 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository 
       allowed_scopes: scopes_strings,
       redirect_uris: redirect_uris_strings,
       is_active: client.is_active,
+      auto_approve: client.trusted,
       inserted_at: client.created_at,
       updated_at: client.updated_at
     }
