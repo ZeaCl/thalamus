@@ -11,13 +11,17 @@ config :thalamus, Thalamus.Repo,
   password: System.get_env("DB_PASSWORD") || "",
   hostname: System.get_env("DB_HOST") || "localhost",
   database: "thalamus_test#{System.get_env("MIX_TEST_PARTITION")}",
-  pool: Ecto.Adapters.SQL.Sandbox,
-  pool_size: if(System.get_env("E2E_DB"), do: 2, else: System.schedulers_online() * 2)
+  pool:
+    if(System.get_env("E2E_DB"), do: DBConnection.ConnectionPool, else: Ecto.Adapters.SQL.Sandbox),
+  pool_size: if(System.get_env("E2E_DB"), do: 20, else: System.schedulers_online() * 2)
 
 # We don't run a server during test. If one is required,
 # you can enable the server option below.
 config :thalamus, ThalamusWeb.Endpoint,
-  http: [ip: {127, 0, 0, 1}, port: 4002],
+  http: [
+    ip: {127, 0, 0, 1},
+    port: String.to_integer(System.get_env("PORT") || "4002")
+  ],
   secret_key_base: "LdKro4VE1x55xLQ08UQ9Ef8JEhpCejwSDvpmSS1TOBvjx4UHKF+2TikmFf1UeS1D",
   server: false
 

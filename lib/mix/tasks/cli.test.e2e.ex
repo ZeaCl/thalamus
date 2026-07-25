@@ -90,9 +90,13 @@ defmodule Mix.Tasks.Cli.Test.E2e do
           @container_name,
           "-e",
           "POSTGRES_PASSWORD=#{@db_pass}",
+          "--tmpfs",
+          "/var/lib/postgresql/data",
           "-p",
           "#{@db_port}:5432",
-          "postgres:16-alpine"
+          "postgres:16-alpine",
+          "-c",
+          "max_connections=50"
         ],
         stderr_to_stdout: true
       )
@@ -138,8 +142,18 @@ defmodule Mix.Tasks.Cli.Test.E2e do
         stderr_to_stdout: true
       )
 
-    {_, 0} = System.cmd("mix", ["ecto.migrate", "--quiet"], env: env, stderr_to_stdout: true)
-    {_, 0} = System.cmd("mix", ["run", "priv/repo/seeds.exs"], env: env, stderr_to_stdout: true)
+    {_, 0} =
+      System.cmd("mix", ["ecto.migrate", "--quiet", "--no-compile"],
+        env: env,
+        stderr_to_stdout: true
+      )
+
+    {_, 0} =
+      System.cmd("mix", ["run", "--no-compile", "priv/repo/seeds.exs"],
+        env: env,
+        stderr_to_stdout: true
+      )
+
     Mix.shell().info("  Database ready ✅")
   end
 
@@ -161,6 +175,7 @@ defmodule Mix.Tasks.Cli.Test.E2e do
       {"DATABASE_URL", db_url},
       {"MIX_ENV", "test"},
       {"E2E_DB", "true"},
+      {"PHX_SERVER", "true"},
       {"PORT", "#{@app_port}"},
       {"PHX_HOST", "localhost"},
       {"SECRET_KEY_BASE", String.duplicate("a", 64)}
