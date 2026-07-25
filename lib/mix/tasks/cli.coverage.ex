@@ -1,53 +1,35 @@
 defmodule Mix.Tasks.Cli.Coverage do
   @moduledoc """
-  Validates that all Thalamus API routes have corresponding CLI commands
-  documented in `priv/cli_coverage.json`.
+  Validates that every Thalamus API route has a CLI command. cli = api.
 
-  Runs automatically as part of `mix compile`. Can also be invoked directly:
+  Runs automatically as part of `mix compile`. Fails the build if any route
+  is not mapped to a CLI command in `priv/cli_coverage.json`.
 
-      mix cli.coverage           # Warn on uncovered routes
-      mix cli.coverage --strict  # Fail the build on uncovered routes
-
-  ## Coverage manifest format
-
-  `priv/cli_coverage.json` maps route patterns to CLI commands (or `null` if
-  intentionally uncovered):
-
-      {
-        "routes": {
-          "GET /api/clients": "zea thalamus clients list",
-          "PATCH /api/clients/:id/trust": null
-        }
-      }
-
-  Routes with `null` are considered intentionally uncovered and reported
-  separately from routes that are missing from the manifest entirely.
+      mix cli.coverage
   """
 
   use Mix.Task
-  @shortdoc "Check CLI coverage of all API routes"
+  @shortdoc "Verify every API route has a CLI command"
 
-  # Routes are read from the compiled router module at runtime,
-  # so this task requires compilation to have happened already.
   @requirements ["app.config"]
 
   alias ThalamusWeb.Router
 
   @api_prefix "/api"
 
-  def run(args) do
-    strict? = "--strict" in args
-
+  def run(_args) do
     manifest = load_manifest()
     routes = extract_api_routes()
     manifest_routes = Map.get(manifest, "routes", %{})
 
-    {covered, uncovered, missing, extra} = classify(routes, manifest_routes)
+    {covered, missing_in_manifest, missing_in_router} = classify(routes, manifest_routes)
 
-    print_report(covered, uncovered, missing, extra)
+    print_report(covered, missing_in_manifest, missing_in_router)
 
-    if strict? and (uncovered != [] or missing != []) do
-      Mix.raise("CLI coverage check FAILED: #{length(uncovered)} uncovered, #{length(missing)} missing from manifest")
+    if missing_in_manifest != [] or missing_in_router != [] do
+      Mix.raise(
+        "CLI coverage FAILED: #{length(missing_in_manifest)} routes missing from manifest, #{length(missing_in_router)} stale entries"
+      )
     end
   end
 
@@ -60,7 +42,6 @@ defmodule Mix.Tasks.Cli.Coverage do
       "#{verb} #{route.path}"
     end)
     |> Enum.filter(fn route ->
-      # Route format: "VERB /path" — check that path starts with /api
       [_verb, path] = String.split(route, " ", parts: 2)
       String.starts_with?(path, @api_prefix)
     end)
@@ -70,12 +51,11 @@ defmodule Mix.Tasks.Cli.Coverage do
   # ── classification ───────────────────────────────────────────
 
   defp classify(routes, manifest_routes) do
-    {covered, uncovered, missing} =
-      Enum.reduce(routes, {[], [], []}, fn route, {cov, uncov, miss} ->
-        case Map.get(manifest_routes, route, :not_found) do
-          :not_found -> {cov, uncov, [route | miss]}
-          nil -> {cov, [route | uncov], miss}
-          cmd when is_binary(cmd) -> {[{route, cmd} | cov], uncov, miss}
+    {covered, missing} =
+      Enum.reduce(routes, {[], []}, fn route, {cov, miss} ->
+        case Map.get(manifest_routes, route) do
+          nil -> {cov, [route | miss]}
+          cmd when is_binary(cmd) -> {[{route, cmd} | cov], miss}
         end
       end)
 
@@ -83,48 +63,37 @@ defmodule Mix.Tasks.Cli.Coverage do
       Map.keys(manifest_routes)
       |> Enum.reject(&(&1 in routes))
 
-    {Enum.reverse(covered), Enum.reverse(uncovered), Enum.reverse(missing), Enum.sort(extra)}
+    {Enum.reverse(covered), Enum.reverse(missing), Enum.sort(extra)}
   end
 
   # ── reporting ─────────────────────────────────────────────────
 
-  defp print_report(covered, uncovered, missing, extra) do
-    total = length(covered) + length(uncovered) + length(missing)
+  defp print_report(covered, missing, extra) do
+    total = length(covered) + length(missing)
 
     Mix.shell().info("")
-    Mix.shell().info("═══ CLI Coverage Report ═══")
-    Mix.shell().info("Total API routes: #{total}")
-    Mix.shell().info("Covered:    #{length(covered)} ✅")
-    Mix.shell().info("Uncovered:  #{length(uncovered)} 🟡 (intentionally, marked null)")
-    Mix.shell().info("Missing:    #{length(missing)} 🔴 (not in manifest at all)")
-    Mix.shell().info("Extra:      #{length(extra)} ⚠️  (in manifest but not in router)")
-    Mix.shell().info("")
+    Mix.shell().info("═══ CLI Coverage ═══")
+    Mix.shell().info("Routes:  #{total} total, #{length(covered)} covered ✅")
 
-    unless Enum.empty?(missing) do
-      Mix.shell().error("❌ Routes MISSING from priv/cli_coverage.json:")
+    if missing != [] do
+      Mix.shell().error("MISSING: #{length(missing)} routes not in priv/cli_coverage.json:")
       Enum.each(missing, fn route ->
         Mix.shell().error("   #{route}")
       end)
-      Mix.shell().info("")
     end
 
-    if strict?() do
-      unless Enum.empty?(uncovered) do
-        Mix.shell().info("🟡 Intentionally uncovered (null in manifest):")
-        Enum.each(uncovered, fn route ->
-          Mix.shell().info("   #{route}")
-        end)
-        Mix.shell().info("")
-      end
-    end
-
-    unless Enum.empty?(extra) do
-      Mix.shell().info("⚠️  Routes in manifest but NOT in router (stale?):")
+    if extra != [] do
+      Mix.shell().info("STALE: #{length(extra)} entries in manifest but not in router:")
       Enum.each(extra, fn route ->
         Mix.shell().info("   #{route}")
       end)
-      Mix.shell().info("")
     end
+
+    if missing == [] and extra == [] do
+      Mix.shell().info("All #{total} routes mapped to CLI commands. ✅")
+    end
+
+    Mix.shell().info("")
   end
 
   # ── helpers ───────────────────────────────────────────────────
@@ -140,9 +109,5 @@ defmodule Mix.Tasks.Cli.Coverage do
       {:ok, manifest} -> manifest
       {:error, error} -> Mix.raise("Invalid CLI coverage manifest: #{inspect(error)}")
     end
-  end
-
-  defp strict? do
-    Application.get_env(:thalamus, :cli_coverage_strict, false)
   end
 end

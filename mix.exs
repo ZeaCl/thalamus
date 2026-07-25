@@ -161,7 +161,8 @@ defmodule Thalamus.MixProject do
         "esbuild thalamus --minify",
         "phx.digest"
       ],
-      # CLI coverage check runs after every compilation
+      # CLI coverage: every API route MUST have a CLI command (cli = api).
+      # Fails compilation if any route is missing from priv/cli_coverage.json.
       compile: ["compile", "cli.coverage"],
       precommit: ["compile --warnings-as-errors", "deps.unlock --unused", "format", "test"]
     ]
