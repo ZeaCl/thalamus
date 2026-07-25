@@ -119,7 +119,7 @@ defmodule ThalamusWeb.OAuth2.DeviceController do
 
             conn
             |> put_flash(:info, "Please log in to authorize the device.")
-            |> redirect(to: ~p"/login?return_to=#{URI.encode_www_form(return_to)}")
+            |> redirect(to: ~p"/login?return_to=#{return_to}")
           else
             case @repo.authorize(device_auth, user_id) do
               {:ok, _authorized} ->
