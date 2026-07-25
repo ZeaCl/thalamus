@@ -7,6 +7,21 @@ defmodule Thalamus.Application.UseCases.ManageSecrets do
   Creates a new secret.
   """
   def create_secret(attrs, deps \\ default_deps()) do
+    # Normalize provider to lowercase for case-insensitive matching.
+    # Soma resolves secrets with lowercase provider names (PR ZeaCl/soma#119).
+    # Handle both atom and string keys.
+    attrs =
+      cond do
+        Map.has_key?(attrs, :provider) ->
+          %{attrs | provider: String.downcase(attrs.provider || "")}
+
+        Map.has_key?(attrs, "provider") ->
+          %{attrs | "provider" => String.downcase(attrs["provider"] || "")}
+
+        true ->
+          attrs
+      end
+
     deps.secret_repo.create(attrs)
   end
 
