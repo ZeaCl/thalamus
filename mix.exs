@@ -174,7 +174,15 @@ defmodule Thalamus.MixProject do
         else
           ["compile"]
         end,
-      precommit: ["compile --warnings-as-errors", "deps.unlock --unused", "format", "test"]
+      # Precommit: full validation including E2E tests (Docker required).
+      # Skips E2E gracefully if Docker is not available.
+      precommit: [
+        "compile --warnings-as-errors",
+        "deps.unlock --unused",
+        "format",
+        "test",
+        "cli.test.e2e"
+      ]
     ]
   end
 end
