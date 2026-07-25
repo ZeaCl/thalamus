@@ -18,6 +18,14 @@
     "ora": "^9.4.0"
   },
   "repository": "github:ZeaCl/thalamus",
-  "keywords": ["zea", "thalamus", "oauth2", "cli"],
-  "license": "MIT"
+  "keywords": [
+    "zea",
+    "thalamus",
+    "oauth2",
+    "cli"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "nock": "^14.0.16"
+  }
 }

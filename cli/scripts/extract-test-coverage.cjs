@@ -87,10 +87,19 @@ try {
 }
 
 // ── 4. Match commands to coverage ───────────────────────────────
+// Commands may be in files with different names (register → account.js)
+const cmdToFile = {
+  register: 'account', 'verify-email': 'account', 'resend-verification': 'account',
+  password: 'account', avatar: 'account',
+  logout: 'auth', 'set-token': 'auth', debug: 'auth',
+  doctor: 'doctor', 'oidc': 'audit',
+};
+
 const commands = {};
 for (const cmd of allCommands) {
   const cmdRoot = cmd.split(' ')[0];
-  const cov = coverage[cmdRoot];
+  const fileKey = cmdToFile[cmdRoot] || cmdRoot;
+  const cov = coverage[fileKey];
 
   commands[cmd] = {
     cmd,
