@@ -41,8 +41,8 @@ defmodule Mix.Tasks.Cli.Test.E2e do
     try do
       start_postgres!()
       setup_database!()
-      server_pid = start_thalamus_subprocess!()
-      started = true
+      _server_pid = start_thalamus_subprocess!()
+      _started = true
       wait_for_healthy!()
 
       script = Path.expand("scripts/test-cli.sh", File.cwd!())
