@@ -1,6 +1,9 @@
 # Log
 
-## [2026-07-26] fix | #117 POST /api/clients HTTP 500 con organization_id no-UUID
+## [2026-07-26] fix | #119 seeds.exs sobreescribe members en cada deploy
+- seeds corría en cada deploy (vía release.ex migrate) y reseteaba organization.members y current_user_count
+- Fix: guardia is_nil/empty antes de los Repo.update! de ZEA y Südlich
+- PR #120 mergeado a main
 - OrganizationId value object aceptaba valores no-UUID (ej. "org1") que pasaban validación pero fallaban en Ecto dump → 500
 - Fix: valid_uuid?/1 en validate_format/1 rechaza org IDs sin formato UUID → 400 Bad Request
 - PR #118 mergeado a main
