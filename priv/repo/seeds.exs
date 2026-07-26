@@ -194,46 +194,48 @@ _admin_user =
       existing
   end
 
-# Update organization members arrays
-# zea members
-zea_members = [
-  %{
-    "user_id" => c_user_id,
-    "email" => "c@zea.cl",
-    "role" => "owner",
-    "joined_at" => DateTime.to_iso8601(DateTime.utc_now())
-  },
-  %{
-    "user_id" => admin_user_id,
-    "email" => "admin@zea.local",
-    "role" => "admin",
-    "joined_at" => DateTime.to_iso8601(DateTime.utc_now())
-  }
-]
+# Update organization members arrays (only if empty — avoids overwriting members added via API)
+if is_nil(zea_org.members) or zea_org.members == [] do
+  zea_members = [
+    %{
+      "user_id" => c_user_id,
+      "email" => "c@zea.cl",
+      "role" => "owner",
+      "joined_at" => DateTime.to_iso8601(DateTime.utc_now())
+    },
+    %{
+      "user_id" => admin_user_id,
+      "email" => "admin@zea.local",
+      "role" => "admin",
+      "joined_at" => DateTime.to_iso8601(DateTime.utc_now())
+    }
+  ]
 
-zea_org
-|> Ecto.Changeset.change(%{members: zea_members, current_user_count: 2})
-|> Repo.update!()
+  zea_org
+  |> Ecto.Changeset.change(%{members: zea_members, current_user_count: 2})
+  |> Repo.update!()
+end
 
-# sudlich members: includes ccerda@sudlich.cl (owner) and c@zea.cl (admin)
-sudlich_members = [
-  %{
-    "user_id" => ccerda_user_id,
-    "email" => "ccerda@sudlich.cl",
-    "role" => "owner",
-    "joined_at" => DateTime.to_iso8601(DateTime.utc_now())
-  },
-  %{
-    "user_id" => c_user_id,
-    "email" => "c@zea.cl",
-    "role" => "admin",
-    "joined_at" => DateTime.to_iso8601(DateTime.utc_now())
-  }
-]
+if is_nil(sudlich_org.members) or sudlich_org.members == [] do
+  sudlich_members = [
+    %{
+      "user_id" => ccerda_user_id,
+      "email" => "ccerda@sudlich.cl",
+      "role" => "owner",
+      "joined_at" => DateTime.to_iso8601(DateTime.utc_now())
+    },
+    %{
+      "user_id" => c_user_id,
+      "email" => "c@zea.cl",
+      "role" => "admin",
+      "joined_at" => DateTime.to_iso8601(DateTime.utc_now())
+    }
+  ]
 
-sudlich_org
-|> Ecto.Changeset.change(%{members: sudlich_members, current_user_count: 2})
-|> Repo.update!()
+  sudlich_org
+  |> Ecto.Changeset.change(%{members: sudlich_members, current_user_count: 2})
+  |> Repo.update!()
+end
 
 # 3. OAuth Clients
 platform_web_client_id = "59991e63-852c-44e5-aee1-a761ec76eaea"
