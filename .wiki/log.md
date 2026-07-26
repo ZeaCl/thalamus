@@ -1,5 +1,10 @@
 # Log
 
+## [2026-07-26] fix | #117 POST /api/clients HTTP 500 con organization_id no-UUID
+- OrganizationId value object aceptaba valores no-UUID (ej. "org1") que pasaban validación pero fallaban en Ecto dump → 500
+- Fix: valid_uuid?/1 en validate_format/1 rechaza org IDs sin formato UUID → 400 Bad Request
+- PR #118 mergeado a main
+
 ## [2026-07-25] fix | #107 secret list muestra IDs + #108 bug infraestructura tests CLI
 - `secret list` ahora muestra el ID completo (UUID) de cada secret para usar con `secret delete`
 - Fix: `options = {}` default en list/create/resolve evita crash `Cannot read properties of undefined`
