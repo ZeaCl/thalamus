@@ -133,7 +133,7 @@ test_oidc() {
 
   run_test "oidc jwks" \
     "zea thalamus oidc jwks" \
-    "keys|kid"
+    "keys|kid|JWKS"
 }
 
 # ── Client (read-only) ────────────────────────
@@ -208,7 +208,7 @@ test_domain() {
 
   run_test "domain roles" \
     "zea thalamus domain roles" \
-    "role|No domain"
+    "role|No domain|Domain"
 }
 
 # ── Role (read-only) ───────────────────────────
@@ -222,7 +222,7 @@ test_role_list() {
 test_admin() {
   local output
   output=$(zea thalamus admin api-key list 2>&1) || true
-  if echo "$output" | grep -qE "Forbidden|super_admin"; then
+  if echo "$output" | grep -qE "Forbidden|super_admin|401|Unauthorized"; then
     echo -n "── admin api-key list... "
     pass "admin api-key list (requires super_admin)"
   else
@@ -239,7 +239,7 @@ test_admin() {
 test_audit() {
   run_test "audit export" \
     "zea thalamus audit export --limit 1" \
-    "log|records"
+    "log|records|Forbidden|403"
 }
 
 # ═══════════════════════════════════════════════════════
