@@ -18,8 +18,8 @@ defmodule Thalamus.Domain.ValueObjects.OrganizationId do
 
   ## Examples
 
-      iex> OrganizationId.new("org_12345")
-      {:ok, %OrganizationId{value: "org_12345"}}
+      iex> OrganizationId.new("org_123e4567-e89b-12d3-a456-426614174000")
+      {:ok, %OrganizationId{value: "org_123e4567-e89b-12d3-a456-426614174000"}}
 
       iex> OrganizationId.new("")
       {:error, :invalid_organization_id}
@@ -68,9 +68,9 @@ defmodule Thalamus.Domain.ValueObjects.OrganizationId do
 
   ## Examples
 
-      iex> org_id = %OrganizationId{value: "org_12345"}
+      iex> org_id = %OrganizationId{value: "org_123e4567-e89b-12d3-a456-426614174000"}
       iex> OrganizationId.to_string(org_id)
-      "org_12345"
+      "org_123e4567-e89b-12d3-a456-426614174000"
   """
   def to_string(%__MODULE__{value: value}), do: value
 
@@ -79,8 +79,11 @@ defmodule Thalamus.Domain.ValueObjects.OrganizationId do
 
   ## Examples
 
-      iex> OrganizationId.from_string("org_12345")
-      {:ok, %OrganizationId{value: "org_12345"}}
+      iex> OrganizationId.from_string("org_123e4567-e89b-12d3-a456-426614174000")
+      {:ok, %OrganizationId{value: "org_123e4567-e89b-12d3-a456-426614174000"}}
+
+      iex> OrganizationId.from_string("org1")
+      {:error, :invalid_organization_id_format}
   """
   def from_string(value) when is_binary(value) do
     normalized =
@@ -96,6 +99,9 @@ defmodule Thalamus.Domain.ValueObjects.OrganizationId do
   # Private functions
 
   defp validate_format(value) do
+    # Extract UUID from value (strip "org_" prefix)
+    uuid = String.replace_prefix(value, "org_", "")
+
     cond do
       String.length(value) < 3 ->
         {:error, :organization_id_too_short}
@@ -106,9 +112,16 @@ defmodule Thalamus.Domain.ValueObjects.OrganizationId do
       not String.match?(value, ~r/^[a-zA-Z0-9_-]+$/) ->
         {:error, :invalid_organization_id_format}
 
+      not valid_uuid?(uuid) ->
+        {:error, :invalid_organization_id_format}
+
       true ->
         :ok
     end
+  end
+
+  defp valid_uuid?(uuid) do
+    String.match?(uuid, ~r/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)
   end
 end
 
