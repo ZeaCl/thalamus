@@ -1,5 +1,5 @@
 import zeaFetch from '../lib/http.js';
-import { getClient } from '../lib/client.js';
+import { loadConfig } from '../lib/client.js';
 import { getGlobalOpts } from '../lib/globals.js';
 import { handleError } from '../lib/errors.js';
 
@@ -20,9 +20,16 @@ export function register(program) {
     .option('--expires-in <seconds>', 'Custom TTL in seconds (max 3600)')
     .option('--reason <reason>', 'Human-readable reason/intent for audit trail')
     .action(async (options) => {
+      const validAgentTypes = ['autonomous', 'supervisor', 'tool'];
+      if (!validAgentTypes.includes(options.agentType)) {
+        console.error(`❌ Invalid agent type: ${options.agentType}. Must be: ${validAgentTypes.join(', ')}`);
+        process.exit(1);
+      }
+
       const opts = getGlobalOpts();
       try {
-        const client = await getClient();
+        const config = await loadConfig();
+        const apiUrl = process.env.ZEA_API_URL || process.env.THALAMUS_API_URL || config.apiUrl || 'https://auth.zea.cl';
 
         const body = {
           client_id: options.clientId,
@@ -41,14 +48,14 @@ export function register(program) {
 
         if (opts.dryRun) {
           console.log('⚠️  DRY RUN — would execute:');
-          console.log(`   POST ${client.apiUrl}/oauth/agent-token`);
+          console.log(`   POST ${apiUrl}/oauth/agent-token`);
           console.log(`   Body: ${JSON.stringify(body, null, 2)}`);
           return;
         }
 
-        const response = await zeaFetch(`${client.apiUrl}/oauth/agent-token`, {
+        const response = await zeaFetch(`${apiUrl}/oauth/agent-token`, {
           method: 'POST',
-          headers: client.headers,
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body)
         });
 

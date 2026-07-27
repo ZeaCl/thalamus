@@ -116,7 +116,7 @@ export function register(program) {
 
         const response = await zeaFetch(`${client.apiUrl}/oauth/introspect`, {
           method: 'POST',
-          headers: client.headers,
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body)
         });
 
@@ -142,6 +142,7 @@ export function register(program) {
           if (result.token_type) console.log(`  Token Type: ${result.token_type}`);
           if (result.exp) console.log(`  Expires: ${new Date(result.exp * 1000).toISOString()}`);
           if (result.iat) console.log(`  Issued At: ${new Date(result.iat * 1000).toISOString()}`);
+          if (result.organization_id) console.log(`  Organization: ${result.organization_id}`);
           if (result.agent_type) console.log(`  Agent Type: ${result.agent_type}`);
           if (result.task_id) console.log(`  Task ID: ${result.task_id}`);
           if (result.delegation_depth !== undefined) console.log(`  Delegation Depth: ${result.delegation_depth}`);
