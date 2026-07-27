@@ -35,16 +35,22 @@ export function zeaFetch(url, options = {}) {
     const port = parsed.port || (isHttps ? 443 : 80);
 
     // Resolve .zea.localhost → 127.0.0.1 without monkey-patching global DNS
-    const hostname = (parsed.hostname === 'zea.localhost' || parsed.hostname.endsWith('.zea.localhost'))
-      ? '127.0.0.1'
-      : parsed.hostname;
+    const isLocalhostDomain = parsed.hostname === 'zea.localhost' || parsed.hostname.endsWith('.zea.localhost');
+    const hostname = isLocalhostDomain ? '127.0.0.1' : parsed.hostname;
+
+    // Caddy needs the Host header to route to the correct backend.
+    // When resolving to 127.0.0.1, preserve the original hostname via Host header.
+    const headers = { ...options.headers };
+    if (isLocalhostDomain && !headers['Host']) {
+      headers['Host'] = parsed.hostname;
+    }
 
     const reqOptions = {
       hostname,
       port: port,
       path: parsed.pathname + parsed.search,
       method: method,
-      headers: options.headers || {},
+      headers,
       timeout: options.timeout || 30000
     };
 
