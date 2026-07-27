@@ -94,4 +94,61 @@ export function register(program) {
         handleError(e);
       }
     });
+
+  tokenCmd.command('introspect')
+    .description('Introspect a token (RFC 7662)')
+    .requiredOption('--token <token>', 'Access or refresh token to introspect')
+    .option('--token-type-hint <type>', 'Hint: access_token or refresh_token')
+    .action(async (options) => {
+      const opts = getGlobalOpts();
+      try {
+        const client = await getClient();
+
+        const body = { token: options.token };
+        if (options.tokenTypeHint) body.token_type_hint = options.tokenTypeHint;
+
+        if (opts.dryRun) {
+          console.log('⚠️  DRY RUN — would execute:');
+          console.log(`   POST ${client.apiUrl}/oauth/introspect`);
+          console.log(`   Body: ${JSON.stringify(body, null, 2)}`);
+          return;
+        }
+
+        const response = await zeaFetch(`${client.apiUrl}/oauth/introspect`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+
+        if (!response.ok) {
+          const errText = await response.text();
+          throw new Error(`Introspection failed (${response.status}): ${errText}`);
+        }
+
+        const result = await response.json();
+
+        if (opts.output === 'json') {
+          console.log(JSON.stringify(result, null, 2));
+          return;
+        }
+
+        console.log('Token Introspection:');
+        console.log(`  Active: ${result.active}`);
+        if (result.active) {
+          if (result.scope) console.log(`  Scopes: ${result.scope}`);
+          if (result.client_id) console.log(`  Client ID: ${result.client_id}`);
+          if (result.username) console.log(`  Username: ${result.username}`);
+          if (result.sub) console.log(`  Subject: ${result.sub}`);
+          if (result.token_type) console.log(`  Token Type: ${result.token_type}`);
+          if (result.exp) console.log(`  Expires: ${new Date(result.exp * 1000).toISOString()}`);
+          if (result.iat) console.log(`  Issued At: ${new Date(result.iat * 1000).toISOString()}`);
+          if (result.organization_id) console.log(`  Organization: ${result.organization_id}`);
+          if (result.agent_type) console.log(`  Agent Type: ${result.agent_type}`);
+          if (result.task_id) console.log(`  Task ID: ${result.task_id}`);
+          if (result.delegation_depth !== undefined) console.log(`  Delegation Depth: ${result.delegation_depth}`);
+        }
+      } catch (e) {
+        handleError(e);
+      }
+    });
 }
