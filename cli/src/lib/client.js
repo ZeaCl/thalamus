@@ -19,6 +19,16 @@ export async function loadConfig() {
   }
 }
 
+/**
+ * Resolve the Thalamus API URL from environment, explicit options, or config.
+ * Priority: ZEA_API_URL > THALAMUS_API_URL > optionsUrl > config.apiUrl > default.
+ * Pass an already-loaded config object to avoid double-loading if caller needs config too.
+ */
+export async function resolveApiUrl(optionsUrl, config = null) {
+  const cfg = config || await loadConfig();
+  return process.env.ZEA_API_URL || process.env.THALAMUS_API_URL || optionsUrl || cfg.apiUrl || 'https://auth.zea.cl';
+}
+
 export async function saveAuthConfig(accessToken, refreshToken, apiUrl) {
   const config = await loadConfig();
   config.token = accessToken;
@@ -50,7 +60,7 @@ export async function saveConfig(config) {
 export async function getClient() {
   const config = await loadConfig();
   const token = process.env.ZEA_PAT || process.env.THALAMUS_PAT || process.env.ZEA_TOKEN || config.token;
-  const apiUrl = process.env.ZEA_API_URL || process.env.THALAMUS_API_URL || config.apiUrl || 'https://auth.zea.cl';
+  const apiUrl = await resolveApiUrl(null, config);
   const activeOrgId = config.activeOrgId || process.env.ZEA_ORG_ID || null;
   const cerebelumUrl = process.env.ZEA_CEREBELUM_URL || process.env.CEREBELUM_URL || config.cerebelumUrl || 'http://cerebelum.zea.localhost';
   const ventureUrl = process.env.ZEA_VENTURE_URL || config.ventureUrl || 'http://venture.zea.localhost';
@@ -88,8 +98,7 @@ export async function getClient() {
 }
 
 export async function handleDirectLogin(options) {
-  const config = await loadConfig();
-  const apiUrl = process.env.ZEA_API_URL || process.env.THALAMUS_API_URL || config.apiUrl || options.url || 'https://auth.zea.cl';
+  const apiUrl = await resolveApiUrl(options.url);
   const email = options.email;
   const password = options.password;
   
@@ -119,8 +128,7 @@ export async function handleDirectLogin(options) {
 }
 
 export async function handleLogin(options) {
-  const config = await loadConfig();
-  const apiUrl = process.env.ZEA_API_URL || process.env.THALAMUS_API_URL || config.apiUrl || options.url || 'https://auth.zea.cl';
+  const apiUrl = await resolveApiUrl(options.url);
 
   const codeVerifier = crypto.randomBytes(32).toString('base64url');
   const codeChallenge = crypto.createHash('sha256').update(codeVerifier).digest('base64url');
@@ -210,8 +218,7 @@ export async function handleLogin(options) {
 }
 
 export async function handleDeviceLogin(options) {
-  const config = await loadConfig();
-  const apiUrl = process.env.ZEA_API_URL || process.env.THALAMUS_API_URL || config.apiUrl || options.url || 'https://auth.zea.cl';
+  const apiUrl = await resolveApiUrl(options.url);
   const clientId = 'thalamus_cli';
   const scopes = options.scopes || 'openid profile email zea:read zea:write';
 
@@ -329,7 +336,7 @@ export async function resolveSecret(provider) {
   try {
     const config = await loadConfig();
     const token = process.env.ZEA_PAT || process.env.THALAMUS_PAT || process.env.ZEA_TOKEN || config.token;
-    const apiUrl = process.env.ZEA_API_URL || process.env.THALAMUS_API_URL || config.apiUrl || 'https://auth.zea.cl';
+    const apiUrl = await resolveApiUrl(null, config);
     
     if (!token) return null;
 
