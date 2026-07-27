@@ -88,7 +88,8 @@ export async function getClient() {
 }
 
 export async function handleDirectLogin(options) {
-  const apiUrl = process.env.ZEA_API_URL || process.env.THALAMUS_API_URL || options.url || 'https://auth.zea.cl';
+  const config = await loadConfig();
+  const apiUrl = process.env.ZEA_API_URL || process.env.THALAMUS_API_URL || config.apiUrl || options.url || 'https://auth.zea.cl';
   const email = options.email;
   const password = options.password;
   
@@ -118,7 +119,8 @@ export async function handleDirectLogin(options) {
 }
 
 export async function handleLogin(options) {
-  const apiUrl = process.env.ZEA_API_URL || process.env.THALAMUS_API_URL || options.url || 'https://auth.zea.cl';
+  const config = await loadConfig();
+  const apiUrl = process.env.ZEA_API_URL || process.env.THALAMUS_API_URL || config.apiUrl || options.url || 'https://auth.zea.cl';
 
   const codeVerifier = crypto.randomBytes(32).toString('base64url');
   const codeChallenge = crypto.createHash('sha256').update(codeVerifier).digest('base64url');
@@ -208,7 +210,8 @@ export async function handleLogin(options) {
 }
 
 export async function handleDeviceLogin(options) {
-  const apiUrl = process.env.ZEA_API_URL || process.env.THALAMUS_API_URL || options.url || 'https://auth.zea.cl';
+  const config = await loadConfig();
+  const apiUrl = process.env.ZEA_API_URL || process.env.THALAMUS_API_URL || config.apiUrl || options.url || 'https://auth.zea.cl';
   const clientId = 'thalamus_cli';
   const scopes = options.scopes || 'openid profile email zea:read zea:write';
 
