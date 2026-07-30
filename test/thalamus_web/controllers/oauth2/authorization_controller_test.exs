@@ -619,6 +619,39 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
       assert response(conn, 400)
     end
 
+    test "uses first registered URI when redirect_uri is nil (even if wildcard)", %{
+      conn: conn,
+      user: user,
+      org: org
+    } do
+      {:ok, wildcard_client} =
+        TestHelpers.create_test_client(
+          "Nil Redirect Client",
+          org.id,
+          ["openid"],
+          redirect_uris: ["https://*.sudlich.k8s.local/auth/callback"],
+          grant_types: [:authorization_code]
+        )
+
+      {:ok, wildcard_client} = PostgreSQLOAuth2ClientRepository.save(wildcard_client)
+
+      conn =
+        conn
+        |> Plug.Test.init_test_session(%{})
+        |> put_session(:user_id, to_string(user.id))
+        |> post(~p"/oauth/authorize", %{
+          decision: "approve",
+          client_id: to_string(wildcard_client.id),
+          scope: "openid"
+          # redirect_uri intentionally omitted — uses first registered
+        })
+
+      # Should default to the first registered URI (wildcard pattern as-is)
+      assert redirected_to(conn, 302)
+      location = Plug.Conn.get_resp_header(conn, "location") |> List.first()
+      assert location =~ "sudlich.k8s.local"
+    end
+
     test "rejects wildcard when scheme differs", %{conn: conn, user: user, org: org} do
       {:ok, wildcard_client} =
         TestHelpers.create_test_client(

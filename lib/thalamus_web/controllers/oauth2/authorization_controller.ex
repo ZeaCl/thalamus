@@ -265,6 +265,9 @@ defmodule ThalamusWeb.OAuth2.AuthorizationController do
     if String.contains?(allowed_uri, "*") do
       # Convert wildcard pattern to regex: escape all regex-special chars,
       # then replace escaped wildcard with a pattern matching exactly one DNS label.
+      # NOTE: Regex.compile!/1 is safe here because the pattern is derived from
+      # an admin-registered URI that has been fully escaped before wildcard substitution.
+      # If this becomes a hot path, consider caching compiled regexes keyed by allowed_uri.
       regex_pattern =
         allowed_uri
         |> Regex.escape()
