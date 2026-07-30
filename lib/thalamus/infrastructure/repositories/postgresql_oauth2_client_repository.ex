@@ -39,7 +39,12 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository 
     case Ecto.UUID.cast(uuid_only) do
       {:ok, valid_uuid} ->
         OAuth2ClientSchema
-        |> where([c], c.id == ^valid_uuid or c.client_id_string == ^uuid_only)
+        |> where(
+          [c],
+          c.id == ^valid_uuid or
+            c.client_id_string == ^uuid_only or
+            c.client_id_string == ^client_id_string
+        )
         |> Repo.one()
 
       :error ->
