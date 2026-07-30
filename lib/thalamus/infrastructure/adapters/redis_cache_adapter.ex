@@ -42,7 +42,9 @@ defmodule Thalamus.Infrastructure.Adapters.RedisCacheAdapter do
        name: :redix,
        sync_connect: false,
        exit_on_disconnection: false,
-       socket_opts: [:inet6]}
+       backoff_initial: 500,
+       backoff_max: 15_000,
+       socket_opts: [keepalive: true]}
     ]
 
     %{
