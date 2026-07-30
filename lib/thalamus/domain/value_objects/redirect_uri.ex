@@ -191,9 +191,11 @@ defmodule Thalamus.Domain.ValueObjects.RedirectUri do
     case URI.parse(value) do
       %URI{scheme: scheme, host: host} when not is_nil(scheme) and not is_nil(host) ->
         true
+
       # Wildcard pattern: https://*.example.com/callback
-      %URI{scheme: scheme} when not is_nil(scheme) and String.contains?(value, "*") ->
-        true
+      %URI{scheme: scheme} when not is_nil(scheme) ->
+        String.contains?(value, "*")
+
       _ ->
         false
     end
