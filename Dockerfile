@@ -129,6 +129,12 @@ WORKDIR /app
 RUN mix local.hex --force && \
     mix local.rebar --force
 
+# Copy source code for K8s deployment
+COPY mix.exs mix.lock ./
+RUN mix deps.get
+COPY . .
+RUN mix compile
+
 # Expose ports
 EXPOSE 4000
 

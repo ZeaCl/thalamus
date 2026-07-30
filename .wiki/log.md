@@ -44,3 +44,20 @@ Reportado por integración con fm_funds. El JWT emitido en login no incluye los 
 
 ## [pre-2026-07] feat | v1.0.0-rc1 — OAuth2 + OIDC + MFA + Multi-tenancy
 Release candidate con: Authorization Code + PKCE, Client Credentials, Refresh Token, Token Introspection (RFC 7662), Revocation (RFC 7009), OIDC userinfo, TOTP MFA, RBAC, agent tokens (feature-flagged), rate limiting, CORS, security headers.
+
+## [2026-07-27] fix | #125 Device flow no leía config.apiUrl
+- **Issue**: #125
+- **Ramas**: fix/issue-125-device-flow-apiurl, fix/issue-125-refactor-apiurl
+- handleDeviceLogin, handleLogin, handleDirectLogin no incluían config.apiUrl en fallback
+- Fix inicial: agregar loadConfig() + config.apiUrl en los 3 handlers
+- Refactor: extraer resolveApiUrl() helper, corregir prioridad (options.url > config.apiUrl)
+- PRs: #126, #127
+
+## [2026-07-27] fix | #128 zeaFetch no enviaba Host header a .zea.localhost
+- **Issue**: #128
+- **Rama**: fix/issue-128-zeafetch-host-header  
+- zeaFetch resolvía .zea.localhost → 127.0.0.1 pero sin Host header
+- Caddy necesita Host para rutear → devolvía body vacío (content-length: 0)
+- Fix: agregar Host header automáticamente al resolver .zea.localhost
+- Afectaba todos los endpoints .zea.localhost, no solo device login
+- PR: #129
