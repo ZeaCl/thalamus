@@ -493,6 +493,158 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerTest do
 
       assert response(conn, 400)
     end
+
+    test "allows wildcard subdomain match", %{conn: conn, user: user, org: org} do
+      # Create client with wildcard redirect URI
+      {:ok, wildcard_client} =
+        TestHelpers.create_test_client(
+          "Wildcard Client",
+          org.id,
+          ["openid", "profile"],
+          redirect_uris: ["https://*.sudlich.k8s.local/auth/callback"],
+          grant_types: [:authorization_code]
+        )
+
+      {:ok, wildcard_client} = PostgreSQLOAuth2ClientRepository.save(wildcard_client)
+
+      conn =
+        conn
+        |> Plug.Test.init_test_session(%{})
+        |> put_session(:user_id, to_string(user.id))
+        |> post(~p"/oauth/authorize", %{
+          decision: "approve",
+          client_id: to_string(wildcard_client.id),
+          redirect_uri: "https://pr-133.sudlich.k8s.local/auth/callback",
+          scope: "openid"
+        })
+
+      assert redirected_to(conn, 302) =~ "pr-133.sudlich.k8s.local"
+    end
+
+    test "allows wildcard with exact host match as well", %{conn: conn, user: user, org: org} do
+      {:ok, wildcard_client} =
+        TestHelpers.create_test_client(
+          "Mixed Client",
+          org.id,
+          ["openid"],
+          redirect_uris: [
+            "https://app.example.com/callback",
+            "https://*.sudlich.k8s.local/auth/callback"
+          ],
+          grant_types: [:authorization_code]
+        )
+
+      {:ok, wildcard_client} = PostgreSQLOAuth2ClientRepository.save(wildcard_client)
+
+      # Test exact match still works
+      conn =
+        conn
+        |> Plug.Test.init_test_session(%{})
+        |> put_session(:user_id, to_string(user.id))
+        |> post(~p"/oauth/authorize", %{
+          decision: "approve",
+          client_id: to_string(wildcard_client.id),
+          redirect_uri: "https://app.example.com/callback",
+          scope: "openid"
+        })
+
+      assert redirected_to(conn, 302) =~ "app.example.com"
+
+      # Test wildcard match also works
+      conn2 =
+        build_conn()
+        |> Plug.Test.init_test_session(%{})
+        |> put_session(:user_id, to_string(user.id))
+        |> post(~p"/oauth/authorize", %{
+          decision: "approve",
+          client_id: to_string(wildcard_client.id),
+          redirect_uri: "https://staging.sudlich.k8s.local/auth/callback",
+          scope: "openid"
+        })
+
+      assert redirected_to(conn2, 302) =~ "staging.sudlich.k8s.local"
+    end
+
+    test "rejects wildcard when subdomain is too deep", %{conn: conn, user: user, org: org} do
+      {:ok, wildcard_client} =
+        TestHelpers.create_test_client(
+          "Wildcard Client 2",
+          org.id,
+          ["openid"],
+          redirect_uris: ["https://*.sudlich.k8s.local/auth/callback"],
+          grant_types: [:authorization_code]
+        )
+
+      {:ok, wildcard_client} = PostgreSQLOAuth2ClientRepository.save(wildcard_client)
+
+      conn =
+        conn
+        |> Plug.Test.init_test_session(%{})
+        |> put_session(:user_id, to_string(user.id))
+        |> post(~p"/oauth/authorize", %{
+          decision: "approve",
+          client_id: to_string(wildcard_client.id),
+          # Two labels deep — should NOT match *.sudlich.k8s.local
+          redirect_uri: "https://deep.pr-133.sudlich.k8s.local/auth/callback",
+          scope: "openid"
+        })
+
+      assert response(conn, 400)
+    end
+
+    test "rejects wildcard when path differs", %{conn: conn, user: user, org: org} do
+      {:ok, wildcard_client} =
+        TestHelpers.create_test_client(
+          "Wildcard Client 3",
+          org.id,
+          ["openid"],
+          redirect_uris: ["https://*.sudlich.k8s.local/auth/callback"],
+          grant_types: [:authorization_code]
+        )
+
+      {:ok, wildcard_client} = PostgreSQLOAuth2ClientRepository.save(wildcard_client)
+
+      conn =
+        conn
+        |> Plug.Test.init_test_session(%{})
+        |> put_session(:user_id, to_string(user.id))
+        |> post(~p"/oauth/authorize", %{
+          decision: "approve",
+          client_id: to_string(wildcard_client.id),
+          # Different path — should NOT match
+          redirect_uri: "https://pr-133.sudlich.k8s.local/evil/callback",
+          scope: "openid"
+        })
+
+      assert response(conn, 400)
+    end
+
+    test "rejects wildcard when scheme differs", %{conn: conn, user: user, org: org} do
+      {:ok, wildcard_client} =
+        TestHelpers.create_test_client(
+          "Wildcard Client 4",
+          org.id,
+          ["openid"],
+          redirect_uris: ["https://*.sudlich.k8s.local/auth/callback"],
+          grant_types: [:authorization_code]
+        )
+
+      {:ok, wildcard_client} = PostgreSQLOAuth2ClientRepository.save(wildcard_client)
+
+      conn =
+        conn
+        |> Plug.Test.init_test_session(%{})
+        |> put_session(:user_id, to_string(user.id))
+        |> post(~p"/oauth/authorize", %{
+          decision: "approve",
+          client_id: to_string(wildcard_client.id),
+          # http instead of https — should NOT match
+          redirect_uri: "http://pr-133.sudlich.k8s.local/auth/callback",
+          scope: "openid"
+        })
+
+      assert response(conn, 400)
+    end
   end
 
   describe "rate limiting" do
