@@ -1,0 +1,6 @@
+apiVersion: v2
+name: thalamus
+description: Auth OAuth2 + M2M
+type: application
+version: 0.1.0
+appVersion: "latest"

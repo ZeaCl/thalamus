@@ -1,0 +1,40 @@
+# ── Imagen ──────────────────────────────────────
+image:
+  repository: thalamus
+  tag: latest
+  pullPolicy: IfNotPresent
+
+# ── Recursos ────────────────────────────────────
+resources:
+  requests:
+    memory: "128Mi"
+    cpu: "100m"
+  limits:
+    memory: "512Mi"
+    cpu: "500m"
+
+# ── Ingress ─────────────────────────────────────
+ingress:
+  enabled: true
+  host: thalamus.k8s.local
+  tls:
+    enabled: false
+
+# ── Servicio ────────────────────────────────────
+service:
+  type: ClusterIP
+  port: 4000
+
+# ── Health checks ───────────────────────────────
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 4000
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 4000
+
+# ── Entorno ─────────────────────────────────────
+env:
+  phxHost: thalamus.zea.localhost
