@@ -73,11 +73,22 @@ defmodule ThalamusWeb.Router do
     plug ThalamusWeb.Plugs.RateLimiter, limit: 1000, window: 60_000, key: :user_id
   end
 
+  # Health check pipeline — no auth, no rate limiting (Docker healthcheck / LB)
+  pipeline :health do
+    plug :accepts, ["json"]
+  end
+
   # Internal API for Microservices (e.g., Glia)
   pipeline :internal_api do
     plug :accepts, ["json"]
     # In production, this would be protected by mTLS or a static internal token.
     # For now, we allow it internally.
+  end
+
+  # Health check (public, no auth, no rate limiting)
+  scope "/", ThalamusWeb do
+    pipe_through :health
+    get "/health", HealthController, :index
   end
 
   scope "/", ThalamusWeb do
