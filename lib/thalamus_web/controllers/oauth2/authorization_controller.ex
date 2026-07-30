@@ -241,8 +241,8 @@ defmodule ThalamusWeb.OAuth2.AuthorizationController do
     # Convert client redirect_uris (Value Objects) to strings for comparison
     allowed_uris = Enum.map(client.redirect_uris, &redirect_uri_to_string/1)
 
-    # Check if redirect_uri is in the client's registered URIs
-    if redirect_uri in allowed_uris do
+    # Check if redirect_uri matches any allowed URI (exact or wildcard)
+    if uri_matches_any?(redirect_uri, allowed_uris) do
       {:ok, redirect_uri}
     else
       {:error, "invalid_request", "Invalid redirect_uri"}
@@ -251,6 +251,34 @@ defmodule ThalamusWeb.OAuth2.AuthorizationController do
 
   defp redirect_uri_to_string(%RedirectUri{value: value}), do: value
   defp redirect_uri_to_string(str) when is_binary(str), do: str
+
+  # Checks if the given redirect_uri matches any of the allowed URIs.
+  # Supports wildcard patterns: "https://*.example.com/callback" matches
+  # "https://subdomain.example.com/callback" but NOT deeper subdomains.
+  defp uri_matches_any?(redirect_uri, allowed_uris) do
+    Enum.any?(allowed_uris, fn allowed_uri ->
+      uri_matches?(redirect_uri, allowed_uri)
+    end)
+  end
+
+  defp uri_matches?(redirect_uri, allowed_uri) do
+    if String.contains?(allowed_uri, "*") do
+      # Convert wildcard pattern to regex: escape all regex-special chars,
+      # then replace escaped wildcard with a pattern matching exactly one DNS label.
+      # NOTE: Regex.compile!/1 is safe here because the pattern is derived from
+      # an admin-registered URI that has been fully escaped before wildcard substitution.
+      # If this becomes a hot path, consider caching compiled regexes keyed by allowed_uri.
+      regex_pattern =
+        allowed_uri
+        |> Regex.escape()
+        |> String.replace("\\*", "[^.]+")
+        |> then(&"^#{&1}$")
+
+      Regex.match?(Regex.compile!(regex_pattern), redirect_uri)
+    else
+      redirect_uri == allowed_uri
+    end
+  end
 
   defp parse_scopes(nil), do: {:ok, []}
   defp parse_scopes(""), do: {:ok, []}
