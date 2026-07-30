@@ -254,7 +254,12 @@ platform_web_uris = [
   "https://sudlich.zea.cl/auth/callback",
   # NextAuth callback URLs (provider-specific path)
   "http://localhost:3000/api/auth/callback/thalamus",
-  "http://app.zea.localhost/api/auth/callback/thalamus"
+  "http://app.zea.localhost/api/auth/callback/thalamus",
+  # Puertos :8080 (docker compose local)
+  "http://zea.localhost:8080/auth/callback",
+  "http://sudlich.zea.localhost:8080/auth/callback",
+  "http://sudlich-soma.zea.localhost:8080/auth/callback",
+  "http://app.zea.localhost:8080/api/auth/callback/thalamus"
 ]
 
 case Repo.get(OAuth2ClientSchema, platform_web_client_id) ||
@@ -422,7 +427,8 @@ case Repo.get(OAuth2ClientSchema, sudlich_client_1_id) do
         organization_id: sudlich_org_id,
         redirect_uris: [
           "https://sudlich.zea.cl/auth/callback",
-          "http://localhost:5173/auth/callback"
+          "http://localhost:5173/auth/callback",
+          "http://sudlich.zea.localhost:8080/auth/callback"
         ],
         allowed_grant_types: ["authorization_code", "refresh_token"],
         allowed_scopes: ["openid", "profile", "email"],
@@ -463,7 +469,8 @@ case Repo.get(OAuth2ClientSchema, sudlich_client_2_id) do
         organization_id: sudlich_org_id,
         redirect_uris: [
           "https://sudlich.zea.cl/auth/callback",
-          "http://localhost:5173/auth/callback"
+          "http://localhost:5173/auth/callback",
+          "http://sudlich.zea.localhost:8080/auth/callback"
         ],
         allowed_grant_types: ["authorization_code", "refresh_token"],
         allowed_scopes: [],
