@@ -5,15 +5,9 @@ defmodule ThalamusWeb.Plugs.AuthenticateToken do
   Validates Bearer tokens in the Authorization header and injects
   authenticated user/client context into the connection.
 
-  This plug implements token-based authentication for the API:
-  - Extracts token from Authorization header
-  - Validates token using ValidateToken use case
-  - Injects authenticated context into conn.assigns
-  - Returns 401 Unauthorized if token is missing or invalid
-
-  SOLID Principles Applied:
-  - Single Responsibility: Only handles token authentication
-  - Dependency Inversion: Uses ValidateToken use case through interface
+  Two validation strategies, tried in order:
+  1. Opaque tokens — looked up in the tokens DB table (OAuth2 flow)
+  2. JWT tokens — validated via JWKS signature (public login flow)
 
   ## Usage
 
@@ -88,34 +82,132 @@ defmodule ThalamusWeb.Plugs.AuthenticateToken do
 
   defp validate_and_authenticate(conn, token) do
     case ValidateToken.execute(token, @deps) do
-      {:ok, validation_result} ->
-        if validation_result.valid and validation_result.active do
-          # Token is valid and active - inject context
-          conn
-          |> assign(:current_user_id, validation_result.user_id)
-          |> assign(:current_client_id, validation_result.client_id)
-          |> assign(:token_scope, validation_result.scope)
-          |> assign(:auth_context, validation_result)
-        else
-          # Token is invalid or inactive (expired, revoked, or not found)
-          cond do
-            Map.get(validation_result, :revoked, false) ->
-              unauthorized(conn, "Token has been revoked")
+      {:ok, %{valid: true, active: true} = result} ->
+        inject_opaque_context(conn, result)
 
-            Map.get(validation_result, :expired, false) ->
-              unauthorized(conn, "Token has expired")
+      {:ok, %{valid: false}} ->
+        # Token not valid in DB — try JWT fallback only if it looks like
+        # a self-contained JWT (3 segments). OAuth2 tokens use the same
+        # JWT format but are stored in DB; public login tokens are not.
+        # We distinguish by client_id: thalamus_api = public login JWT.
+        if jwt_format?(token) and thalamus_api_jwt?(token) do
+          case validate_jwt(token) do
+            {:ok, claims} ->
+              inject_jwt_context(conn, claims)
 
-            !validation_result.active ->
+            {:error, _} ->
               unauthorized(conn, "Invalid or inactive token")
-
-            true ->
-              unauthorized(conn, "Token validation failed")
           end
+        else
+          unauthorized(conn, "Invalid or inactive token")
         end
 
       {:error, :invalid_token_format} ->
         unauthorized(conn, "Invalid token format")
     end
+  end
+
+  defp jwt_format?(token) do
+    String.match?(token, ~r/^[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+$/)
+  end
+
+  # Only fall back to JWT signature validation for tokens from the
+  # public login endpoint (thalamus_api client). OAuth2 tokens are
+  # also JWTs but must go through DB validation to support revocation.
+  defp thalamus_api_jwt?(token) do
+    case String.split(token, ".") do
+      [_, payload_b64 | _] ->
+        case Base.url_decode64(payload_b64, padding: false) do
+          {:ok, json} ->
+            case Jason.decode(json) do
+              {:ok, %{"client_id" => "thalamus_api"}} -> true
+              _ -> false
+            end
+
+          _ ->
+            false
+        end
+
+      _ ->
+        false
+    end
+  rescue
+    _ -> false
+  end
+
+  # ── Opaque token context injection ───────────────────────────
+
+  defp inject_opaque_context(conn, result) do
+    conn
+    |> assign(:current_user_id, result.user_id)
+    |> assign(:current_client_id, result.client_id)
+    |> assign(:token_scope, result.scope)
+    |> assign(:auth_context, result)
+  end
+
+  # ── JWT validation via JWKS (fallback) ───────────────────────
+
+  defp validate_jwt(token) do
+    require Logger
+
+    with {:ok, jwks} <- fetch_jwks(),
+         {:ok, signer} <- build_signer(jwks, token),
+         {:ok, claims} <- Joken.verify_and_validate(%{}, token, signer) do
+      {:ok, claims}
+    else
+      {:error, reason} ->
+        Logger.warning("AuthenticateToken: JWT validation failed: #{inspect(reason)}")
+        {:error, reason}
+    end
+  end
+
+  defp inject_jwt_context(conn, claims) do
+    scopes =
+      case claims["scope"] do
+        nil -> claims["scopes"] || []
+        s when is_binary(s) -> String.split(s, " ")
+        s -> s
+      end
+
+    conn
+    |> assign(:current_user_id, claims["sub"])
+    |> assign(:current_client_id, claims["client_id"])
+    |> assign(:token_scope, scopes)
+    |> assign(:auth_context, %{valid: true, active: true, scope: scopes, jwt: true})
+  end
+
+  defp fetch_jwks do
+    {:ok, Thalamus.Infrastructure.JwtSigner.jwks()}
+  rescue
+    _ -> {:error, "JWKS unavailable"}
+  end
+
+  defp build_signer(jwks, token) do
+    [header_b64 | _] = String.split(token, ".")
+    {:ok, header_json} = Base.url_decode64(header_b64, padding: false)
+    header = Jason.decode!(header_json)
+    keys = jwks[:keys] || jwks["keys"] || []
+
+    key =
+      if header["kid"],
+        do: Enum.find(keys, fn k -> (k[:kid] || k["kid"]) == header["kid"] end),
+        else: List.first(keys)
+
+    if key do
+      pem = jwk_to_pem(key)
+      {:ok, Joken.Signer.create("RS256", %{"pem" => pem})}
+    else
+      {:error, "No matching JWK"}
+    end
+  end
+
+  defp jwk_to_pem(key) do
+    n = key[:n] || key["n"]
+    e = key[:e] || key["e"]
+    n_int = :binary.decode_unsigned(Base.url_decode64!(n, padding: false))
+    e_int = :binary.decode_unsigned(Base.url_decode64!(e, padding: false))
+    pem_entry = :public_key.pem_entry_encode(:RSAPublicKey, {:RSAPublicKey, n_int, e_int})
+    :public_key.pem_encode([pem_entry])
   end
 
   defp unauthorized(conn, message) do
