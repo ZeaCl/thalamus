@@ -307,6 +307,7 @@ defmodule ThalamusWeb.API.UserController do
       id: UserId.to_string(user.id),
       email: Email.to_string(user.email),
       name: user.name,
+      organization_id: strip_org_prefix(user.organization_id),
       status: user.status,
       verified: !is_nil(user.verified_at),
       verified_at: user.verified_at,
@@ -318,6 +319,10 @@ defmodule ThalamusWeb.API.UserController do
       agent_config: user.agent_config
     }
   end
+
+  defp strip_org_prefix(nil), do: nil
+  defp strip_org_prefix("org_" <> id), do: id
+  defp strip_org_prefix(id), do: id
 
   defp get_required_param(params, key) do
     case params[key] do
