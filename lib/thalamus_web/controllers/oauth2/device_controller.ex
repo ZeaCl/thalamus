@@ -184,8 +184,19 @@ defmodule ThalamusWeb.OAuth2.DeviceController do
         _ -> if conn.scheme == :http, do: "http", else: "https"
       end
 
-    host = conn.host
-    port = if conn.port in [80, 443], do: "", else: ":#{conn.port}"
+    # Use configured host if set, otherwise fall back to request host
+    host = Application.get_env(:thalamus, :host, conn.host)
+
+    # Omit default ports (80/443) unless PUBLIC_PORT is configured
+    public_port = Application.get_env(:thalamus, :public_port)
+
+    port =
+      cond do
+        public_port -> ":#{public_port}"
+        conn.port in [80, 443] -> ""
+        true -> ":#{conn.port}"
+      end
+
     "#{scheme}://#{host}#{port}/oauth/activate"
   end
 

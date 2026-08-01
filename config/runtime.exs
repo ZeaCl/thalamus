@@ -66,10 +66,13 @@ if config_env() == :prod do
 
   host = System.get_env("PHX_HOST") || "example.com"
   port = String.to_integer(System.get_env("PORT") || "4000")
-  public_port = if System.get_env("FORCE_SSL") == "true", do: 443, else: 80
+  public_port = String.to_integer(System.get_env("PUBLIC_PORT") || "0")
+  public_port = if public_port > 0, do: public_port, else: (if System.get_env("FORCE_SSL") == "true", do: 443, else: 80)
   scheme = if System.get_env("FORCE_SSL") == "true", do: "https", else: "http"
 
   config :thalamus, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
+  config :thalamus, :host, host
+  config :thalamus, :public_port, public_port
 
   config :thalamus, ThalamusWeb.Endpoint,
     url: [host: host, port: public_port, scheme: scheme],
