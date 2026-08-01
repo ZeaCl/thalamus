@@ -10,7 +10,7 @@ env:
 
 jobs:
   build-and-push:
-    runs-on: [self-hosted, k8s, docker]
+    runs-on: [self-hosted, mac, docker]
     permissions:
       contents: read
       packages: write
