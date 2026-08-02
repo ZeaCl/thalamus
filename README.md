@@ -155,3 +155,5 @@ make precommit      # compile --warnings-as-errors + format + test
 ## 📄 License
 
 Apache 2.0 — [ZEA Platform](https://github.com/zeacl)
+
+<!-- CI/CD test Sun Aug  2 02:35:03 UTC 2026 -->
