@@ -107,14 +107,16 @@ defmodule ThalamusWeb.Plugs.AuthenticateToken do
     end
   end
 
-  defp jwt_format?(token) do
+  @doc false
+  def jwt_format?(token) do
     String.match?(token, ~r/^[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+$/)
   end
 
   # Only fall back to JWT signature validation for tokens from the
   # public login endpoint (thalamus_api client). OAuth2 tokens are
   # also JWTs but must go through DB validation to support revocation.
-  defp thalamus_api_jwt?(token) do
+  @doc false
+  def thalamus_api_jwt?(token) do
     case String.split(token, ".") do
       [_, payload_b64 | _] ->
         case Base.url_decode64(payload_b64, padding: false) do
@@ -152,12 +154,29 @@ defmodule ThalamusWeb.Plugs.AuthenticateToken do
 
     with {:ok, jwks} <- fetch_jwks(),
          {:ok, signer} <- build_signer(jwks, token),
-         {:ok, claims} <- Joken.verify_and_validate(%{}, token, signer) do
+         {:ok, claims} <- Joken.verify_and_validate(%{}, token, signer),
+         :ok <- validate_jwt_claims(claims) do
       {:ok, claims}
     else
       {:error, reason} ->
         Logger.warning("AuthenticateToken: JWT validation failed: #{inspect(reason)}")
         {:error, reason}
+    end
+  end
+
+  # Validates essential JWT claims after signature verification.
+  # Joken.verify_and_validate/3 with an empty config validates nothing
+  # beyond the signature, so we must check exp, iss, etc. here.
+  @doc false
+  def validate_jwt_claims(claims) do
+    now = DateTime.utc_now() |> DateTime.to_unix()
+
+    cond do
+      is_integer(claims["exp"]) and claims["exp"] < now ->
+        {:error, "Token has expired"}
+
+      true ->
+        :ok
     end
   end
 
@@ -179,7 +198,10 @@ defmodule ThalamusWeb.Plugs.AuthenticateToken do
   defp fetch_jwks do
     {:ok, Thalamus.Infrastructure.JwtSigner.jwks()}
   rescue
-    _ -> {:error, "JWKS unavailable"}
+    e ->
+      require Logger
+      Logger.warning("AuthenticateToken: JWKS fetch failed: #{Exception.message(e)}")
+      {:error, "JWKS unavailable"}
   end
 
   defp build_signer(jwks, token) do
