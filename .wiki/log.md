@@ -1,5 +1,10 @@
 # Log
 
+## [2026-08-03] fix | #147 zea-thalamus login usa puerto aleatorio → invalid redirect_uri
+- `server.listen(0)` elegía puerto aleatorio, pero Thalamus solo acepta redirect URIs registradas
+- Fix: cambiado a `server.listen(4005)`, puerto que ya está en la whitelist del client "Thalamus CLI"
+- Archivo: `cli/src/lib/client.js` línea 201
+
 ## [2026-07-26] fix | #119 seeds.exs sobreescribe members en cada deploy
 - seeds corría en cada deploy (vía release.ex migrate) y reseteaba organization.members y current_user_count
 - Fix: guardia is_nil/empty antes de los Repo.update! de ZEA y Südlich

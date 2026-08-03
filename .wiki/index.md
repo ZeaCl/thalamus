@@ -2,6 +2,8 @@
 
 ## Features
 
+- [login-port-random](features/147-login-port-random.md) — Fix puerto aleatorio en login → invalid redirect_uri (#147)
+
 - [org-id-validation](features/117-org-id-validation.md) — Fix UUID validation en OrganizationId (#117)
 
 - [jwt-domain-roles](features/jwt-domain-roles.md) — Fix + documentación de domain_roles en JWT de login (#6)

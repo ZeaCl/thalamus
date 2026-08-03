@@ -198,7 +198,7 @@ export async function handleLogin(options) {
     }
   });
 
-  server.listen(0, async () => {
+  server.listen(4005, async () => {
     port = server.address().port;
     redirectUri = `http://localhost:${port}/callback`;
     const authorizeUrl = `${apiUrl}/oauth/authorize?response_type=code&client_id=thalamus_cli&redirect_uri=${encodeURIComponent(redirectUri)}&scope=openid%20profile%20zea:read%20zea:write&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`;
