@@ -10,14 +10,14 @@ phases:
   install:
     commands:
       - curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
-      - . ~/.nvm/nvm.sh && nvm install ${NODE_VERSION} && nvm use ${NODE_VERSION} && node --version
+      - . ~/.nvm/nvm.sh && nvm install ${NODE_VERSION} && nvm use ${NODE_VERSION}
+      - cd $CODEBUILD_SRC_DIR && echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
   pre_build:
     commands:
-      - . ~/.nvm/nvm.sh && echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
-      - cd cli && . ~/.nvm/nvm.sh && (npm ci 2>/dev/null || npm install)
+      - cd $CODEBUILD_SRC_DIR/cli && . ~/.nvm/nvm.sh && (npm ci 2>/dev/null || npm install)
   build:
     commands:
-      - cd cli && . ~/.nvm/nvm.sh && npm test || true
+      - cd $CODEBUILD_SRC_DIR/cli && . ~/.nvm/nvm.sh && npm test || true
   post_build:
     commands:
-      - cd cli && . ~/.nvm/nvm.sh && npm publish --access public
+      - cd $CODEBUILD_SRC_DIR/cli && . ~/.nvm/nvm.sh && npm publish --access public
