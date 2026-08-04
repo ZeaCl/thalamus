@@ -1,6 +1,6 @@
 {
   "name": "@zea.cl/thalamus",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "ZEA Thalamus CLI — Identity & Access Management commands",
   "type": "module",
   "main": "src/index.js",
