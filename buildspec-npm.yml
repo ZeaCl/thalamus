@@ -17,7 +17,7 @@ phases:
       - ". ~/.nvm/nvm.sh && echo //registry.npmjs.org/:_authToken=${NPM_TOKEN} > ~/.npmrc"
   pre_build:
     commands:
-      - "cd cli && . ~/.nvm/nvm.sh && npm install"
+      - 'cd "$CODEBUILD_SRC_DIR/cli" && . ~/.nvm/nvm.sh && npm install'
   post_build:
     commands:
-      - "cd cli && . ~/.nvm/nvm.sh && npm publish --access public"
+      - 'cd "$CODEBUILD_SRC_DIR/cli" && . ~/.nvm/nvm.sh && npm publish --access public'
