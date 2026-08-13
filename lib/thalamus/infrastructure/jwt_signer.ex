@@ -195,8 +195,9 @@ defmodule Thalamus.Infrastructure.JwtSigner do
   Returns `{:ok, claims}` when the signature is valid and the token has not
   expired. Returns `{:error, reason}` otherwise.
 
-  Used for stateless JWTs issued by the public login flow (`thalamus_api`
-  client), which are not persisted in the `tokens` table.
+  Defensive fallback for legacy stateless JWTs (`client_id: thalamus_api`)
+  that are not persisted in the `tokens` table. The public login endpoint
+  that used to issue them has been removed.
   """
   def verify_access_token(token) when is_binary(token) do
     with {:ok, jwks} <- fetch_jwks(),
@@ -233,8 +234,8 @@ defmodule Thalamus.Infrastructure.JwtSigner do
   end
 
   @doc """
-  Returns true when the JWT payload belongs to the public login endpoint
-  (`client_id: thalamus_api`).
+  Returns true when the JWT payload belongs to a legacy stateless login
+  token (`client_id: thalamus_api`).
   """
   def thalamus_api_jwt?(token) do
     with [_, payload_b64 | _] <- String.split(token, "."),
@@ -260,21 +261,25 @@ defmodule Thalamus.Infrastructure.JwtSigner do
   end
 
   defp build_verifier(jwks, token) do
-    [header_b64 | _] = String.split(token, ".")
-    {:ok, header_json} = Base.url_decode64(header_b64, padding: false)
-    header = Jason.decode!(header_json)
-    keys = jwks[:keys] || jwks["keys"] || []
+    with [header_b64 | _] <- String.split(token, "."),
+         {:ok, header_json} <- Base.url_decode64(header_b64, padding: false),
+         {:ok, header} <- Jason.decode(header_json),
+         true <- is_map(header) do
+      keys = jwks[:keys] || jwks["keys"] || []
 
-    key =
-      if header["kid"],
-        do: Enum.find(keys, fn k -> (k[:kid] || k["kid"]) == header["kid"] end),
-        else: List.first(keys)
+      key =
+        if header["kid"],
+          do: Enum.find(keys, fn k -> (k[:kid] || k["kid"]) == header["kid"] end),
+          else: List.first(keys)
 
-    if key do
-      pem = jwk_to_pem(key)
-      {:ok, Joken.Signer.create("RS256", %{"pem" => pem})}
+      if key do
+        pem = jwk_to_pem(key)
+        {:ok, Joken.Signer.create("RS256", %{"pem" => pem})}
+      else
+        {:error, "No matching JWK"}
+      end
     else
-      {:error, "No matching JWK"}
+      _ -> {:error, "Malformed JWT header"}
     end
   end
 

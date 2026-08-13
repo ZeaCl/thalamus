@@ -99,5 +99,20 @@ defmodule ThalamusWeb.OAuth2.UserinfoControllerTest do
       assert conn.status == 401
       assert %{"error" => "invalid_token"} = json_response(conn, 401)
     end
+
+    test "returns 401 (not crash) for a JWT with a malformed header", %{conn: conn} do
+      # Header is valid base64url but decodes to non-JSON bytes.
+      header = Base.url_encode64(<<0, 0, 0>>, padding: false)
+      payload = Base.url_encode64(~s({"client_id":"thalamus_api"}), padding: false)
+      token = "#{header}.#{payload}.sig"
+
+      conn =
+        conn
+        |> put_req_header("authorization", "Bearer #{token}")
+        |> get(~p"/oauth/userinfo")
+
+      assert conn.status == 401
+      assert %{"error" => "invalid_token"} = json_response(conn, 401)
+    end
   end
 end

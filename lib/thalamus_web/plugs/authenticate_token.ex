@@ -147,7 +147,7 @@ defmodule ThalamusWeb.Plugs.AuthenticateToken do
 
   # Validates essential JWT claims after signature verification.
   # Joken.verify_and_validate/3 with an empty config validates nothing
-  # beyond the signature, so we must check exp, iss, etc. here.
+  # beyond the signature, so we must check exp here.
   @doc false
   def validate_jwt_claims(claims) do
     JwtSigner.validate_claims(claims)
