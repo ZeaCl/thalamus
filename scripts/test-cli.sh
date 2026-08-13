@@ -50,9 +50,9 @@ test_whoami_unauth() {
 }
 
 test_login() {
-  run_test "login (browser PKCE + device flow)" \
-    "zea thalamus login --help" \
-    "device|browser|PKCE"
+  run_test "login rejects --email (direct login removed)" \
+    "zea thalamus login --email test@example.com --password x" \
+    "unknown option"
 }
 
 # ── Auth (OAuth2 client_credentials) ──────────
