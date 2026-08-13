@@ -46,7 +46,6 @@ end
 scope "/api/public", ThalamusWeb.API do
   get "/health", HealthController, :index                # Health check
   post "/register", RegistrationController, :create      # Registro de usuarios
-  post "/login", LoginController, :create                # Login directo (para obtener JWT)
 end
 
 # API DE GESTIÓN (Requiere autenticación JWT o API Key)
@@ -185,13 +184,8 @@ end
 **Opción B: Usando la API** (requiere JWT o API Key)
 
 ```bash
-# Primero, obtén un JWT (si eres admin)
-curl -X POST http://localhost:4000/api/public/login \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "admin@example.com",
-    "password": "your_password"
-  }'
+# Primero, autentícate (OAuth2 device flow o browser PKCE)
+zea thalamus login --device
 
 # Usar el JWT para crear el cliente
 curl -X POST http://localhost:4000/api/clients \

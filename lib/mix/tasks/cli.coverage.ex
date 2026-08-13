@@ -91,7 +91,6 @@ defmodule Mix.Tasks.Cli.Coverage do
     # Known overrides: commands that API calls via helper functions in lib/
     # or use different endpoints than the router suggests
     known_overrides = %{
-      "POST /api/public/login" => "login --email",
       "GET /api/organizations" => "org list (via /oauth/userinfo)"
     }
 

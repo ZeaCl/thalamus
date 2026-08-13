@@ -47,25 +47,15 @@ Los Admin API Keys son credenciales de larga duración que permiten a servicios 
 
 ### Paso 1: Obtener JWT de Super Admin
 
+Autenticate con la CLI (OAuth2 Authorization Code + PKCE o device flow):
+
 ```bash
-curl -X POST http://localhost:4000/api/public/login \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "admin@zea.com",
-    "password": "AdminPass123!@#"
-  }'
+zea thalamus login
+# o, sin navegador:
+zea thalamus login --device
 ```
 
-**Respuesta:**
-```json
-{
-  "data": {
-    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-    "refresh_token": "...",
-    "expires_in": 3600
-  }
-}
-```
+La CLI guarda el token localmente y lo usa para los comandos siguientes.
 
 ### Paso 2: Crear el API Key
 

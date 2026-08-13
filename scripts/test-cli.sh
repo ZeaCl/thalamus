@@ -49,6 +49,12 @@ test_whoami_unauth() {
     "not authenticated|login"
 }
 
+test_login() {
+  run_test "login (browser PKCE + device flow)" \
+    "zea thalamus login --help" \
+    "device|browser|PKCE"
+}
+
 # ── Auth (OAuth2 client_credentials) ──────────
 test_setup_oauth() {
   echo "── setting up OAuth2 token..."
@@ -71,12 +77,6 @@ test_setup_oauth() {
   fi
   zea thalamus set-token "$token" 2>&1
   pass "setup oauth token"
-}
-
-test_login() {
-  run_test "login" \
-    "zea thalamus login --email admin@zea.local --password Admin123!" \
-    "Successfully"
 }
 
 test_whoami_auth() {
@@ -456,15 +456,8 @@ test_token_crud() {
   fi
 }
 
-# ── Error cases ───────────────────────────────
-test_invalid_login() {
-  run_test "invalid login rejected" \
-    "zea thalamus login --email noexiste@test.com --password wrong" \
-    "invalid|failed"
-}
-
 # ── Main ──────────────────────────────────────
-ALL_TESTS=(health whoami_unauth login invalid_login setup_oauth whoami_auth org org_show org_members token token_crud client client_show client_crud secret_list secret_crud user_list user_show user_scopes user_crud domain role_list role_crud admin audit debug oidc 404)
+ALL_TESTS=(health whoami_unauth login setup_oauth whoami_auth org org_show org_members token token_crud client client_show client_crud secret_list secret_crud user_list user_show user_scopes user_crud domain role_list role_crud admin audit debug oidc 404)
 
 run_all() {
   echo "═══ CLI E2E Tests ═══"

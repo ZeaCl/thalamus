@@ -1,10 +1,11 @@
 # Log
 
-## [2026-08-13] fix | #154 /oauth/userinfo returns 401 for stateless login JWTs
-- `UserinfoController` validated only against DB (`ValidateToken` → `PostgreSQLTokenRepository.find`) → 401 for the `/api/public/login` JWT, which is not persisted
-- Fix: extracted JWKS verification into `JwtSigner.verify_access_token/1` (+ `validate_claims/1`, `jwt_format?/1`, `thalamus_api_jwt?/1`)
-- `AuthenticateToken` now delegates to `JwtSigner`; `UserinfoController` adds a JWKS fallback for `thalamus_api` JWTs
-- Tests: 5 new in `userinfo_controller_test.exs`; `mix test` → 1916 tests, 0 failures
+## [2026-08-13] fix | #154 remove stateless login tokens + userinfo JWKS fallback
+- Root cause: `/api/public/login` issued a stateless JWT not persisted in `tokens`, breaking `/oauth/userinfo`
+- Removed `POST /api/public/login` (`LoginController`), its route, its tests, and `JwtSigner.sign_refresh_token/1`
+- Removed CLI direct login (`handleDirectLogin` + `login --email/--password`); kept browser PKCE and device flow
+- Extracted JWKS verification into `JwtSigner.verify_access_token/1`; `AuthenticateToken` delegates to it; `UserinfoController` adds the same fallback
+- `mix test` → 1906 tests, 0 failures; CLI coverage 72/72
 
 ## [2026-08-03] fix | #147 zea-thalamus login usa puerto aleatorio → invalid redirect_uri
 - `server.listen(0)` elegía puerto aleatorio, pero Thalamus solo acepta redirect URIs registradas

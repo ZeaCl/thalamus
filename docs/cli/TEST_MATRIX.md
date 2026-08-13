@@ -234,28 +234,18 @@ assert_json_field "$output" '.keys | length > 0' 'true' "TC-04: tiene keys"
 # Test: auth login (direct), whoami, logout, debug
 # Requiere: seeds ejecutados con c@zea.cl / GusVicentAnto1.
 
-# ── TC-05: Direct login — credenciales válidas ─────────────
-log_test "TC-05: auth login directo — credenciales válidas"
-output=$($CLI_PATH thalamus auth login --email c@zea.cl --password "GusVicentAnto1." 2>&1)
-exit_code=$?
-assert_exit_code $exit_code 0 "TC-05: exit code 0"
-assert_output_contains "$output" "Successfully authenticated" "TC-05: authenticated message"
-assert_output_contains "$output" "c@zea.cl" "TC-05: shows user email"
-assert_output_contains "$output" "ZEA" "TC-05: shows organization"
+# ── TC-05: Login — device flow (headless) ─────────────────
+# El login directo (--email/--password) fue removido.
+# Flujos correctos: browser PKCE (`auth login`) y device flow (`auth login --device`).
+log_test "TC-05: auth login --device muestra código de verificación"
+output=$($CLI_PATH thalamus auth login --device 2>&1 || true)
+assert_output_contains "$output" "Code\|verification\|Device" "TC-05: device flow prompt"
 
-# ── TC-06: Direct login — credenciales inválidas ───────────
-log_test "TC-06: auth login directo — password inválida"
-output=$($CLI_PATH thalamus auth login --email c@zea.cl --password "wrong" 2>&1)
+# ── TC-06: Login — set-token (non-interactive, CI/CD) ─────
+log_test "TC-06: auth set-token guarda PAT"
+$CLI_PATH thalamus set-token "th_pat_test123" > /dev/null 2>&1
 exit_code=$?
-assert_exit_code $exit_code 1 "TC-06: exit code 1"
-assert_output_contains "$output" "Invalid email or password" "TC-06: error message"
-
-# ── TC-07: Direct login — email no existe ──────────────────
-log_test "TC-07: auth login directo — email no existe"
-output=$($CLI_PATH thalamus auth login --email noexiste@test.com --password "x" 2>&1)
-exit_code=$?
-assert_exit_code $exit_code 1 "TC-07: exit code 1"
-assert_output_contains "$output" "Invalid" "TC-07: error message"
+assert_exit_code $exit_code 0 "TC-06: exit code 0"
 
 # ── TC-08: Whoami — token válido ───────────────────────────
 log_test "TC-08: whoami — después de login exitoso"
@@ -302,7 +292,7 @@ assert_exit_code $exit_code 1 "TC-11: whoami fails after logout"
 
 # ═══ Setup: login ═══════════════════════════════════════
 setup_login() {
-  $CLI_PATH thalamus auth login --email c@zea.cl --password "GusVicentAnto1." > /dev/null 2>&1
+  $CLI_PATH thalamus set-token "th_pat_test123" > /dev/null 2>&1
 }
 
 # ── TC-12: Org list — 2+ organizaciones ────────────────────
@@ -349,7 +339,7 @@ assert_output_contains "$output" "c@zea.cl" "TC-16: c@zea.cl cross-org en miembr
 # Requiere: auth previo
 
 setup_login() {
-  $CLI_PATH thalamus auth login --email c@zea.cl --password "GusVicentAnto1." > /dev/null 2>&1
+  $CLI_PATH thalamus set-token "th_pat_test123" > /dev/null 2>&1
   $CLI_PATH thalamus org switch zea > /dev/null 2>&1
 }
 
@@ -415,7 +405,7 @@ assert_output_contains "$output" "deleted\|deactivated\|Deleted" "TC-23: confirm
 # Test: token create, list, revoke
 
 setup_login() {
-  $CLI_PATH thalamus auth login --email c@zea.cl --password "GusVicentAnto1." > /dev/null 2>&1
+  $CLI_PATH thalamus set-token "th_pat_test123" > /dev/null 2>&1
   $CLI_PATH thalamus org switch zea > /dev/null 2>&1
 }
 
@@ -454,7 +444,7 @@ output=$($CLI_PATH thalamus token list --output json 2>&1)
 # Test: domain register, grant, revoke, roles
 
 setup_login() {
-  $CLI_PATH thalamus auth login --email c@zea.cl --password "GusVicentAnto1." > /dev/null 2>&1
+  $CLI_PATH thalamus set-token "th_pat_test123" > /dev/null 2>&1
   $CLI_PATH thalamus org switch zea > /dev/null 2>&1
 }
 
@@ -507,7 +497,7 @@ assert_output_contains "$output" "revoked" "TC-32: revoked message"
 # Test: doctor — diagnóstico completo
 
 setup_login() {
-  $CLI_PATH thalamus auth login --email c@zea.cl --password "GusVicentAnto1." > /dev/null 2>&1
+  $CLI_PATH thalamus set-token "th_pat_test123" > /dev/null 2>&1
 }
 
 # ── TC-33: Doctor — todo OK ────────────────────────────────
@@ -564,7 +554,7 @@ assert_output_contains "$output" "not found" "TC-37: not found message"
 
 # ── TC-38: Dry-run no ejecuta ──────────────────────────────
 log_test "TC-38: dry-run — no ejecuta"
-setup_login() { $CLI_PATH thalamus auth login --email c@zea.cl --password "GusVicentAnto1." > /dev/null 2>&1; }
+setup_login() { $CLI_PATH thalamus set-token "th_pat_test123" > /dev/null 2>&1; }
 setup_login
 output=$($CLI_PATH thalamus client create --name "DryRunTest" --dry-run 2>&1)
 assert_exit_code $? 0 "TC-38: exit 0 (dry-run no falla)"

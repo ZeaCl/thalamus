@@ -1,6 +1,8 @@
 # Authentication API
 
-Endpoints for user login, registration, email verification, and password reset. No authentication required.
+Endpoints for user registration, email verification, and password reset. No authentication required.
+
+> **Note:** user **login** is handled by the standard OAuth2 flows (see [OAuth2 overview](../oauth2/overview.md) and [Authorization Code + PKCE](../oauth2/authorization-code.md)), not by a dedicated endpoint here.
 
 ---
 
@@ -8,7 +10,6 @@ Endpoints for user login, registration, email verification, and password reset. 
 
 | Method | Endpoint | Purpose |
 |---|---|---|
-| `POST` | `/api/public/login` | Authenticate with email + password |
 | `POST` | `/api/public/register` | Create new user account |
 | `POST` | `/api/public/verify-email` | Verify email with token |
 | `POST` | `/api/public/resend-verification` | Resend verification email |
@@ -17,47 +18,9 @@ Endpoints for user login, registration, email verification, and password reset. 
 
 ---
 
-## Login
+## JWT Claims
 
-```
-POST /api/public/login
-Content-Type: application/json
-```
-
-```bash
-curl -X POST http://localhost:4000/api/public/login \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "user@example.com",
-    "password": "SecurePass123!"
-  }'
-```
-
-**Parameters:**
-
-| Parameter | Required | Description |
-|---|---|---|
-| `email` | ✅ | User email |
-| `password` | ✅ | User password |
-
-**Success Response:**
-```json
-{
-  "access_token": "eyJhbGciOiJSUzI1NiIs...",
-  "token_type": "Bearer",
-  "expires_in": 3600,
-  "user": {
-    "id": "user_abc123",
-    "email": "user@example.com",
-    "name": "User Name",
-    "verified": true
-  }
-}
-```
-
-### JWT Claims
-
-El `access_token` es un JWT firmado con RS256. Al decodificarlo, incluye los siguientes claims:
+All access tokens issued by Thalamus are RS256-signed JWTs produced by `JwtSigner.sign_access_token/1`. Decoded, they include:
 
 ```json
 {
@@ -68,7 +31,7 @@ El `access_token` es un JWT firmado con RS256. Al decodificarlo, incluye los sig
   "jti": "jti_abc123...",
   "sub": "user_c0000000-852c-44e5-aee1-a761ec76eaea",
   "scope": "openid profile email",
-  "client_id": "thalamus_api",
+  "client_id": "thalamus_cli",
   "name": "User Name",
   "email": "user@example.com",
   "is_agent": false,
@@ -85,27 +48,17 @@ El `access_token` es un JWT firmado con RS256. Al decodificarlo, incluye los sig
 }
 ```
 
-| Claim | Tipo | Descripción |
+| Claim | Type | Description |
 |---|---|---|
-| `sub` | string | User ID con prefijo `user_` |
-| `scope` | string | Scopes OAuth2 solicitados (space-separated) |
-| `scopes` | string[] | **Todos** los scopes del usuario (union de todos sus domain_roles) |
-| `domain_roles` | object[] | **Siempre presente** (array vacío `[]` si el usuario no tiene roles). Claim principal para autorización multi-tenant. Cada entry tiene `org_id`, `domain`, `role`, `scopes`, y opcionalmente `entity_id` |
-| `authz_source` | string | Siempre `"domain_roles"`. Indica que `domain_roles` es la fuente canónica de autorización |
-| `is_agent` | boolean | `true` si el usuario es un agente AI |
-| `organization_id` | string | ⚠️ **Deprecated**. Usar `domain_roles[].org_id` en su lugar. Se mantiene por compatibilidad con integraciones viejas |
+| `sub` | string | User ID with `user_` prefix |
+| `scope` | string | Requested OAuth2 scopes (space-separated) |
+| `scopes` | string[] | **All** user scopes (union of all their domain_roles) |
+| `domain_roles` | object[] | **Always present** (empty array `[]` if the user has no roles). Primary claim for multi-tenant authorization. Each entry has `org_id`, `domain`, `role`, `scopes`, and optionally `entity_id` |
+| `authz_source` | string | Always `"domain_roles"`. Marks `domain_roles` as the canonical authorization source |
+| `is_agent` | boolean | `true` if the user is an AI agent |
+| `organization_id` | string | ⚠️ **Deprecated**. Use `domain_roles[].org_id` instead. Kept for compatibility with legacy integrations |
 
-> ⚠️ **Importante para integradores**: Los servicios downstream (fm_funds, cerebelum, etc.) deben leer los permisos desde `domain_roles`, **no** desde `scope` ni `organization_id`. El claim `domain_roles` y `authz_source` son las fuentes canónicas de autorización multi-tenant.
-
-**Error Responses:**
-
-| Status | Code | When |
-|---|---|---|
-| `401` | `invalid_credentials` | Wrong email or password |
-| `401` | `account_locked` | Too many failed attempts |
-| `401` | `account_suspended` | Account is suspended |
-| `401` | `account_not_verified` | Email not verified |
-| `400` | `missing_parameter` | Email or password missing |
+> ⚠️ **Important for integrators**: downstream services (fm_funds, cerebelum, etc.) must read permissions from `domain_roles`, **not** from `scope` or `organization_id`. The `domain_roles` and `authz_source` claims are the canonical sources for multi-tenant authorization.
 
 ---
 

@@ -2,7 +2,7 @@
 
 ## Features
 
-- [userinfo-jwt-fallback](features/154-userinfo-jwt-fallback.md) — /oauth/userinfo accepts stateless login JWTs via JWKS (#154)
+- [userinfo-jwt-fallback](features/154-userinfo-jwt-fallback.md) — removed stateless login tokens + userinfo JWKS fallback (#154)
 
 - [login-port-random](features/147-login-port-random.md) — Fix puerto aleatorio en login → invalid redirect_uri (#147)
 

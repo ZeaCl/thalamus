@@ -1,55 +1,65 @@
-# /oauth/userinfo returns 401 for stateless login JWTs
+# Stateless login tokens removed + userinfo JWKS fallback
 
 - **Issue**: #154
 - **Branch**: fix/issue-154-userinfo-jwt-fallback
-- **Status**: ✅ completed (tests passing locally)
+- **Status**: ✅ completed
 
 ## What was done
 
-Aligned `UserinfoController` with `AuthenticateToken`: `/oauth/userinfo` now accepts
-the stateless JWTs issued by `POST /api/public/login` (`thalamus_api` client),
-validating the signature via JWKS when the token is not in the `tokens` table.
+1. **Root-cause fix**: removed the stateless login token path entirely.
+   - Deleted `POST /api/public/login` (`LoginController`) and its route.
+   - Removed `JwtSigner.sign_refresh_token/1` (only used by that endpoint).
+   - Removed the CLI's direct login (`handleDirectLogin` + `login --email/--password`).
+
+2. **Left only the correct auth flows**:
+   - Browser: OAuth2 Authorization Code + PKCE (`zea thalamus login`).
+   - Headless: Device Authorization Grant (`zea thalamus login --device`).
+   - M2M: `client_credentials` (`/oauth/token`).
+
+3. **Defensive fix (kept)**: `/oauth/userinfo` now falls back to JWKS signature
+   validation for `thalamus_api` JWTs, aligned with `AuthenticateToken`.
 
 ## Root cause
 
-`POST /api/public/login` issues a **stateless** JWT (RS256, `client_id: thalamus_api`)
-that is NOT persisted in `tokens`. The `AuthenticateToken` plug (`/api/*` pipeline)
-already handled this case with a JWKS fallback, but `UserinfoController` validated only
-via `ValidateToken.execute` → `PostgreSQLTokenRepository.find/1` → `token not found in DB` → 401.
+`POST /api/public/login` issued a **stateless** JWT (RS256, `client_id: thalamus_api`)
+that was NOT persisted in `tokens`. The `AuthenticateToken` plug already handled this
+case via JWKS, but `UserinfoController` validated only against the DB → 401.
+The same token worked on `/api/*` but failed on `/oauth/userinfo`.
 
-Result: the same token worked on `/api/organizations` but failed on `/oauth/userinfo`.
+Stateless tokens cannot be revoked (RFC 7009), introspected (RFC 7662), or refreshed —
+the login refresh token was unusable because `/oauth/token` only looks up DB rows.
 
 ## Key decisions
 
-- **Reuse JWKS verification**: extracted the logic into `JwtSigner.verify_access_token/1`,
-  `validate_claims/1`, `jwt_format?/1` and `thalamus_api_jwt?/1` to avoid duplication.
-- **`AuthenticateToken` delegates to `JwtSigner`** (single source of truth), keeping its
-  public functions (`jwt_format?`, `thalamus_api_jwt?`, `validate_jwt_claims`) for
-  compatibility with existing tests.
-- **Fallback in `UserinfoController`**: when `ValidateToken` returns `valid: false` and the
-  token is a `thalamus_api` JWT with a valid signature and unexpired `exp`, use `sub`
-  (normalized without the `user_` prefix) as `user_id` and continue the normal flow.
+- **Remove, don't patch**: instead of only aligning `UserinfoController`, remove the
+  stateless login endpoint so there is a single token model (persisted OAuth2 tokens).
+- **Reuse JWKS verification**: extracted into `JwtSigner.verify_access_token/1`
+  (+ `validate_claims/1`, `jwt_format?/1`, `thalamus_api_jwt?/1`).
+- **`AuthenticateToken` delegates to `JwtSigner`** (single source of truth).
+- **CLI keeps two interactive flows**: browser PKCE and device flow.
 
 ## Modified files
 
-- `lib/thalamus/infrastructure/jwt_signer.ex` — `verify_access_token/1`, `validate_claims/1`, `jwt_format?/1`, `thalamus_api_jwt?/1` + private helpers
-- `lib/thalamus_web/plugs/authenticate_token.ex` — delegates to `JwtSigner`, removes duplication
-- `lib/thalamus_web/controllers/oauth2/userinfo_controller.ex` — JWKS fallback in `resolve_user_id/1`
+- `lib/thalamus_web/router.ex` — removed `/api/public/login` route
+- `lib/thalamus_web/controllers/api/login_controller.ex` — deleted
+- `test/thalamus_web/controllers/api/login_controller_test.exs` — deleted
+- `lib/thalamus/infrastructure/jwt_signer.ex` — removed `sign_refresh_token/1`; added JWKS verification helpers
+- `lib/thalamus_web/plugs/authenticate_token.ex` — delegates to `JwtSigner`
+- `lib/thalamus_web/controllers/oauth2/userinfo_controller.ex` — JWKS fallback
+- `cli/src/lib/client.js` — removed `handleDirectLogin`
+- `cli/src/commands/auth.js` — removed `--email`/`--password` from `login`
+- `scripts/test-cli.sh` — replaced direct-login E2E with device-flow help check
 - `test/thalamus_web/controllers/oauth2/userinfo_controller_test.exs` — new tests
-
-## Errors found
-
-- Credo: single-condition `cond` in `validate_claims` → replaced with `if`.
-- Credo: nesting in `resolve_stateless_jwt_user_id` → refactored with `with`.
-- Credo: misordered aliases + nested module `Thalamus.Application.UseCases.ValidateToken` → ordered aliases + `ValidateToken` alias.
+- `docs/*` — removed `/api/public/login` references
 
 ## Verification
 
-- `mix test` → 1916 tests, 0 failures (17 pre-existing skips).
-- `test/thalamus_web/controllers/oauth2/userinfo_controller_test.exs` → 5 new tests.
+- `mix test` → 1906 tests, 0 failures
+- `mix compile` → CLI coverage 72/72 routes ✅
+- `mix format --check-formatted` → OK
 
 ## References
 
 - [#154](https://github.com/ZeaCl/thalamus/issues/154)
-- #69 documented the same root cause but only applied a CI workaround (use a PAT instead of the login JWT).
+- #69 documented the same root cause (CI workaround only).
 - #6 added `domain_roles` to the JWT (already resolved).
