@@ -29,6 +29,7 @@ defmodule ThalamusWeb.Plugs.AuthenticateToken do
   import Phoenix.Controller, only: [json: 2]
 
   alias Thalamus.Application.UseCases.ValidateToken
+  alias Thalamus.Infrastructure.JwtSigner
 
   # Dependencies
   @deps %{
@@ -109,7 +110,7 @@ defmodule ThalamusWeb.Plugs.AuthenticateToken do
 
   @doc false
   def jwt_format?(token) do
-    String.match?(token, ~r/^[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+$/)
+    JwtSigner.jwt_format?(token)
   end
 
   # Only fall back to JWT signature validation for tokens from the
@@ -117,24 +118,7 @@ defmodule ThalamusWeb.Plugs.AuthenticateToken do
   # also JWTs but must go through DB validation to support revocation.
   @doc false
   def thalamus_api_jwt?(token) do
-    case String.split(token, ".") do
-      [_, payload_b64 | _] ->
-        case Base.url_decode64(payload_b64, padding: false) do
-          {:ok, json} ->
-            case Jason.decode(json) do
-              {:ok, %{"client_id" => "thalamus_api"}} -> true
-              _ -> false
-            end
-
-          _ ->
-            false
-        end
-
-      _ ->
-        false
-    end
-  rescue
-    _ -> false
+    JwtSigner.thalamus_api_jwt?(token)
   end
 
   # ── Opaque token context injection ───────────────────────────
@@ -150,15 +134,12 @@ defmodule ThalamusWeb.Plugs.AuthenticateToken do
   # ── JWT validation via JWKS (fallback) ───────────────────────
 
   defp validate_jwt(token) do
-    require Logger
+    case JwtSigner.verify_access_token(token) do
+      {:ok, claims} ->
+        {:ok, claims}
 
-    with {:ok, jwks} <- fetch_jwks(),
-         {:ok, signer} <- build_signer(jwks, token),
-         {:ok, claims} <- Joken.verify_and_validate(%{}, token, signer),
-         :ok <- validate_jwt_claims(claims) do
-      {:ok, claims}
-    else
       {:error, reason} ->
+        require Logger
         Logger.warning("AuthenticateToken: JWT validation failed: #{inspect(reason)}")
         {:error, reason}
     end
@@ -169,15 +150,7 @@ defmodule ThalamusWeb.Plugs.AuthenticateToken do
   # beyond the signature, so we must check exp, iss, etc. here.
   @doc false
   def validate_jwt_claims(claims) do
-    now = DateTime.utc_now() |> DateTime.to_unix()
-
-    cond do
-      is_integer(claims["exp"]) and claims["exp"] < now ->
-        {:error, "Token has expired"}
-
-      true ->
-        :ok
-    end
+    JwtSigner.validate_claims(claims)
   end
 
   defp inject_jwt_context(conn, claims) do
@@ -193,43 +166,6 @@ defmodule ThalamusWeb.Plugs.AuthenticateToken do
     |> assign(:current_client_id, claims["client_id"])
     |> assign(:token_scope, scopes)
     |> assign(:auth_context, %{valid: true, active: true, scope: scopes, jwt: true})
-  end
-
-  defp fetch_jwks do
-    {:ok, Thalamus.Infrastructure.JwtSigner.jwks()}
-  rescue
-    e ->
-      require Logger
-      Logger.warning("AuthenticateToken: JWKS fetch failed: #{Exception.message(e)}")
-      {:error, "JWKS unavailable"}
-  end
-
-  defp build_signer(jwks, token) do
-    [header_b64 | _] = String.split(token, ".")
-    {:ok, header_json} = Base.url_decode64(header_b64, padding: false)
-    header = Jason.decode!(header_json)
-    keys = jwks[:keys] || jwks["keys"] || []
-
-    key =
-      if header["kid"],
-        do: Enum.find(keys, fn k -> (k[:kid] || k["kid"]) == header["kid"] end),
-        else: List.first(keys)
-
-    if key do
-      pem = jwk_to_pem(key)
-      {:ok, Joken.Signer.create("RS256", %{"pem" => pem})}
-    else
-      {:error, "No matching JWK"}
-    end
-  end
-
-  defp jwk_to_pem(key) do
-    n = key[:n] || key["n"]
-    e = key[:e] || key["e"]
-    n_int = :binary.decode_unsigned(Base.url_decode64!(n, padding: false))
-    e_int = :binary.decode_unsigned(Base.url_decode64!(e, padding: false))
-    pem_entry = :public_key.pem_entry_encode(:RSAPublicKey, {:RSAPublicKey, n_int, e_int})
-    :public_key.pem_encode([pem_entry])
   end
 
   defp unauthorized(conn, message) do

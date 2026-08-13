@@ -224,6 +224,104 @@ defmodule Thalamus.Infrastructure.JwtSigner do
     }
   end
 
+  @doc """
+  Verifies a signed JWT access token using the RS256 public key (JWKS).
+
+  Returns `{:ok, claims}` when the signature is valid and the token has not
+  expired. Returns `{:error, reason}` otherwise.
+
+  Used for stateless JWTs issued by the public login flow (`thalamus_api`
+  client), which are not persisted in the `tokens` table.
+  """
+  def verify_access_token(token) when is_binary(token) do
+    with {:ok, jwks} <- fetch_jwks(),
+         {:ok, signer} <- build_verifier(jwks, token),
+         {:ok, claims} <- Joken.verify_and_validate(%{}, token, signer),
+         :ok <- validate_claims(claims) do
+      {:ok, claims}
+    else
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  @doc """
+  Validates essential JWT claims after signature verification.
+
+  `Joken.verify_and_validate/3` with an empty config validates nothing beyond
+  the signature, so expiration must be checked explicitly here.
+  """
+  def validate_claims(claims) do
+    now = DateTime.utc_now() |> DateTime.to_unix()
+
+    if is_integer(claims["exp"]) and claims["exp"] < now do
+      {:error, "Token has expired"}
+    else
+      :ok
+    end
+  end
+
+  @doc """
+  Returns true when the token looks like a self-contained 3-segment JWT.
+  """
+  def jwt_format?(token) do
+    String.match?(token, ~r/^[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+$/)
+  end
+
+  @doc """
+  Returns true when the JWT payload belongs to the public login endpoint
+  (`client_id: thalamus_api`).
+  """
+  def thalamus_api_jwt?(token) do
+    with [_, payload_b64 | _] <- String.split(token, "."),
+         {:ok, json} <- Base.url_decode64(payload_b64, padding: false),
+         {:ok, %{"client_id" => "thalamus_api"}} <- Jason.decode(json) do
+      true
+    else
+      _ -> false
+    end
+  rescue
+    _ -> false
+  end
+
+  # Private verification helpers
+
+  defp fetch_jwks do
+    {:ok, jwks()}
+  rescue
+    e ->
+      require Logger
+      Logger.warning("JwtSigner: JWKS fetch failed: #{Exception.message(e)}")
+      {:error, "JWKS unavailable"}
+  end
+
+  defp build_verifier(jwks, token) do
+    [header_b64 | _] = String.split(token, ".")
+    {:ok, header_json} = Base.url_decode64(header_b64, padding: false)
+    header = Jason.decode!(header_json)
+    keys = jwks[:keys] || jwks["keys"] || []
+
+    key =
+      if header["kid"],
+        do: Enum.find(keys, fn k -> (k[:kid] || k["kid"]) == header["kid"] end),
+        else: List.first(keys)
+
+    if key do
+      pem = jwk_to_pem(key)
+      {:ok, Joken.Signer.create("RS256", %{"pem" => pem})}
+    else
+      {:error, "No matching JWK"}
+    end
+  end
+
+  defp jwk_to_pem(key) do
+    n = key[:n] || key["n"]
+    e = key[:e] || key["e"]
+    n_int = :binary.decode_unsigned(Base.url_decode64!(n, padding: false))
+    e_int = :binary.decode_unsigned(Base.url_decode64!(e, padding: false))
+    pem_entry = :public_key.pem_entry_encode(:RSAPublicKey, {:RSAPublicKey, n_int, e_int})
+    :public_key.pem_encode([pem_entry])
+  end
+
   defp build_signer(_config) do
     pem = read_key_file("jwt_private_key.pem")
     signer = Joken.Signer.create("RS256", %{"pem" => pem})
