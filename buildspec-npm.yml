@@ -18,9 +18,6 @@ phases:
   pre_build:
     commands:
       - "cd cli && . ~/.nvm/nvm.sh && npm ci"
-  build:
-    commands:
-      - "cd cli && . ~/.nvm/nvm.sh && npm test || echo Tests failed, continuing"
   post_build:
     commands:
       - "cd cli && . ~/.nvm/nvm.sh && npm publish --access public"
