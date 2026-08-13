@@ -23,7 +23,7 @@ For endpoints requiring user authentication:
 Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
 ```
 
-Obtained via OAuth2 flows ([Authorization Code](../oauth2/authorization-code.md), [Client Credentials](../oauth2/client-credentials.md)) or `POST /api/public/login`.
+Obtained via OAuth2 flows ([Authorization Code](../oauth2/authorization-code.md), [Client Credentials](../oauth2/client-credentials.md)).
 
 ### API Key (Admin / Service)
 

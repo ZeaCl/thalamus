@@ -183,9 +183,6 @@ defmodule ThalamusWeb.Router do
     # Health check
     get "/health", HealthController, :index
 
-    # Authentication
-    post "/login", LoginController, :create
-
     # User registration
     post "/register", RegistrationController, :create
     post "/verify-email", RegistrationController, :verify_email

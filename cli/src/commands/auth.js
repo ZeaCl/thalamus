@@ -1,19 +1,15 @@
-import { loadConfig, saveConfig, handleDirectLogin, handleLogin, handleDeviceLogin, getClient } from '../lib/client.js';
+import { loadConfig, saveConfig, handleLogin, handleDeviceLogin, getClient } from '../lib/client.js';
 import { zeaFetch } from '../lib/http.js';
 import { handleError } from '../lib/errors.js';
 
 export function register(program) {
   program.command('login')
-    .description('Login interactively using browser')
+    .description('Login interactively using browser (OAuth2 Authorization Code + PKCE)')
     .option('--url <url>', 'ZEA API URL')
-    .option('--email <email>', 'Email for direct login (requires --password)')
-    .option('--password <password>', 'Password for direct login (requires --email)')
     .option('--device', 'Use device flow (no browser redirect needed)')
     .option('--scopes <scopes>', 'Scopes (space-separated, default: openid profile email zea:read zea:write)')
     .action(async (options) => {
-      if (options.email && options.password) {
-        await handleDirectLogin(options);
-      } else if (options.device) {
+      if (options.device) {
         await handleDeviceLogin(options);
       } else {
         await handleLogin(options);

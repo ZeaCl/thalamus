@@ -1,8 +1,0 @@
-{
-  "_recorded_at": "2026-07-25T00:00:00Z",
-  "_endpoint": "/.well-known/jwks.json",
-  "_status": 200,
-  "body": {
-    "keys": []
-  }
-}

@@ -163,41 +163,6 @@ defmodule Thalamus.Infrastructure.JwtSigner do
   end
 
   @doc """
-  Generates a signed JWT refresh token.
-
-  Refresh tokens have a longer lifetime (30 days by default) and
-  carry only the essential claims needed for token refresh.
-
-  ## Claims
-  - sub: user_id (string)
-  - typ: "refresh"
-  - iss: issuer URL
-  - exp: expiration timestamp (now + expires_in)
-  - iat: issued at timestamp
-  - jti: unique token ID
-  """
-  def sign_refresh_token(claims_map) do
-    signer = build_signer(nil)
-    cfg = config()
-
-    now = DateTime.utc_now() |> DateTime.to_unix()
-    expires_in = Map.get(claims_map, :expires_in, 2_592_000)
-
-    claims = %{
-      "sub" => Map.get(claims_map, :user_id),
-      "typ" => "refresh",
-      "iss" => cfg[:issuer],
-      "aud" => Map.get(claims_map, :aud, "zea"),
-      "iat" => now,
-      "exp" => now + expires_in,
-      "jti" => "rti_" <> (:crypto.strong_rand_bytes(16) |> Base.url_encode64(padding: false))
-    }
-
-    {:ok, token, _claims} = Joken.encode_and_sign(claims, signer)
-    token
-  end
-
-  @doc """
   Returns JWKS (JSON Web Key Set) data for the public key.
   Used by resource servers (e.g., Cerebelum) to validate JWT signatures.
   """
@@ -222,6 +187,131 @@ defmodule Thalamus.Infrastructure.JwtSigner do
         }
       ]
     }
+  end
+
+  @doc """
+  Verifies a signed JWT access token using the RS256 public key (JWKS).
+
+  Returns `{:ok, claims}` when the signature is valid and the token has not
+  expired. Returns `{:error, reason}` otherwise.
+
+  Defensive fallback for legacy stateless JWTs (`client_id: thalamus_api`)
+  that are not persisted in the `tokens` table. The public login endpoint
+  that used to issue them has been removed.
+  """
+  def verify_access_token(token) when is_binary(token) do
+    with {:ok, jwks} <- fetch_jwks(),
+         {:ok, signer} <- build_verifier(jwks, token),
+         {:ok, claims} <- Joken.verify_and_validate(%{}, token, signer),
+         :ok <- validate_claims(claims) do
+      {:ok, claims}
+    else
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  @doc """
+  Validates JWT claims after signature verification.
+
+  `Joken.verify_and_validate/3` with an empty config validates nothing beyond
+  the signature, so `exp`, `nbf`, `iss` and `aud` are checked here.
+  """
+  def validate_claims(claims) do
+    now = DateTime.utc_now() |> DateTime.to_unix()
+    cfg = config()
+
+    cond do
+      not is_integer(claims["exp"]) ->
+        {:error, "Missing or invalid exp claim"}
+
+      claims["exp"] < now ->
+        {:error, "Token has expired"}
+
+      is_integer(claims["nbf"]) and claims["nbf"] > now ->
+        {:error, "Token not yet valid"}
+
+      claims["iss"] != cfg[:issuer] ->
+        {:error, "Invalid issuer"}
+
+      not is_binary(claims["aud"]) or claims["aud"] == "" ->
+        {:error, "Missing audience"}
+
+      true ->
+        :ok
+    end
+  end
+
+  @doc """
+  Returns true when the token looks like a self-contained 3-segment JWT.
+  """
+  def jwt_format?(token) do
+    String.match?(token, ~r/^[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+$/)
+  end
+
+  @doc """
+  Returns true when the JWT payload belongs to a legacy stateless login
+  token (`client_id: thalamus_api`).
+  """
+  def thalamus_api_jwt?(token) do
+    with [_, payload_b64 | _] <- String.split(token, "."),
+         {:ok, json} <- Base.url_decode64(payload_b64, padding: false),
+         {:ok, %{"client_id" => "thalamus_api"}} <- Jason.decode(json) do
+      true
+    else
+      _ -> false
+    end
+  rescue
+    _ -> false
+  end
+
+  # Private verification helpers
+
+  defp fetch_jwks do
+    {:ok, jwks()}
+  rescue
+    e ->
+      require Logger
+      Logger.warning("JwtSigner: JWKS fetch failed: #{Exception.message(e)}")
+      {:error, "JWKS unavailable"}
+  end
+
+  defp build_verifier(jwks, token) do
+    with [header_b64 | _] <- String.split(token, "."),
+         {:ok, header_json} <- Base.url_decode64(header_b64, padding: false),
+         {:ok, header} <- Jason.decode(header_json),
+         true <- is_map(header) do
+      keys = jwks[:keys] || jwks["keys"] || []
+
+      key =
+        if header["kid"],
+          do: Enum.find(keys, fn k -> (k[:kid] || k["kid"]) == header["kid"] end),
+          else: List.first(keys)
+
+      case jwk_to_pem(key) do
+        {:ok, pem} -> {:ok, Joken.Signer.create("RS256", %{"pem" => pem})}
+        {:error, _} = error -> error
+      end
+    else
+      _ -> {:error, "Malformed JWT header"}
+    end
+  end
+
+  defp jwk_to_pem(nil), do: {:error, "No matching JWK"}
+
+  defp jwk_to_pem(key) do
+    n = key[:n] || key["n"]
+    e = key[:e] || key["e"]
+
+    with true <- is_binary(n) and is_binary(e),
+         {:ok, n_bin} <- Base.url_decode64(n, padding: false),
+         {:ok, e_bin} <- Base.url_decode64(e, padding: false) do
+      n_int = :binary.decode_unsigned(n_bin)
+      e_int = :binary.decode_unsigned(e_bin)
+      pem_entry = :public_key.pem_entry_encode(:RSAPublicKey, {:RSAPublicKey, n_int, e_int})
+      {:ok, :public_key.pem_encode([pem_entry])}
+    else
+      _ -> {:error, "Invalid JWK key"}
+    end
   end
 
   defp build_signer(_config) do

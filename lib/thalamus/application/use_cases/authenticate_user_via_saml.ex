@@ -12,7 +12,7 @@ defmodule Thalamus.Application.UseCases.AuthenticateUserViaSaml do
   SOLID:
   - Single Responsibility: Only handles SAML authentication workflow
   - Dependency Inversion: Depends on ports (interfaces), not implementations
-  - Open/Closed: Extends authentication without modifying AuthenticateUser
+  - Open/Closed: Extends authentication without modifying shared auth primitives
   """
 
   alias Thalamus.Application.DTOs.AuthenticationResponse

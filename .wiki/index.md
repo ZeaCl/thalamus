@@ -2,6 +2,8 @@
 
 ## Features
 
+- [userinfo-jwt-fallback](features/154-userinfo-jwt-fallback.md) — removed stateless login tokens + userinfo JWKS fallback (#154)
+
 - [login-port-random](features/147-login-port-random.md) — Fix puerto aleatorio en login → invalid redirect_uri (#147)
 
 - [org-id-validation](features/117-org-id-validation.md) — Fix UUID validation en OrganizationId (#117)

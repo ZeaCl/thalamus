@@ -1,5 +1,18 @@
 # Log
 
+## [2026-08-13] chore | cleanup CLI test infra + dead use case (#154)
+- Removed CLI unit-test machinery (`*.test.js`, `cli/test/`, `extract-test-coverage.cjs`, `cli.test.coverage`) — the CLI is tested by running commands (E2E `scripts/test-cli.sh`)
+- Removed legacy `test/cli/*.sh` suite + `scripts/smoke-test-cli.sh` (superseded)
+- Removed now-unused `AuthenticateUser` use case + `AuthenticationRequest` DTO (no HTTP caller after removing `/api/public/login`)
+- Updated `mix.exs`, `cli/package.json`, `manifest.json`, and docs to match
+
+## [2026-08-13] fix | #154 remove stateless login tokens + userinfo JWKS fallback
+- Root cause: `/api/public/login` issued a stateless JWT not persisted in `tokens`, breaking `/oauth/userinfo`
+- Removed `POST /api/public/login` (`LoginController`), its route, its tests, and `JwtSigner.sign_refresh_token/1`
+- Removed CLI direct login (`handleDirectLogin` + `login --email/--password`); kept browser PKCE and device flow
+- Extracted JWKS verification into `JwtSigner.verify_access_token/1`; `AuthenticateToken` delegates to it; `UserinfoController` adds the same fallback
+- `mix test` → 1906 tests, 0 failures; CLI coverage 72/72
+
 ## [2026-08-03] fix | #147 zea-thalamus login usa puerto aleatorio → invalid redirect_uri
 - `server.listen(0)` elegía puerto aleatorio, pero Thalamus solo acepta redirect URIs registradas
 - Fix: cambiado a `server.listen(4005)`, puerto que ya está en la whitelist del client "Thalamus CLI"

@@ -69,7 +69,7 @@ Orchestrates business workflows using domain entities and infrastructure ports.
 
 | Category | Use Cases |
 |---|---|
-| **Auth** | `AuthenticateUser`, `AuthenticateUserViaSaml` |
+| **Auth** | `AuthenticateUserViaSaml` |
 | **Tokens** | `GenerateTokens`, `ValidateToken`, `CachedValidateToken`, `GenerateAgentToken`, `RevokeAgentToken` |
 | **RBAC** | `AssignRole`, `RevokeRole`, `CreateRole`, `UpdateRole`, `DeleteRole`, `ListRoles`, `GetUserRoles`, `GetEffectiveScopes` |
 | **Agents** | `ValidateStepAuthorization`, `ResolveAgentSecret` |

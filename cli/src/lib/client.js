@@ -97,36 +97,6 @@ export async function getClient() {
   };
 }
 
-export async function handleDirectLogin(options) {
-  const apiUrl = await resolveApiUrl(options.url);
-  const email = options.email;
-  const password = options.password;
-  
-  try {
-    const response = await zeaFetch(`${apiUrl}/api/public/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
-    });
-    
-    if (!response.ok) {
-      const errData = await response.json();
-      throw new Error(errData.error_description || errData.error || `Login failed: ${response.status}`);
-    }
-    
-    const data = await response.json();
-    await saveAuthConfig(data.access_token, data.refresh_token, apiUrl);
-    console.log('Successfully authenticated with ZEA Platform!');
-    console.log(`User: ${data.user.email} (${data.user.name})`);
-    if (data.organization) {
-      console.log(`Organization: ${data.organization.name}`);
-    }
-  } catch (error) {
-    console.error('Login failed:', error.message);
-    process.exit(1);
-  }
-}
-
 export async function handleLogin(options) {
   const apiUrl = await resolveApiUrl(options.url);
 

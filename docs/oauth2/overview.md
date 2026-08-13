@@ -150,7 +150,6 @@ Trusted clients (those with `auto_approve = true` in the database) **bypass the 
 | `thalamus_cli` | public | Bootstrap — authenticates developers for CLI tools | ✅ Yes |
 | `platform_web` | public | ZEA Platform web application | ✅ Yes |
 | `cerebelum_service` | confidential | M2M — Cerebelum Workflow Engine ↔ Thalamus | N/A (M2M) |
-| `internal_login` | confidential | API login endpoint (`/api/public/login`) | N/A (API) |
 | `app_*` | public | User-registered apps via `zea-auth-init` | ✅ Yes |
 
 ---

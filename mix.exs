@@ -166,11 +166,11 @@ defmodule Thalamus.MixProject do
         "esbuild thalamus --minify",
         "phx.digest"
       ],
-      # CLI coverage: every route must have a command, every command must have tests.
+      # CLI coverage: every route must have a command.
       # Runs only in dev/test — skips if Node.js is not available.
       compile:
         if Mix.env() in [:dev, :test] do
-          ["compile", "cli.coverage", "cli.test.coverage"]
+          ["compile", "cli.coverage"]
         else
           ["compile"]
         end,

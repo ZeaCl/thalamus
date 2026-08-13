@@ -10,14 +10,17 @@ defmodule ThalamusWeb.OAuth2.UserinfoController do
 
   require Logger
 
+  alias Thalamus.Application.UseCases.ValidateToken
+  alias Thalamus.Domain.ValueObjects.{OrganizationId, UserId}
+  alias Thalamus.Infrastructure.JwtSigner
+  alias Thalamus.Infrastructure.Persistence.Schemas.UserSchema
+
   alias Thalamus.Infrastructure.Repositories.{
+    PostgreSQLOrganizationRepository,
     PostgreSQLTokenRepository,
-    PostgreSQLUserRepository,
-    PostgreSQLOrganizationRepository
+    PostgreSQLUserRepository
   }
 
-  alias Thalamus.Infrastructure.Persistence.Schemas.UserSchema
-  alias Thalamus.Domain.ValueObjects.OrganizationId
   alias Thalamus.Repo
 
   @doc """
@@ -28,17 +31,8 @@ defmodule ThalamusWeb.OAuth2.UserinfoController do
   """
   def show(conn, _params) do
     with {:ok, token} <- extract_bearer_token(conn),
-         {:ok, validation_result} <-
-           Thalamus.Application.UseCases.ValidateToken.execute(token, %{
-             token_repository: PostgreSQLTokenRepository
-           }),
-         true <- validation_result.valid and validation_result.active,
-         user_id_string =
-           (case validation_result.user_id do
-              %{__struct__: _} -> to_string(validation_result.user_id)
-              str when is_binary(str) -> str
-            end),
-         {:ok, user_id_vo} <- Thalamus.Domain.ValueObjects.UserId.from_string(user_id_string),
+         {:ok, user_id_string} <- resolve_user_id(token),
+         {:ok, user_id_vo} <- UserId.from_string(user_id_string),
          {:ok, user} <- PostgreSQLUserRepository.find_by_id(user_id_vo),
          {:ok, user_schema} <- get_user_schema(user_id_vo) do
       # Load all organizations where the user is a member
@@ -113,13 +107,6 @@ defmodule ThalamusWeb.OAuth2.UserinfoController do
         organizations: orgs_json
       })
     else
-      false ->
-        Logger.warning("UserInfo validation_result: valid=#{inspect(false)}")
-
-        conn
-        |> put_status(:unauthorized)
-        |> json(%{error: "invalid_token", error_description: "Invalid or expired token"})
-
       {:error, reason} ->
         Logger.error("UserInfo validation error: #{inspect(reason)}")
 
@@ -144,6 +131,76 @@ defmodule ThalamusWeb.OAuth2.UserinfoController do
       _ -> {:error, :no_token}
     end
   end
+
+  # Resolves the user id from a bearer token, trying DB validation first and
+  # falling back to JWT signature verification for stateless public-login tokens.
+  defp resolve_user_id(token) do
+    case ValidateToken.execute(token, %{
+           token_repository: PostgreSQLTokenRepository
+         }) do
+      {:ok, %{valid: true, active: true} = result} ->
+        case normalize_user_id(result.user_id) do
+          nil -> {:error, :no_user_id}
+          user_id -> {:ok, user_id}
+        end
+
+      {:ok, %{valid: false}} ->
+        resolve_stateless_jwt_user_id(token)
+
+      {:error, reason} ->
+        Logger.error("UserInfo validation error: #{inspect(reason)}")
+        {:error, :invalid_token}
+
+      other ->
+        Logger.error("UserInfo unexpected validation result: #{inspect(other)}")
+        {:error, :invalid_token}
+    end
+  end
+
+  defp resolve_stateless_jwt_user_id(token) do
+    if stateless_api_jwt?(token) do
+      token
+      |> JwtSigner.verify_access_token()
+      |> resolve_claims_to_user_id()
+    else
+      Logger.warning("UserInfo validation_result: valid=false")
+      {:error, :invalid_token}
+    end
+  end
+
+  defp resolve_claims_to_user_id({:ok, claims}) do
+    case normalize_user_id(claims["sub"]) do
+      nil ->
+        Logger.warning("UserInfo: stateless JWT missing sub claim")
+        {:error, :invalid_token}
+
+      user_id ->
+        {:ok, user_id}
+    end
+  end
+
+  defp resolve_claims_to_user_id({:error, reason}) do
+    Logger.warning("UserInfo: stateless JWT validation failed: #{inspect(reason)}")
+    {:error, :invalid_token}
+  end
+
+  defp stateless_api_jwt?(token) do
+    JwtSigner.jwt_format?(token) and JwtSigner.thalamus_api_jwt?(token)
+  end
+
+  # Normalizes a user id (struct or string) to a bare UUID (no "user_" prefix)
+  # so it can be passed to Repo.get/2 against the binary_id primary key.
+  defp normalize_user_id(nil), do: nil
+  defp normalize_user_id(%{__struct__: _} = vo), do: normalize_user_id(to_string(vo))
+
+  defp normalize_user_id(str) when is_binary(str) do
+    case String.replace_prefix(str, "user_", "") do
+      "" -> nil
+      uuid -> uuid
+    end
+  end
+
+  defp normalize_user_id(_), do: nil
 
   defp generate_slug(name) do
     name

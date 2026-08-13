@@ -196,9 +196,9 @@ Content-Type: application/json
 4. MFA is now enabled
 
 Login flow:
-1. POST /api/public/login        → Returns { mfa_required: true, user_id: "..." }
-2. POST /api/mfa/verify          → Enter TOTP code
-3. Returns access_token
+1. Authenticate via OAuth2 ([Authorization Code](../oauth2/authorization-code.md) or device flow)
+2. If MFA is enabled, complete `POST /api/mfa/verify`
+3. Receive access_token
 ```
 
 ---

@@ -97,7 +97,7 @@ Otros servicios como `cerebelum`, `cortex`, `glia` se descubren dinámicamente d
 zea
 ├── thalamus                ← Servicio built-in (Identity & Auth)
 │   ├── auth                ← Autenticación y sesión
-│   │   ├── login           ← OAuth2 PKCE + direct login
+│   │   ├── login           ← OAuth2 PKCE + device flow
 │   │   ├── logout          ← Revocar token
 │   │   ├── whoami          ← UserInfo del token actual
 │   │   ├── refresh         ← Refresh token
@@ -217,8 +217,8 @@ Autentica contra Thalamus. Dos modos:
 # Modo interactivo (OAuth2 PKCE + browser)
 zea thalamus auth login
 
-# Modo directo (no interactivo, CI/CD)
-zea auth login --email c@zea.cl --password "..."
+# Modo headless (device flow, sin browser redirect)
+zea thalamus auth login --device
 ```
 
 | # | Caso de prueba | Input | Expected Output | Exit |
@@ -226,10 +226,9 @@ zea auth login --email c@zea.cl --password "..."
 | 1.1 | PKCE — flujo completo | `zea thalamus auth login` | Browser se abre, login en Thalamus, token guardado. `✅ Successfully authenticated! User: c@zea.cl (Carlos Hinostroza)` | 0 |
 | 1.2 | PKCE — puerto ocupado | Puerto 4005 en uso | `⚠️ Port 4005 in use, trying 4006...` flujo continúa | 0 |
 | 1.3 | PKCE — timeout | Usuario cierra browser | `❌ Authentication timed out after 5 minutes` | 1 |
-| 1.4 | Directo — credenciales válidas | `--email c@zea.cl --password correcta` | `✅ Successfully authenticated! User: c@zea.cl (Carlos Hinostroza)` | 0 |
-| 1.5 | Directo — credenciales inválidas | Email correcto, password mal | `❌ Invalid email or password` | 1 |
-| 1.6 | Directo — cuenta no verificada | Email no verificado | `❌ Account email has not been verified. Check your inbox.` | 1 |
-| 1.7 | Directo — cuenta locked | 5+ intentos fallidos | `❌ Account temporarily locked. Wait 15 minutes or reset password.` | 1 |
+| 1.4 | Device — flujo completo | `zea thalamus auth login --device` | Muestra `user_code` y `verification_uri`, polling hasta autorizar. `✅ Successfully authenticated!` | 0 |
+| 1.5 | Device — código expirado | Código expira | `❌ Device code expired. Please run ... again.` | 1 |
+| 1.6 | Device — timeout | Usuario no autoriza | `❌ Timed out waiting for authorization.` | 1 |
 | 1.8 | Directo — cuenta suspendida | Usuario suspended | `❌ Account has been suspended. Contact your admin.` | 1 |
 | 1.9 | Directo — Thalamus caído | Servicio no responde | `❌ Cannot reach auth.zea.localhost. Is Thalamus running? Run: zea thalamus doctor` | 1 |
 | 1.10 | Directo — timeout | Request >30s | `❌ Connection timed out after 30s. Check your network or Thalamus URL.` | 1 |
@@ -616,12 +615,11 @@ zea thalamus token create --name "CI" --output json --quiet --no-color
 
 | # | Comando | Por qué | Depende de |
 |---|---|---|---|
-| 1 | `zea thalamus auth login --email/--password` | Fix: `handleDirectLogin` no matchea el formato real de respuesta de Thalamus | Thalamus `/api/public/login` |
-| 2 | `zea thalamus auth whoami` | Nuevo: saber quién soy sin leer config.json a mano | Thalamus `/oauth/userinfo` |
-| 3 | `zea thalamus health` | Nuevo: primer comando que ejecuta un developer nuevo | Thalamus `/api/public/health` |
-| 4 | `zea thalamus doctor` | Nuevo: diagnóstico completo (auth + token + DB + org) | Varios endpoints |
-| 5 | `--output json\|table` | Global: sin esto, scripting es frágil (regex contra output coloreado) | Solo local |
-| 6 | `--debug` | Global: sin esto, debuggear integración requiere Wireshark | Solo local |
+| 1 | `zea thalamus auth whoami` | Nuevo: saber quién soy sin leer config.json a mano | Thalamus `/oauth/userinfo` |
+| 2 | `zea thalamus health` | Nuevo: primer comando que ejecuta un developer nuevo | Thalamus `/api/public/health` |
+| 3 | `zea thalamus doctor` | Nuevo: diagnóstico completo (auth + token + DB + org) | Varios endpoints |
+| 4 | `--output json\|table` | Global: sin esto, scripting es frágil (regex contra output coloreado) | Solo local |
+| 5 | `--debug` | Global: sin esto, debuggear integración requiere Wireshark | Solo local |
 
 ### P1 — Integración de microservicios
 
@@ -701,8 +699,9 @@ zea thalamus user scopes c0000000-852c-44e5-aee1-a761ec76eaea
 ### Setup de CI/CD
 
 ```bash
-# Non-interactive: usar PAT
-zea auth login --email ci-bot@zea.cl --password "$ZEA_CI_PASSWORD"
+# Non-interactive: setear PAT directamente (no requiere login interactivo)
+export ZEA_PAT="th_pat_..."
+# o crear un token nuevo (requiere estar autenticado previamente):
 zea thalamus token create --name "GitHub Actions" --scopes "openid,profile,clients:write"
 # Guardar th_pat_... como ZEA_PAT en secrets del CI
 ```
