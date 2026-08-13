@@ -136,8 +136,8 @@ The codebase strictly follows Clean Architecture with dependency inversion. Depe
                        │ depends on ↓
 ┌──────────────────────▼──────────────────────────────────────┐
 │  Application Layer (lib/thalamus/application/)              │
-│  • Use Cases (AuthenticateUser, GenerateTokens, etc.)      │
-│  • DTOs (AuthenticationRequest, TokenResponse, etc.)        │
+│  • Use Cases (GenerateTokens, ValidateToken, etc.)         │
+│  • DTOs (TokenRequest, TokenResponse, etc.)                 │
 │  • Ports/Interfaces (UserRepository, TokenRepository)      │
 └──────────────────────┬──────────────────────────────────────┘
                        │ depends on ↓
@@ -182,7 +182,7 @@ Pure business logic with zero external dependencies:
 Orchestrates business workflows using domain entities and infrastructure ports:
 
 **Use Cases** (`use_cases/`):
-- `AuthenticateUser` - Handles user login with password and MFA
+- `AuthenticateUserViaSaml` - Handles SAML-based user authentication
 - `GenerateTokens` - Creates OAuth2 access/refresh tokens
 - `ValidateToken` - Validates and introspects tokens
 - Each use case has a single `execute/2` function: `execute(request, deps)`
@@ -528,7 +528,7 @@ defmodule Thalamus.Domain.Entities.UserTest do
 end
 
 # Application tests - with mocks
-defmodule Thalamus.Application.UseCases.AuthenticateUserTest do
+defmodule Thalamus.Application.UseCases.GenerateTokensTest do
   use ExUnit.Case, async: true
   import Mox
   # Mock port behaviours
@@ -663,7 +663,7 @@ lib/
 │   │   ├── repositories/                # Repository interfaces (unused, defined in ports)
 │   │   └── services/                    # Domain services
 │   ├── application/
-│   │   ├── use_cases/                   # Business workflows (AuthenticateUser, GenerateTokens)
+│   │   ├── use_cases/                   # Business workflows (GenerateTokens, ValidateToken)
 │   │   ├── ports/                       # Interfaces for infrastructure (behaviours)
 │   │   └── dtos/                        # Data transfer objects
 │   └── infrastructure/

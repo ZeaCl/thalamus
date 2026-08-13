@@ -19,6 +19,10 @@
 3. **Defensive fix (kept)**: `/oauth/userinfo` now falls back to JWKS signature
    validation for `thalamus_api` JWTs, aligned with `AuthenticateToken`.
 
+4. **Cleanup**: removed the CLI unit-test machinery (`.test.js`, `cli/test/`,
+   `cli.test.coverage`) — the CLI is tested by running commands (E2E) — plus the
+   legacy `test/cli/*.sh` suite and the now-unused `AuthenticateUser` use case.
+
 ## Root cause
 
 `POST /api/public/login` issued a **stateless** JWT (RS256, `client_id: thalamus_api`)
@@ -50,6 +54,8 @@ the login refresh token was unusable because `/oauth/token` only looks up DB row
 - `cli/src/commands/auth.js` — removed `--email`/`--password` from `login`
 - `scripts/test-cli.sh` — replaced direct-login E2E with device-flow help check
 - `test/thalamus_web/controllers/oauth2/userinfo_controller_test.exs` — new tests
+- `cli/src/commands/*.test.js`, `cli/test/`, `cli.test.coverage`, `test/cli/`, `scripts/smoke-test-cli.sh` — removed (E2E is the CLI test)
+- `lib/thalamus/application/use_cases/authenticate_user.ex`, `lib/thalamus/application/dtos/authentication_request.ex` — removed (no caller)
 - `docs/*` — removed `/api/public/login` references
 
 ## Verification

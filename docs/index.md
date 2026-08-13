@@ -96,8 +96,7 @@ Step-by-step walkthroughs for integrating apps with Thalamus:
 
 | Resource | Description |
 |---|---|
-| [CLI Command Reference](cli/CLI_COMMANDS.md) | **Recommended** — `zea thalamus` CLI commands (724 lines, 97 test cases) |
-| [CLI Test Matrix](cli/TEST_MATRIX.md) | E2E testing strategy with ephemeral containers |
+| [CLI Command Reference](cli/CLI_COMMANDS.md) | **Recommended** — `zea thalamus` CLI commands |
 | [OpenAPI Spec](OPENAPI_SPEC.yaml) | Full API specification (OpenAPI 3.0) |
 | [CLAUDE.md](../CLAUDE.md) | Coding agent instructions |
 

@@ -79,7 +79,7 @@
       "auth": false
     },
     "login": {
-      "description": "Login interactively using browser",
+      "description": "Login interactively using browser (OAuth2 Authorization Code + PKCE)",
       "options": [
         {
           "name": "--url",
@@ -89,18 +89,18 @@
           "required": true
         },
         {
-          "name": "--email",
+          "name": "--device",
           "short": null,
-          "type": "email",
-          "description": "Email for direct login (requires --password)",
-          "required": true
+          "type": "boolean",
+          "description": "Use device flow (no browser redirect needed)",
+          "required": false
         },
         {
-          "name": "--password",
+          "name": "--scopes",
           "short": null,
-          "type": "password",
-          "description": "Password for direct login (requires --email)",
-          "required": true
+          "type": "scopes",
+          "description": "Scopes (space-separated)",
+          "required": false
         }
       ],
       "arguments": [],
