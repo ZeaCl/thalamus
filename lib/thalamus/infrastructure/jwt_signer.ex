@@ -211,18 +211,33 @@ defmodule Thalamus.Infrastructure.JwtSigner do
   end
 
   @doc """
-  Validates essential JWT claims after signature verification.
+  Validates JWT claims after signature verification.
 
   `Joken.verify_and_validate/3` with an empty config validates nothing beyond
-  the signature, so expiration must be checked explicitly here.
+  the signature, so `exp`, `nbf`, `iss` and `aud` are checked here.
   """
   def validate_claims(claims) do
     now = DateTime.utc_now() |> DateTime.to_unix()
+    cfg = config()
 
-    if is_integer(claims["exp"]) and claims["exp"] < now do
-      {:error, "Token has expired"}
-    else
-      :ok
+    cond do
+      not is_integer(claims["exp"]) ->
+        {:error, "Missing or invalid exp claim"}
+
+      claims["exp"] < now ->
+        {:error, "Token has expired"}
+
+      is_integer(claims["nbf"]) and claims["nbf"] > now ->
+        {:error, "Token not yet valid"}
+
+      claims["iss"] != cfg[:issuer] ->
+        {:error, "Invalid issuer"}
+
+      not is_binary(claims["aud"]) or claims["aud"] == "" ->
+        {:error, "Missing audience"}
+
+      true ->
+        :ok
     end
   end
 
@@ -272,24 +287,31 @@ defmodule Thalamus.Infrastructure.JwtSigner do
           do: Enum.find(keys, fn k -> (k[:kid] || k["kid"]) == header["kid"] end),
           else: List.first(keys)
 
-      if key do
-        pem = jwk_to_pem(key)
-        {:ok, Joken.Signer.create("RS256", %{"pem" => pem})}
-      else
-        {:error, "No matching JWK"}
+      case jwk_to_pem(key) do
+        {:ok, pem} -> {:ok, Joken.Signer.create("RS256", %{"pem" => pem})}
+        {:error, _} = error -> error
       end
     else
       _ -> {:error, "Malformed JWT header"}
     end
   end
 
+  defp jwk_to_pem(nil), do: {:error, "No matching JWK"}
+
   defp jwk_to_pem(key) do
     n = key[:n] || key["n"]
     e = key[:e] || key["e"]
-    n_int = :binary.decode_unsigned(Base.url_decode64!(n, padding: false))
-    e_int = :binary.decode_unsigned(Base.url_decode64!(e, padding: false))
-    pem_entry = :public_key.pem_entry_encode(:RSAPublicKey, {:RSAPublicKey, n_int, e_int})
-    :public_key.pem_encode([pem_entry])
+
+    with true <- is_binary(n) and is_binary(e),
+         {:ok, n_bin} <- Base.url_decode64(n, padding: false),
+         {:ok, e_bin} <- Base.url_decode64(e, padding: false) do
+      n_int = :binary.decode_unsigned(n_bin)
+      e_int = :binary.decode_unsigned(e_bin)
+      pem_entry = :public_key.pem_entry_encode(:RSAPublicKey, {:RSAPublicKey, n_int, e_int})
+      {:ok, :public_key.pem_encode([pem_entry])}
+    else
+      _ -> {:error, "Invalid JWK key"}
+    end
   end
 
   defp build_signer(_config) do

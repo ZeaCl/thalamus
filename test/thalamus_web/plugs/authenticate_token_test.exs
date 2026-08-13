@@ -108,27 +108,53 @@ defmodule ThalamusWeb.Plugs.AuthenticateTokenTest do
 
   # ── JWT claim validation ─────────────────────────────────────
 
+  @issuer "https://auth.zea.cl"
+
   describe "validate_jwt_claims/1" do
-    test "returns :ok for non-expired token" do
+    test "returns :ok for a valid token" do
       future = DateTime.utc_now() |> DateTime.to_unix() |> Kernel.+(3600)
-      claims = %{"exp" => future}
+
+      claims = %{
+        "exp" => future,
+        "iss" => @issuer,
+        "aud" => "zea"
+      }
+
       assert :ok = AuthenticateToken.validate_jwt_claims(claims)
     end
 
     test "returns {:error, message} for expired token" do
       past = DateTime.utc_now() |> DateTime.to_unix() |> Kernel.-(3600)
-      claims = %{"exp" => past}
+
+      claims = %{
+        "exp" => past,
+        "iss" => @issuer,
+        "aud" => "zea"
+      }
+
       assert {:error, _} = AuthenticateToken.validate_jwt_claims(claims)
     end
 
-    test "returns :ok when exp claim is missing (exp claim is optional)" do
-      claims = %{"sub" => "user_123"}
-      assert :ok = AuthenticateToken.validate_jwt_claims(claims)
+    test "returns {:error, _} when exp claim is missing" do
+      claims = %{"iss" => @issuer, "aud" => "zea"}
+      assert {:error, _} = AuthenticateToken.validate_jwt_claims(claims)
     end
 
-    test "returns :ok when exp is not an integer" do
-      claims = %{"exp" => "not_an_int"}
-      assert :ok = AuthenticateToken.validate_jwt_claims(claims)
+    test "returns {:error, _} when exp is not an integer" do
+      claims = %{"exp" => "not_an_int", "iss" => @issuer, "aud" => "zea"}
+      assert {:error, _} = AuthenticateToken.validate_jwt_claims(claims)
+    end
+
+    test "returns {:error, _} when issuer does not match" do
+      future = DateTime.utc_now() |> DateTime.to_unix() |> Kernel.+(3600)
+      claims = %{"exp" => future, "iss" => "https://evil.example.com", "aud" => "zea"}
+      assert {:error, _} = AuthenticateToken.validate_jwt_claims(claims)
+    end
+
+    test "returns {:error, _} when audience is missing" do
+      future = DateTime.utc_now() |> DateTime.to_unix() |> Kernel.+(3600)
+      claims = %{"exp" => future, "iss" => @issuer}
+      assert {:error, _} = AuthenticateToken.validate_jwt_claims(claims)
     end
   end
 

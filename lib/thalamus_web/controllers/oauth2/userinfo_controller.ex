@@ -159,22 +159,29 @@ defmodule ThalamusWeb.OAuth2.UserinfoController do
 
   defp resolve_stateless_jwt_user_id(token) do
     if stateless_api_jwt?(token) do
-      with {:ok, claims} <- JwtSigner.verify_access_token(token),
-           user_id when not is_nil(user_id) <- normalize_user_id(claims["sub"]) do
-        {:ok, user_id}
-      else
-        nil ->
-          Logger.warning("UserInfo: stateless JWT missing sub claim")
-          {:error, :invalid_token}
-
-        {:error, reason} ->
-          Logger.warning("UserInfo: stateless JWT validation failed: #{inspect(reason)}")
-          {:error, :invalid_token}
-      end
+      token
+      |> JwtSigner.verify_access_token()
+      |> resolve_claims_to_user_id()
     else
       Logger.warning("UserInfo validation_result: valid=false")
       {:error, :invalid_token}
     end
+  end
+
+  defp resolve_claims_to_user_id({:ok, claims}) do
+    case normalize_user_id(claims["sub"]) do
+      nil ->
+        Logger.warning("UserInfo: stateless JWT missing sub claim")
+        {:error, :invalid_token}
+
+      user_id ->
+        {:ok, user_id}
+    end
+  end
+
+  defp resolve_claims_to_user_id({:error, reason}) do
+    Logger.warning("UserInfo: stateless JWT validation failed: #{inspect(reason)}")
+    {:error, :invalid_token}
   end
 
   defp stateless_api_jwt?(token) do
