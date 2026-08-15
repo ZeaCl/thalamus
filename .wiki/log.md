@@ -4,7 +4,8 @@
 - Síntoma: `build_verification_uri/1` generaba `https://auth.zea.cl:80/oauth/activate` (HTTPS + puerto 80) cuando `FORCE_SSL` no está en prod
 - Fix defensivo en código: omitir puerto cuando `public_port`/`conn.port` es 80/443 (igual que discovery)
 - Tests de regresión nuevos: `device_controller_test.exs` (no existía)
-- PR #161 abierto. Pendiente fix raíz: setear `FORCE_SSL=true` en env de prod (zea-cicd/infra)
+- PR #161 mergeado (squash). Pendiente fix raíz: setear `FORCE_SSL=true` en env de prod (zea-cicd/infra)
+- Follow-up de review: #162 (centralizar construcción de URLs absolutas)
 
 ## [2026-08-13] chore | cleanup CLI test infra + dead use case (#154)
 - Removed CLI unit-test machinery (`*.test.js`, `cli/test/`, `extract-test-coverage.cjs`, `cli.test.coverage`) — the CLI is tested by running commands (E2E `scripts/test-cli.sh`)

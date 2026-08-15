@@ -3,7 +3,7 @@
 - **Issue**: #160
 - **Rama**: fix/issue-160-device-flow-port
 - **PR**: #161
-- **Estado**: ✅ PR abierto (fix síntoma) / ⏳ pendiente fix raíz en infra
+- **Estado**: ✅ merged (fix síntoma) / ⏳ pendiente fix raíz en infra
 
 ## Qué se hizo
 - `build_verification_uri/1` ahora omite el puerto cuando `public_port` (o `conn.port`) es 80/443.
