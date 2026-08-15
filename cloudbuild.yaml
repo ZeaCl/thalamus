@@ -1,0 +1,34 @@
+# ============================================================================
+# cloudbuild.yaml — Servicios Elixir (thalamus, soma)
+# ============================================================================
+# Migración epic #35 (ZeaCl/zea-cicd#37): Cloud Build → Artifact Registry.
+# Reemplaza buildspec-elixir.yml (CodeBuild → ECR).
+#
+# Uso (manual): gcloud builds submit --config cloudbuild.yaml \
+#   --substitutions=_COMMIT_SHA=<sha> .
+# Con trigger: automático en push a main (COMMIT_SHA built-in).
+# ============================================================================
+
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    id: docker-build
+    args:
+      - 'build'
+      - '--platform=linux/amd64'
+      - '--target=runtime'
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/zea-thalamus:latest'
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/zea-thalamus:commit-${_COMMIT_SHA}'
+      - '.'
+
+images:
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/zea-thalamus:latest'
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/zea-thalamus:commit-${_COMMIT_SHA}'
+
+substitutions:
+  _REGION: southamerica-west1
+  _COMMIT_SHA: 'none'
+
+options:
+  machineType: 'E2_HIGHCPU_8'
