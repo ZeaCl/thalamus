@@ -15,8 +15,8 @@ defmodule ThalamusWeb.OAuth2.DeviceController do
   use ThalamusWeb, :controller
 
   alias Thalamus.Domain.Entities.DeviceAuthorization
-  alias Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository
   alias Thalamus.Infrastructure.Repositories.PostgreSQLDeviceAuthorizationRepository
+  alias Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository
 
   @repo PostgreSQLDeviceAuthorizationRepository
 
@@ -187,11 +187,12 @@ defmodule ThalamusWeb.OAuth2.DeviceController do
     # Use configured host if set, otherwise fall back to request host
     host = Application.get_env(:thalamus, :host, conn.host)
 
-    # Omit default ports (80/443) unless PUBLIC_PORT is configured
+    # Omit default ports (80/443) unless PUBLIC_PORT is explicitly non-default
     public_port = Application.get_env(:thalamus, :public_port)
 
     port =
       cond do
+        public_port in [80, 443] -> ""
         public_port -> ":#{public_port}"
         conn.port in [80, 443] -> ""
         true -> ":#{conn.port}"

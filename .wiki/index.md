@@ -2,6 +2,8 @@
 
 ## Features
 
+- [device-flow-port](features/160-device-flow-port.md) — verification_uri con :80 → ERR_SSL_PROTOCOL_ERROR (#160)
+
 - [userinfo-jwt-fallback](features/154-userinfo-jwt-fallback.md) — removed stateless login tokens + userinfo JWKS fallback (#154)
 
 - [login-port-random](features/147-login-port-random.md) — Fix puerto aleatorio en login → invalid redirect_uri (#147)
