@@ -6,8 +6,8 @@ defmodule ThalamusWeb.OAuth2.DeviceControllerTest do
   alias Thalamus.TestHelpers
 
   alias Thalamus.Infrastructure.Repositories.{
-    PostgreSQLOrganizationRepository,
-    PostgreSQLOAuth2ClientRepository
+    PostgreSQLOAuth2ClientRepository,
+    PostgreSQLOrganizationRepository
   }
 
   setup do

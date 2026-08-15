@@ -15,8 +15,8 @@ defmodule ThalamusWeb.OAuth2.DeviceController do
   use ThalamusWeb, :controller
 
   alias Thalamus.Domain.Entities.DeviceAuthorization
-  alias Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository
   alias Thalamus.Infrastructure.Repositories.PostgreSQLDeviceAuthorizationRepository
+  alias Thalamus.Infrastructure.Repositories.PostgreSQLOAuth2ClientRepository
 
   @repo PostgreSQLDeviceAuthorizationRepository
 
