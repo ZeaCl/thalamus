@@ -17,14 +17,14 @@ steps:
       - '--platform=linux/amd64'
       - '--target=runtime'
       - '-t'
-      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/zea-thalamus:latest'
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/zea/thalamus:latest'
       - '-t'
-      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/zea-thalamus:commit-${_COMMIT_SHA}'
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/zea/thalamus:commit-${_COMMIT_SHA}'
       - '.'
 
 images:
-  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/zea-thalamus:latest'
-  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/zea-thalamus:commit-${_COMMIT_SHA}'
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/zea/thalamus:latest'
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/zea/thalamus:commit-${_COMMIT_SHA}'
 
 substitutions:
   _REGION: southamerica-west1
