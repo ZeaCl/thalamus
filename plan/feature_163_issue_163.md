@@ -60,7 +60,7 @@
 
 ### Fase 6 — Commit & PR
 
-- [ ] 6.1 Commit con cambios (mensajes tipo conventional commits por fase)
+- [x] 6.1 Commit con cambios (mensajes tipo conventional commits por fase)  ✓ (3 commits: plan, feat, docs)
 - [ ] 6.2 Abrir PR hacia `main`
 - [ ] 6.3 Code review (skill zea-code-review) antes de mergear
 
