@@ -50,6 +50,31 @@ defmodule Thalamus.Domain.Entities.UserTest do
       assert user.mfa_methods == [mfa_method]
       assert user.status == :active
       assert user.verified_at == now
+      assert user.mfa_methods == [mfa_method]
+      assert user.status == :active
+      assert user.verified_at == now
+    end
+
+    test "carries parent_user_id when provided" do
+      {:ok, user_id} = UserId.generate()
+      {:ok, parent_id} = UserId.generate()
+      {:ok, email} = Email.new("parentchild@example.com")
+      {:ok, password_hash} = PasswordHash.from_password("SecureP@ssw0rd1")
+
+      assert {:ok, user} =
+               User.new(%{
+                 id: user_id,
+                 email: email,
+                 password_hash: password_hash,
+                 parent_user_id: to_string(parent_id)
+               })
+
+      assert user.parent_user_id == to_string(parent_id)
+    end
+
+    test "defaults parent_user_id to nil" do
+      {:ok, user} = User.register("lonely@example.com", "SecureP@ssw0rd1")
+      assert is_nil(user.parent_user_id)
     end
 
     test "fails with missing required fields" do
@@ -472,6 +497,28 @@ defmodule Thalamus.Domain.Entities.UserTest do
 
       assert {:ok, deactivated_user} = User.deactivate(user)
       assert deactivated_user.status == :deactivated
+    end
+  end
+
+  describe "agent_config role and hierarchy" do
+    test "register_agent produces an is_agent user carrying agent_config" do
+      {:ok, agent} =
+        User.register_agent(
+          "Dev Copilot",
+          "dev_agent@acme.corp",
+          "SecureP@ssw0rd1",
+          %{"role" => "developer"}
+        )
+
+      assert agent.is_agent == true
+      assert agent.status == :active
+      assert agent.agent_config == %{"role" => "developer"}
+      assert agent.agent_config["role"] == "developer"
+    end
+
+    test "register produces a human (is_agent false)" do
+      {:ok, human} = User.register("alice@acme.corp", "SecureP@ssw0rd1")
+      assert human.is_agent == false
     end
   end
 

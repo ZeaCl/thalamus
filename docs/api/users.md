@@ -88,7 +88,9 @@ Content-Type: application/json
   "email": "newuser@example.com",
   "password": "SecurePass123!",
   "password_confirmation": "SecurePass123!",
-  "organization_id": "org_abc123"
+  "organization_id": "org_abc123",
+  "is_agent": false,
+  "parent_user_id": "abc123"
 }
 ```
 
@@ -100,6 +102,9 @@ Content-Type: application/json
 | `password` | ✅ | Min 8 characters |
 | `password_confirmation` | ✅ | Must match password |
 | `organization_id` | ❌ | Assign to organization |
+| `is_agent` | ❌ | `true` para crear un agente IA |
+| `agent_config` | ❌ | Config del agente (ej. `{"role": "developer"}`) |
+| `parent_user_id` | ❌ | Id del usuario padre en la jerarquía, como **UUID pelado** (sin prefijo). Modela dependencia humano→agente o agente→sub-agente |
 
 **Response:** `201 Created` with user object.
 
@@ -118,7 +123,9 @@ Content-Type: application/json
 }
 ```
 
-**Updatable fields:** `email`, `status` (`active` / `inactive`).
+**Updatable fields:** `email`, `status` (`active` / `inactive`), `parent_user_id` (UUID pelado; se desvincula pasando `""` o `null`).
+
+> **Contrato `parent_user_id`**: en create/update/list/get se envía y se devuelve como **UUID pelado** (UUID crudo, sin el prefijo `user_` que usa internamente el dominio).
 
 **Response:** `200 OK` with updated user object.
 
@@ -190,6 +197,53 @@ Authorization: Bearer eyJhbGciOi...
 ```
 
 **Response:** `200 OK`, avatar removed.
+
+---
+
+## Jerarquía Unificada de Usuarios
+
+Todos los actores en Thalamus son `User` (humanos con `is_agent: false`, o agentes IA con `is_agent: true`).
+El campo `parent_user_id` modela una estructura jerárquica donde cualquier usuario depende de otro:
+
+```
+        [CEO / Dirección (Humano)]
+                 └──────────────┐
+                         [Líder (Humano)]
+                             ├── [Dev Junior (Humano)]
+                             └── [dev_agent (Agente IA)]
+                                   └── [sub_agent (Agente)]
+```
+
+**query eficiente del árbol:**
+
+- `find_by_parent/1` — hijos directos (`parent_user_id = user.id`).
+- `find_tree/1,2` — sub-árbol completo (descendientes directos e indirectos), con filtro opcional por organización.
+- `find_agents_subtree/1` — solo los agentes IA subordinados disponibles para delegar tareas.
+
+### `reports` en `/oauth/userinfo`
+
+Cuando un usuario hace login, `GET /oauth/userinfo` incluye sus dependientes (usuarios/agentes con `parent_user_id = current_user.id`):
+
+```json
+{
+  "sub": "c0000001-0000-0000-0000-000000000001",
+  "email": "alice@acme.corp",
+  "name": "Alice Smith",
+  "reports": [
+    {
+      "id": "user_d7b8a0f3-0000-0000-0000-000000000002",
+      "name": "Acme Dev Copilot",
+      "email": "dev_agent@acme.corp",
+      "is_agent": true,
+      "role": "developer"
+    }
+  ]
+}
+```
+
+Si el usuario no tiene dependientes, `reports` será un arreglo vacío `[]`.
+
+> Nota: `reports[].id` usa el formato `user_<uuid>` (igual que `id` en la API de usuarios), a diferencia de `parent_user_id` que se expone como UUID pelado.
 
 ---
 

@@ -86,3 +86,44 @@ Release candidate con: Authorization Code + PKCE, Client Credentials, Refresh To
 - Fix: agregar Host header automáticamente al resolver .zea.localhost
 - Afectaba todos los endpoints .zea.localhost, no solo device login
 - PR: #129
+
+## [2026-07-27] feat | #163 Jerarquía Unificada de Usuarios vía parent_user_id
+- **Issue**: #163
+- **Rama**: feature/163-parent-user-id-hierarchy
+- Columna `parent_user_id` (FK self a `users.id`, nullable) + índices
+- `find_by_parent/1`, `find_tree/2` (BFS + guard ciclos + filtro org), `find_agents_subtree/1` en el puerto/repo
+- `/oauth/userinfo` ahora expone `reports` (dependientes directos con `role` desde `agent_config`)
+- API REST acepta `parent_user_id` en create/update
+- TDD: domain, repo (round-trip + tree) y controller. Suite completa: 1903 tests / 0 failures
+- Detalle en `.wiki/features/163-parent-user-id-hierarchy.md`
+
+## [2026-07-27] ops | GCP pipeline: GitHub Actions ya no usados en thymos
+- Confirmado: la migración CI/CD a GCP es parte del epic `ZeaCl/zea-cicd#35` (pasos #37 pipeline GCP y #38 migrar Thalamus).
+- `.github/workflows/` en thymos sigue activo y falla en PRs por billing de GH Actions (no es gate real).
+- Se creó `AGENTS.md` en este repo indicando que el CI/CD es GCP.
+- Issue de seguimiento/cleanup nuevo: `ZeaCl/zea-cicd#46` (con cross-links a #37 y #38).
+
+## [2026-08-19] cli + e2e | Validación de jerarquía (parent_user_id) desde zea-thalamus CLI
+- Actualicé la CLI (`cli/src/commands/user.js`, `auth.js`) para exponer la jerarquía del issue #163:
+  - `user create --parent-user-id <id>` (acepta UUID pelado o `user_<uuid>`)
+  - `user update <id> --parent-user-id <id>` ; `""` desvincula
+  - `user show`/`user list` muestran parent_user_id
+  - `whoami` lista `Reports:` (dependientes directos vía `/oauth/userinfo`)
+- Validación e2e REAL contra servidor dev en `localhost:4101` con la migración aplicada:
+  - Se creó boss humano + agente hijo con `--parent-user-id` → `user show` mostró Parent correcto
+  - `whoami` del boss listó el agente en `Reports:` 
+  - `user update --parent-user-id ""` desvinculó; re-vincular con UUID pelado OK
+- Gotchas de entorno dev (ajenos a la feature): token guardado en CLI no servía → generé access token directo a DB dev; una org tenía `plan_type='professional'` (inválido) que rompía `/oauth/userinfo` → corregido a `enterprise`.
+- Docs: `docs/cli/CLI_COMMANDS.md` actualizado.
+
+## [2026-08-19] ops | Issue ZeaCl/zea-cicd#47 — cómo publicar la CLI (@zea.cl/thalamus) a npm
+- La CLI local de thymos quedó desactualizada respecto a los cambios de jerarquía (#163).
+- Se creó pregunta al equipo CI/CD: `ZeaCl/zea-cicd#47` para que indiquen el flujo oficial de publicación (tag v* / bump / pipeline GCP vs CodeBuild legacy).
+- Cross-link en PR #164.
+- La skill `zea-deploy` documenta: bump versión en package.json → merge a main → tag v* → CodeBuild `zea-thalamus-npm` publica a npmjs (@zea.cl/thalamus). A confirmar por el equipo por la migración a GCP.
+
+## [2026-08-19] ops | Issue ZeaCl/zea-cicd#48 — inconsistencias en skill zea-cli-publish
+- Se creó la skill `zea-cli-publish` para guiar publicación npm (@zea.cl/*).
+- Revisión crítica detectó inconsistencias: (1) describe pipeline AWS CodeBuild pero AWS se apaga → debe ser GCP; (2) lista `@zea.cl/create-cerebelum` pero el proyecto es `cerebelum`; (3) mezcla CLI vs SDK (soma se publica desde `cli/`, no `sdk/`); + otras (catálogo vs terraform npm_services, binario global `zea` no `zea-cli`).
+- Se documentó en issue para que el equipo verifique/corrija: ZeaCl/zea-cicd#48.
+- NO se editó la skill a mano (decisión del usuario) — se dejó la verificación al equipo.

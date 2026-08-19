@@ -74,6 +74,8 @@ defmodule ThalamusWeb.OAuth2.UserinfoController do
           }
         end)
 
+      reports = build_reports(user_id_vo)
+
       # Return user info with nested organization object and all memberships
       conn
       |> put_resp_header("cache-control", "no-store")
@@ -83,6 +85,7 @@ defmodule ThalamusWeb.OAuth2.UserinfoController do
         email: user.email,
         email_verified: user.verified_at != nil,
         updated_at: DateTime.to_unix(user.updated_at),
+        reports: reports,
         organization:
           if primary_org do
             %{
@@ -223,4 +226,29 @@ defmodule ThalamusWeb.OAuth2.UserinfoController do
       schema -> {:ok, schema}
     end
   end
+
+  # Builds the `reports` list: the users/agents that directly depend on the current user.
+  defp build_reports(current_user_id) do
+    case PostgreSQLUserRepository.find_by_parent(current_user_id) do
+      {:ok, reports} -> Enum.map(reports, &report_to_json/1)
+      _ -> []
+    end
+  end
+
+  defp report_to_json(%Thalamus.Domain.Entities.User{} = report) do
+    %{
+      id: UserId.to_string(report.id),
+      name: report.name,
+      email: to_string(report.email),
+      is_agent: report.is_agent,
+      role: agent_role(report)
+    }
+  end
+
+  defp agent_role(%Thalamus.Domain.Entities.User{agent_config: agent_config})
+       when is_map(agent_config) do
+    agent_config["role"]
+  end
+
+  defp agent_role(_), do: nil
 end

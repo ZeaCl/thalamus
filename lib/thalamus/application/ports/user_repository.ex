@@ -104,4 +104,37 @@ defmodule Thalamus.Application.Ports.UserRepository do
       {:ok, 1234}
   """
   @callback count() :: {:ok, non_neg_integer()} | {:error, term()}
+
+  @doc """
+  Finds the direct children of a user (users whose `parent_user_id` equals +user_id+).
+
+  ## Examples
+
+      iex> UserRepository.find_by_parent(user_id)
+      {:ok, [%User{}, ...]}
+  """
+  @callback find_by_parent(UserId.t()) :: {:ok, [User.t()]} | {:error, term()}
+
+  @doc """
+  Resolves the full dependency subtree of a user (direct + indirect descendants).
+
+  Returns the whole hierarchy below +user_id+. Optionally restricted to a given
+  organization via the +organization_id+ option.
+
+  ## Examples
+
+      iex> UserRepository.find_tree(user_id)
+      {:ok, [%User{}, %User{}, ...]}
+  """
+  @callback find_tree(UserId.t(), keyword()) :: {:ok, [User.t()]} | {:error, term()}
+
+  @doc """
+  Resolves the subtree of +user_id+ and filters it to subordinated agents only.
+
+  ## Examples
+
+      iex> UserRepository.find_agents_subtree(user_id)
+      {:ok, [%User{}, ...]}
+  """
+  @callback find_agents_subtree(UserId.t()) :: {:ok, [User.t()]} | {:error, term()}
 end

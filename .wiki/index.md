@@ -2,6 +2,8 @@
 
 ## Features
 
+- [parent-user-id-hierarchy](features/163-parent-user-id-hierarchy.md) — Jerarquía unificada humana+agentes, `parent_user_id`, `reports` en userinfo (#163)
+
 - [device-flow-port](features/160-device-flow-port.md) — verification_uri con :80 → ERR_SSL_PROTOCOL_ERROR (#160)
 
 - [userinfo-jwt-fallback](features/154-userinfo-jwt-fallback.md) — removed stateless login tokens + userinfo JWKS fallback (#154)

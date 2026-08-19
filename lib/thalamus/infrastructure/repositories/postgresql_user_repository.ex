@@ -163,6 +163,43 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository do
     end
   end
 
+  @impl true
+  def find_by_parent(%UserId{} = user_id) do
+    parent_uuid = user_id |> to_string() |> extract_uuid()
+
+    if parent_uuid do
+      children =
+        UserSchema
+        |> where([u], u.parent_user_id == ^parent_uuid)
+        |> order_by([u], asc: u.name)
+        |> Repo.all()
+        |> Enum.flat_map(&schema_to_entity_list/1)
+
+      {:ok, children}
+    else
+      {:ok, []}
+    end
+  end
+
+  @impl true
+  def find_tree(%UserId{} = user_id, opts \\ []) do
+    organization_id = Keyword.get(opts, :organization_id)
+
+    case find_by_parent(user_id) do
+      {:ok, []} -> {:ok, []}
+      {:ok, first_level} -> collect_subtree(first_level, organization_id, MapSet.new())
+      error -> error
+    end
+  end
+
+  @impl true
+  def find_agents_subtree(%UserId{} = user_id) do
+    with {:ok, tree} <- find_tree(user_id) do
+      agents = Enum.filter(tree, & &1.is_agent)
+      {:ok, agents}
+    end
+  end
+
   # Private conversion functions
 
   defp do_find_by_id(user_id_string) do
@@ -173,6 +210,64 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository do
       {:ok, valid_uuid} -> Repo.get(UserSchema, valid_uuid)
       :error -> nil
     end
+  end
+
+  defp extract_uuid(%UserId{} = user_id), do: extract_uuid(to_string(user_id))
+
+  defp extract_uuid(user_id_string) when is_binary(user_id_string) do
+    case String.replace_prefix(user_id_string, "user_", "") do
+      "" -> nil
+      uuid -> uuid
+    end
+  end
+
+  defp extract_uuid(_), do: nil
+
+  defp schema_to_entity_list(%UserSchema{} = schema) do
+    case schema_to_entity(schema) do
+      {:ok, entity} -> [entity]
+      {:error, _} -> []
+    end
+  end
+
+  # BFS traversal of the hierarchy below +first_level+, collecting all descendants
+  # while guarding against cycles and optionally constraining to an organization.
+  defp collect_subtree(first_level, organization_id, _seen) do
+    do_collect_subtree(first_level, organization_id, MapSet.new(), [])
+  end
+
+  defp do_collect_subtree(nodes, organization_id, seen, acc) do
+    ids = Enum.map(nodes, fn node -> node.id |> to_string() |> extract_uuid() end)
+
+    next_level =
+      UserSchema
+      |> where([u], u.parent_user_id in ^ids)
+      |> order_by([u], asc: u.name)
+      |> Repo.all()
+      |> Enum.flat_map(&schema_to_entity_list/1)
+      |> Enum.reject(fn node -> MapSet.member?(seen, to_string(node.id)) end)
+      |> maybe_filter_org(organization_id)
+
+    new_seen = Enum.reduce(nodes, seen, fn node, s -> MapSet.put(s, to_string(node.id)) end)
+    acc = acc ++ nodes
+
+    case next_level do
+      [] -> {:ok, acc}
+      _ -> do_collect_subtree(next_level, organization_id, new_seen, acc)
+    end
+  end
+
+  defp maybe_filter_org(nodes, nil), do: nodes
+
+  defp maybe_filter_org(nodes, org_id) do
+    normalized = String.replace_prefix(to_string(org_id), "org_", "")
+
+    Enum.filter(nodes, fn node ->
+      case node.organization_id do
+        nil -> false
+        org -> String.replace_prefix(to_string(org), "org_", "") == normalized
+      end
+    end)
   end
 
   defp schema_to_entity(%UserSchema{} = schema) do
@@ -187,6 +282,8 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository do
         id: user_id,
         organization_id:
           if(schema.organization_id, do: "org_" <> schema.organization_id, else: nil),
+        parent_user_id:
+          if(schema.parent_user_id, do: "user_" <> schema.parent_user_id, else: nil),
         email: email,
         name: schema.name,
         avatar_url: schema.avatar_url,
@@ -228,6 +325,12 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository do
         val when is_binary(val) -> String.replace_prefix(val, "org_", "")
       end
 
+    parent_uuid =
+      case user.parent_user_id do
+        nil -> nil
+        val when is_binary(val) -> String.replace_prefix(val, "user_", "")
+      end
+
     %UserSchema{
       id: user_uuid,
       email: Email.to_string(user.email),
@@ -236,6 +339,7 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLUserRepository do
       password_hash: PasswordHash.to_string(user.password_hash),
       status: user.status,
       organization_id: org_uuid,
+      parent_user_id: parent_uuid,
       verified_at: user.verified_at,
       last_login_at: user.last_login_at,
       failed_login_attempts: user.failed_login_attempts,
