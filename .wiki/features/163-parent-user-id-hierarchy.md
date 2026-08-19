@@ -15,9 +15,12 @@
 
 ## Decisiones clave
 - `parent_user_id` en el dominio usa prefijo `user_<uuid>` (igual que `organization_id` usa `org_`); en DB se guarda UUID crudo.
+- **Contrato API**: `parent_user_id` se envía/recibe como **UUID pelado** en create/update/list/get (consistente con `organization_id`). La entrada acepta ambos formatos (pelado o `user_<uuid>`) via `normalize_parent_user_id/1`, y se normaliza a `user_<uuid>` internamente; `""` o `nil` desvincula.
+- `reports[].id` en userinfo usa `user_<uuid>` (igual que `id` en la API de usuarios), distinto del `parent_user_id` pelado.
 - El árbol es BFS iterativo (capa a capa) en lugar de un solo CTE: con niveles pequeños en una org es +predecible, y evita la complejidad de CTEs recursivos en Ecto. `find_tree/2` acepta `organization_id` para acotar.
 - `reports` solo incluye dependientes directos (criterio de aceptación). La reseranza completa (sub-árbol) queda en `find_tree` para uso programático.
 - `role` de un agente se lee de `agent_config["role"]` (omite si no existe).
+- **Gotcha descubierto**: `UserSchema` tiene `@primary_key {:id, :binary_id, autogenerate: true}` y `save/1` castea sin incluir `:id`, así que el id del entity NO se respeta en INSERT (DB genera otro). En tests hay que usar el id RETORNADO por `save` (no el de `User.register`).
 
 ## Archivos modificados
 - `priv/repo/migrations/20260606000000_add_parent_user_id_to_users.exs`

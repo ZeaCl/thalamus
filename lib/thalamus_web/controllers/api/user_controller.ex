@@ -386,18 +386,10 @@ defmodule ThalamusWeb.API.UserController do
 
     # Apply parent_user_id update if present (hierarchy)
     user =
-      case params["parent_user_id"] do
-        nil ->
-          user
-
-        parent_id when parent_id == "" ->
-          %{user | parent_user_id: nil}
-
-        parent_id when is_binary(parent_id) ->
-          %{user | parent_user_id: strip_user_prefix(parent_id)}
-
-        _ ->
-          user
+      if Map.has_key?(params, "parent_user_id") do
+        %{user | parent_user_id: normalize_parent_user_id(params["parent_user_id"])}
+      else
+        user
       end
 
     {:ok, user}
@@ -419,13 +411,18 @@ defmodule ThalamusWeb.API.UserController do
   end
 
   # Propagates a user id to the entity's internal "user_<uuid>" format.
+  # Accepts both formats in the API (bare UUID or "user_<uuid>") and normalizes
+  # to the internal "user_<uuid>". Empty string unlinks (nil).
   defp maybe_set_parent(%Thalamus.Domain.Entities.User{} = user, params) do
     case params["parent_user_id"] do
       nil -> {:ok, user}
-      parent_id -> {:ok, %{user | parent_user_id: strip_user_prefix(to_string(parent_id))}}
+      parent_id -> {:ok, %{user | parent_user_id: normalize_parent_user_id(to_string(parent_id))}}
     end
   end
 
-  defp strip_user_prefix("user_" <> _ = id), do: id
-  defp strip_user_prefix(id), do: "user_" <> id
+  defp normalize_parent_user_id(nil), do: nil
+  defp normalize_parent_user_id(""), do: nil
+  defp normalize_parent_user_id("user_" <> _ = id), do: id
+  defp normalize_parent_user_id(id) when is_binary(id), do: "user_" <> id
+  defp normalize_parent_user_id(_), do: nil
 end

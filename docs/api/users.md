@@ -90,7 +90,7 @@ Content-Type: application/json
   "password_confirmation": "SecurePass123!",
   "organization_id": "org_abc123",
   "is_agent": false,
-  "parent_user_id": "user_xyz789"
+  "parent_user_id": "abc123"
 }
 ```
 
@@ -104,7 +104,7 @@ Content-Type: application/json
 | `organization_id` | ❌ | Assign to organization |
 | `is_agent` | ❌ | `true` para crear un agente IA |
 | `agent_config` | ❌ | Config del agente (ej. `{"role": "developer"}`) |
-| `parent_user_id` | ❌ | Id del usuario padre en la jerarquía (`user_<uuid>`). Modela dependencia humano→agente o agente→sub-agente |
+| `parent_user_id` | ❌ | Id del usuario padre en la jerarquía, como **UUID pelado** (sin prefijo). Modela dependencia humano→agente o agente→sub-agente |
 
 **Response:** `201 Created` with user object.
 
@@ -123,7 +123,9 @@ Content-Type: application/json
 }
 ```
 
-**Updatable fields:** `email`, `status` (`active` / `inactive`), `parent_user_id` (permite desvincular pasando `""` o ``null``).
+**Updatable fields:** `email`, `status` (`active` / `inactive`), `parent_user_id` (UUID pelado; se desvincula pasando `""` o `null`).
+
+> **Contrato `parent_user_id`**: en create/update/list/get se envía y se devuelve como **UUID pelado** (UUID crudo, sin el prefijo `user_` que usa internamente el dominio).
 
 **Response:** `200 OK` with updated user object.
 
@@ -240,6 +242,8 @@ Cuando un usuario hace login, `GET /oauth/userinfo` incluye sus dependientes (us
 ```
 
 Si el usuario no tiene dependientes, `reports` será un arreglo vacío `[]`.
+
+> Nota: `reports[].id` usa el formato `user_<uuid>` (igual que `id` en la API de usuarios), a diferencia de `parent_user_id` que se expone como UUID pelado.
 
 ---
 

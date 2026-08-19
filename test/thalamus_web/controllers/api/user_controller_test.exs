@@ -332,6 +332,26 @@ defmodule ThalamusWeb.API.UserControllerTest do
         })
 
       assert json_response(conn, 401)
+      assert json_response(conn, 401)
+    end
+
+    test "creates user with parent_user_id (bare UUID)", %{conn: conn, access_token: token} do
+      {:ok, parent} = User.register("parent@test.com", "Pass123!")
+      {:ok, parent} = PostgreSQLUserRepository.save(parent)
+
+      parent_id = to_string(parent.id) |> String.replace_prefix("user_", "")
+
+      conn =
+        conn
+        |> put_req_header("authorization", "Bearer #{token}")
+        |> post(~p"/api/users", %{
+          email: "child@test.com",
+          password: "Pass123!",
+          parent_user_id: parent_id
+        })
+
+      assert %{"data" => %{"parent_user_id" => returned_parent}} = json_response(conn, 201)
+      assert returned_parent == parent_id
     end
   end
 
@@ -422,6 +442,42 @@ defmodule ThalamusWeb.API.UserControllerTest do
         })
 
       assert json_response(conn, 401)
+    end
+
+    test "updates parent_user_id (bare UUID)", %{conn: conn, access_token: token} do
+      {:ok, parent} = User.register("patchparent@test.com", "Pass123!")
+      {:ok, parent} = PostgreSQLUserRepository.save(parent)
+      {:ok, child} = User.register("patchchild@test.com", "Pass123!")
+      {:ok, child} = PostgreSQLUserRepository.save(child)
+
+      parent_id = to_string(parent.id) |> String.replace_prefix("user_", "")
+
+      conn =
+        conn
+        |> put_req_header("authorization", "Bearer #{token}")
+        |> patch(~p"/api/users/#{child.id}", %{parent_user_id: parent_id})
+
+      assert %{"data" => %{"parent_user_id" => updated}} = json_response(conn, 200)
+      assert updated == parent_id
+    end
+
+    test "unlinks parent_user_id with empty string", %{conn: conn, access_token: token} do
+      {:ok, parent} = User.register("unlinkparent@test.com", "Pass123!")
+      {:ok, parent} = PostgreSQLUserRepository.save(parent)
+      {:ok, child} = User.register("unlinkchild@test.com", "Pass123!")
+      {:ok, saved_child} = PostgreSQLUserRepository.save(child)
+
+      # Link first
+      linked = %{saved_child | parent_user_id: to_string(parent.id)}
+      {:ok, _} = PostgreSQLUserRepository.save(linked)
+
+      conn =
+        conn
+        |> put_req_header("authorization", "Bearer #{token}")
+        |> patch(~p"/api/users/#{saved_child.id}", %{parent_user_id: ""})
+
+      assert %{"data" => %{"parent_user_id" => unlinked}} = json_response(conn, 200)
+      assert unlinked == nil
     end
   end
 
