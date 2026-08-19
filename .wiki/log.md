@@ -127,3 +127,11 @@ Release candidate con: Authorization Code + PKCE, Client Credentials, Refresh To
 - Revisión crítica detectó inconsistencias: (1) describe pipeline AWS CodeBuild pero AWS se apaga → debe ser GCP; (2) lista `@zea.cl/create-cerebelum` pero el proyecto es `cerebelum`; (3) mezcla CLI vs SDK (soma se publica desde `cli/`, no `sdk/`); + otras (catálogo vs terraform npm_services, binario global `zea` no `zea-cli`).
 - Se documentó en issue para que el equipo verifique/corrija: ZeaCl/zea-cicd#48.
 - NO se editó la skill a mano (decisión del usuario) — se dejó la verificación al equipo.
+
+## [2026-08-19] release | Intento publicar @zea.cl/thalamus@1.0.4 con pipeline GCP — falló (E404)
+- PR #164 MERGED a main con bump a 1.0.4.
+- Se lanzó `gcloud builds submit --config=cloudbuild-npm.yaml .` (build 6d864965, zea-platform) → SUCCESS aparente, pero npm no publicó.
+- Causa: `npm publish` dio E404 "not in this registry" — el token `zea-npm-token` (GCP Secret Manager) no tiene acceso de escritura al scope `@zea.cl`.
+- Bug secundario: el cloudbuild no usa `set -e` → `npm publish` puede fallar y el build igual reporta SUCCESS.
+- Reportado en ZeaCl/zea-cicd#47 (comentario) para que el equipo corrija el token/scope y agregue set -e.
+- Registry npmjs sigue en 1.0.3 (latest); 1.0.4 bumpeado y en main pero sin publicar.
