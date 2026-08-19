@@ -115,3 +115,9 @@ Release candidate con: Authorization Code + PKCE, Client Credentials, Refresh To
   - `user update --parent-user-id ""` desvinculó; re-vincular con UUID pelado OK
 - Gotchas de entorno dev (ajenos a la feature): token guardado en CLI no servía → generé access token directo a DB dev; una org tenía `plan_type='professional'` (inválido) que rompía `/oauth/userinfo` → corregido a `enterprise`.
 - Docs: `docs/cli/CLI_COMMANDS.md` actualizado.
+
+## [2026-08-19] ops | Issue ZeaCl/zea-cicd#47 — cómo publicar la CLI (@zea.cl/thalamus) a npm
+- La CLI local de thymos quedó desactualizada respecto a los cambios de jerarquía (#163).
+- Se creó pregunta al equipo CI/CD: `ZeaCl/zea-cicd#47` para que indiquen el flujo oficial de publicación (tag v* / bump / pipeline GCP vs CodeBuild legacy).
+- Cross-link en PR #164.
+- La skill `zea-deploy` documenta: bump versión en package.json → merge a main → tag v* → CodeBuild `zea-thalamus-npm` publica a npmjs (@zea.cl/thalamus). A confirmar por el equipo por la migración a GCP.
