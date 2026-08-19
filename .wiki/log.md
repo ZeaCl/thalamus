@@ -121,3 +121,9 @@ Release candidate con: Authorization Code + PKCE, Client Credentials, Refresh To
 - Se creó pregunta al equipo CI/CD: `ZeaCl/zea-cicd#47` para que indiquen el flujo oficial de publicación (tag v* / bump / pipeline GCP vs CodeBuild legacy).
 - Cross-link en PR #164.
 - La skill `zea-deploy` documenta: bump versión en package.json → merge a main → tag v* → CodeBuild `zea-thalamus-npm` publica a npmjs (@zea.cl/thalamus). A confirmar por el equipo por la migración a GCP.
+
+## [2026-08-19] ops | Issue ZeaCl/zea-cicd#48 — inconsistencias en skill zea-cli-publish
+- Se creó la skill `zea-cli-publish` para guiar publicación npm (@zea.cl/*).
+- Revisión crítica detectó inconsistencias: (1) describe pipeline AWS CodeBuild pero AWS se apaga → debe ser GCP; (2) lista `@zea.cl/create-cerebelum` pero el proyecto es `cerebelum`; (3) mezcla CLI vs SDK (soma se publica desde `cli/`, no `sdk/`); + otras (catálogo vs terraform npm_services, binario global `zea` no `zea-cli`).
+- Se documentó en issue para que el equipo verifique/corrija: ZeaCl/zea-cicd#48.
+- NO se editó la skill a mano (decisión del usuario) — se dejó la verificación al equipo.
