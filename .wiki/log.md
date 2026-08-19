@@ -96,3 +96,9 @@ Release candidate con: Authorization Code + PKCE, Client Credentials, Refresh To
 - API REST acepta `parent_user_id` en create/update
 - TDD: domain, repo (round-trip + tree) y controller. Suite completa: 1903 tests / 0 failures
 - Detalle en `.wiki/features/163-parent-user-id-hierarchy.md`
+
+## [2026-07-27] ops | GCP pipeline: GitHub Actions ya no usados en thymos
+- Confirmado: la migración CI/CD a GCP es parte del epic `ZeaCl/zea-cicd#35` (pasos #37 pipeline GCP y #38 migrar Thalamus).
+- `.github/workflows/` en thymos sigue activo y falla en PRs por billing de GH Actions (no es gate real).
+- Se creó `AGENTS.md` en este repo indicando que el CI/CD es GCP.
+- Issue de seguimiento/cleanup nuevo: `ZeaCl/zea-cicd#46` (con cross-links a #37 y #38).
