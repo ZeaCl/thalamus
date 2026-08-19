@@ -389,14 +389,16 @@ zea thalamus token revoke <id>
 ```bash
 zea thalamus user list [--status active|suspended] [--org <slug>] [--verified true|false]
 zea thalamus user show <id>
-zea thalamus user create --email "user@example.com" --password "..." [--name "User Name"]
-zea thalamus user update <id> --status suspended|active|deactivated [--name "..."]
+zea thalamus user create --email "user@example.com" --password "..." [--name "User Name"] [--agent] [--parent-user-id <parent_uuid>]
+zea thalamus user update <id> --status suspended|active|deactivated [--name "..."] [--parent-user-id <parent_uuid>|""]
 zea thalamus user delete <id>
 zea thalamus user role list <user_id>
 zea thalamus user role assign <user_id> --role-id <id>
 zea thalamus user role revoke <user_id> --role-id <id>
 zea thalamus user scopes <user_id>
 ```
+
+> **Jerarquía (`parent_user_id`)**: se acepta **UUID pelado** o `user_<uuid>` y se normaliza antes de llamar a la API. Con `user update <id> --parent-user-id ""` se desvincula al usuario. En `user show` y `user list` se muestra el `parent_user_id`. El comando `whoami` lista los dependientes directos del usuario autenticado bajo `Reports:`.
 
 | # | Caso | Expected Output | Exit |
 |---|---|---|---|

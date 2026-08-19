@@ -66,6 +66,18 @@ export function register(program) {
           console.log(`   Orgs:      ${orgList}`);
         }
 
+        const reports = info.reports || [];
+        if (reports.length > 0) {
+          console.log('   Reports:');
+          for (const r of reports) {
+            const roleTag = r.role ? ` role:${r.role}` : '';
+            const agentTag = r.is_agent ? 'agent' : 'user';
+            console.log(`     - ${r.name || r.email} (${agentTag}, ${r.id})${roleTag}`);
+          }
+        } else {
+          console.log('   Reports:   (none)');
+        }
+
         if (info.updated_at) {
           console.log(`   Updated:   ${new Date(info.updated_at * 1000).toISOString()}`);
         }

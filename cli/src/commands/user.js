@@ -35,7 +35,8 @@ export function register(program) {
         console.log('Users:');
         for (const u of users) {
           const verified = u.verified ? '✅' : '⚠️';
-          console.log(`   ${u.email} — ${u.name || '(no name)'} [${u.status}] ${verified}`);
+          const parent = u.parent_user_id ? ` → parent:${u.parent_user_id}` : '';
+          console.log(`   ${u.email} — ${u.name || '(no name)'} [${u.status}] ${verified}${parent}`);
         }
       } catch (e) { handleError(e); process.exit(1); }
     });
@@ -62,6 +63,7 @@ export function register(program) {
         console.log(`   Status:    ${u.status}`);
         console.log(`   Verified:  ${u.verified ? '✅' : '❌'}`);
         console.log(`   MFA:       ${u.mfa_enabled ? '✅ enabled' : '❌ disabled'}`);
+        console.log(`   Parent:    ${u.parent_user_id || '(none)'}`);
         if (u.is_agent) {
           console.log('   Agent:     ✅');
           if (u.agent_config) console.log(`   Config:    ${JSON.stringify(u.agent_config)}`);
@@ -76,6 +78,7 @@ export function register(program) {
     .requiredOption('--password <password>', 'User password')
     .option('--name <name>', 'Display name')
     .option('--agent', 'Create as agent user')
+    .option('--parent-user-id <id>', 'Parent user UUID (hierarchy); bare or user_<uuid>')
     .action(async (options) => {
       const opts = getGlobalOpts();
       try {
@@ -85,6 +88,7 @@ export function register(program) {
           name: options.name || options.email.split('@')[0],
           is_agent: options.agent || false,
         };
+        if (options.parentUserId) body.parent_user_id = normalizeUserRef(options.parentUserId);
 
         if (opts.dryRun) {
           console.log('⚠️  DRY RUN — would execute:');
@@ -111,18 +115,20 @@ export function register(program) {
 
   // ── update ─────────────────────────────────────────
   userCmd.command('update <id>')
-    .description('Update user status')
+    .description('Update user status, name or parent')
     .option('--status <status>', 'active, suspended, deactivated')
     .option('--name <name>', 'New display name')
+    .option('--parent-user-id <id>', 'Set parent user (bare or user_<uuid>); use "" to unlink')
     .action(async (id, options) => {
       const opts = getGlobalOpts();
       try {
         const body = {};
         if (options.status) body.status = options.status;
         if (options.name) body.name = options.name;
+        if (options.parentUserId !== undefined) body.parent_user_id = normalizeUserRef(options.parentUserId);
 
         if (Object.keys(body).length === 0) {
-          console.error('❌ Nothing to update. Use --status or --name.');
+          console.error('❌ Nothing to update. Use --status, --name or --parent-user-id.');
           process.exit(1);
         }
 
@@ -272,4 +278,14 @@ export function register(program) {
         for (const s of scopes) console.log(`   - ${s}`);
       } catch (e) { handleError(e); process.exit(1); }
     });
+}
+
+// The API contract for `parent_user_id` is a BARE UUID (no prefix).
+// Accept and normalize both forms (bare or user_<uuid>) so callers can
+// reuse the user `id` returned by the API (which is user_<uuid>) directly.
+function normalizeUserRef(ref) {
+  if (ref === undefined || ref === null) return ref;
+  const s = String(ref).trim();
+  if (s === '') return s; // allow "" to unlink
+  return s.startsWith('user_') ? s.slice('user_'.length) : s;
 }
