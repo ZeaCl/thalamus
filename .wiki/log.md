@@ -102,3 +102,16 @@ Release candidate con: Authorization Code + PKCE, Client Credentials, Refresh To
 - `.github/workflows/` en thymos sigue activo y falla en PRs por billing de GH Actions (no es gate real).
 - Se creó `AGENTS.md` en este repo indicando que el CI/CD es GCP.
 - Issue de seguimiento/cleanup nuevo: `ZeaCl/zea-cicd#46` (con cross-links a #37 y #38).
+
+## [2026-08-19] cli + e2e | Validación de jerarquía (parent_user_id) desde zea-thalamus CLI
+- Actualicé la CLI (`cli/src/commands/user.js`, `auth.js`) para exponer la jerarquía del issue #163:
+  - `user create --parent-user-id <id>` (acepta UUID pelado o `user_<uuid>`)
+  - `user update <id> --parent-user-id <id>` ; `""` desvincula
+  - `user show`/`user list` muestran parent_user_id
+  - `whoami` lista `Reports:` (dependientes directos vía `/oauth/userinfo`)
+- Validación e2e REAL contra servidor dev en `localhost:4101` con la migración aplicada:
+  - Se creó boss humano + agente hijo con `--parent-user-id` → `user show` mostró Parent correcto
+  - `whoami` del boss listó el agente en `Reports:` 
+  - `user update --parent-user-id ""` desvinculó; re-vincular con UUID pelado OK
+- Gotchas de entorno dev (ajenos a la feature): token guardado en CLI no servía → generé access token directo a DB dev; una org tenía `plan_type='professional'` (inválido) que rompía `/oauth/userinfo` → corregido a `enterprise`.
+- Docs: `docs/cli/CLI_COMMANDS.md` actualizado.
