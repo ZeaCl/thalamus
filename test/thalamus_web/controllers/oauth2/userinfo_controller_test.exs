@@ -115,4 +115,91 @@ defmodule ThalamusWeb.OAuth2.UserinfoControllerTest do
       assert %{"error" => "invalid_token"} = json_response(conn, 401)
     end
   end
+
+  describe "GET /oauth/userinfo with reports (hierarchy)" do
+    setup :create_hierarchy
+
+    test "includes reports for direct children/agents of the user", %{
+      conn: conn,
+      user: user,
+      agent: agent
+    } do
+      jwt =
+        JwtSigner.sign_access_token(%{
+          user_id: user.id,
+          client_id: "thalamus_api",
+          scope: "openid profile email",
+          expires_in: 3600
+        })
+
+      conn =
+        conn
+        |> put_req_header("authorization", "Bearer #{jwt}")
+        |> get(~p"/oauth/userinfo")
+
+      assert conn.status == 200
+      response = json_response(conn, 200)
+      assert is_list(response["reports"])
+      assert length(response["reports"]) >= 1
+
+      report = Enum.find(response["reports"], &(&1["id"] == to_string(agent.id)))
+      assert report != nil
+      assert report["is_agent"] == true
+      assert report["role"] == "developer"
+      assert report["name"] == agent.name
+    end
+
+    test "includes an empty reports array when there are no dependents", %{
+      conn: conn,
+      no_children_user: no_children_user
+    } do
+      jwt =
+        JwtSigner.sign_access_token(%{
+          user_id: no_children_user.id,
+          client_id: "thalamus_api",
+          scope: "openid profile email",
+          expires_in: 3600
+        })
+
+      conn =
+        conn
+        |> put_req_header("authorization", "Bearer #{jwt}")
+        |> get(~p"/oauth/userinfo")
+
+      assert conn.status == 200
+      response = json_response(conn, 200)
+      assert response["reports"] == []
+    end
+  end
+
+  defp create_hierarchy(%{conn: conn}) do
+    alias Thalamus.Domain.ValueObjects.Email
+    alias Thalamus.Domain.ValueObjects.PasswordHash
+    alias Thalamus.Domain.ValueObjects.UserId
+
+    {:ok, user} = User.register("alice@acme.corp", "Password123!")
+    {:ok, user} = User.verify_email(user)
+    {:ok, user} = PostgreSQLUserRepository.save(user)
+
+    {:ok, agent_id} = UserId.generate()
+    {:ok, email} = Email.new("copoilot@acme.corp")
+    {:ok, password_hash} = PasswordHash.from_password("Password123!")
+
+    {:ok, agent} =
+      User.new(%{
+        id: agent_id,
+        email: email,
+        password_hash: password_hash,
+        name: "Acme Dev Copilot",
+        is_agent: true,
+        agent_config: %{"role" => "developer"},
+        parent_user_id: to_string(user.id)
+      })
+
+    {:ok, agent} = PostgreSQLUserRepository.save(agent)
+    {:ok, no_children_user} = User.register("solo@acme.corp", "Password123!")
+    {:ok, no_children_user} = PostgreSQLUserRepository.save(no_children_user)
+
+    {:ok, conn: conn, user: user, agent: agent, no_children_user: no_children_user}
+  end
 end

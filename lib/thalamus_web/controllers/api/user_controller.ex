@@ -125,6 +125,7 @@ defmodule ThalamusWeb.API.UserController do
              else: User.register(email_string, password)
            ),
          {:ok, user} <- create_result,
+         {:ok, user} <- maybe_set_parent(user, params),
          {:ok, saved_user} <- PostgreSQLUserRepository.save(user) do
       conn
       |> put_status(:created)
@@ -308,6 +309,7 @@ defmodule ThalamusWeb.API.UserController do
       email: Email.to_string(user.email),
       name: user.name,
       organization_id: strip_org_prefix(user.organization_id),
+      parent_user_id: strip_user_prefix_for_json(user.parent_user_id),
       status: user.status,
       verified: !is_nil(user.verified_at),
       verified_at: user.verified_at,
@@ -323,6 +325,11 @@ defmodule ThalamusWeb.API.UserController do
   defp strip_org_prefix(nil), do: nil
   defp strip_org_prefix("org_" <> id), do: id
   defp strip_org_prefix(id), do: id
+
+  # parent_user_id is stored in entity as "user_<uuid>"; expose the bare uuid.
+  defp strip_user_prefix_for_json(nil), do: nil
+  defp strip_user_prefix_for_json("user_" <> id), do: id
+  defp strip_user_prefix_for_json(id) when is_binary(id), do: id
 
   defp get_required_param(params, key) do
     case params[key] do
@@ -377,6 +384,22 @@ defmodule ThalamusWeb.API.UserController do
         user
       end
 
+    # Apply parent_user_id update if present (hierarchy)
+    user =
+      case params["parent_user_id"] do
+        nil ->
+          user
+
+        parent_id when parent_id == "" ->
+          %{user | parent_user_id: nil}
+
+        parent_id when is_binary(parent_id) ->
+          %{user | parent_user_id: strip_user_prefix(parent_id)}
+
+        _ ->
+          user
+      end
+
     {:ok, user}
   end
 
@@ -394,4 +417,15 @@ defmodule ThalamusWeb.API.UserController do
       error_field == field && Keyword.get(opts, :constraint) == :unique
     end)
   end
+
+  # Propagates a user id to the entity's internal "user_<uuid>" format.
+  defp maybe_set_parent(%Thalamus.Domain.Entities.User{} = user, params) do
+    case params["parent_user_id"] do
+      nil -> {:ok, user}
+      parent_id -> {:ok, %{user | parent_user_id: strip_user_prefix(to_string(parent_id))}}
+    end
+  end
+
+  defp strip_user_prefix("user_" <> _ = id), do: id
+  defp strip_user_prefix(id), do: "user_" <> id
 end

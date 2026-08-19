@@ -564,6 +564,76 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLUserRepositoryTest do
     end
   end
 
+  describe "hierarchy: find_by_parent/1 & tree" do
+    test "parent_user_id round-trips through save/fetch" do
+      {:ok, parent} = PostgreSQLUserRepository.save(entities_helper_user())
+      {:ok, child} = save_child(parent, "roundtrip@example.com")
+
+      assert {:ok, fetched} = PostgreSQLUserRepository.find_by_id(child.id)
+      assert fetched.parent_user_id == to_string(parent.id)
+
+      # Parent entity itself carries nil parent_user_id
+      assert {:ok, fetched_parent} = PostgreSQLUserRepository.find_by_id(parent.id)
+      assert is_nil(fetched_parent.parent_user_id)
+    end
+
+    test "find_by_parent/1 returns direct children only" do
+      {:ok, parent} = PostgreSQLUserRepository.save(entities_helper_user())
+
+      {:ok, child} = save_child(parent, "child@example.com")
+      {:ok, grandchild} = save_child(child, "grandchild@example.com")
+
+      # A user at a different org level (unrelated_to_parent)
+      {:ok, _unrelated} = PostgreSQLUserRepository.save(entities_helper_user())
+
+      assert {:ok, direct_children} = PostgreSQLUserRepository.find_by_parent(parent.id)
+      assert length(direct_children) == 1
+      assert hd(direct_children).id == child.id
+      refute Enum.any?(direct_children, &(&1.id == grandchild.id))
+    end
+
+    test "tree resolves full subtree across levels (BFS)" do
+      {:ok, parent} = PostgreSQLUserRepository.save(entities_helper_user())
+
+      {:ok, child} = save_child(parent, "child@example.com")
+      {:ok, grandchild} = save_child(child, "grandchild@example.com")
+      {:ok, greatgrandchild} = save_child(grandchild, "great@example.com")
+
+      assert {:ok, tree} = PostgreSQLUserRepository.find_tree(parent.id)
+      tree_ids = Enum.map(tree, &extract_uuid(&1.id))
+
+      assert extract_uuid(child.id) in tree_ids
+      assert extract_uuid(grandchild.id) in tree_ids
+      assert extract_uuid(greatgrandchild.id) in tree_ids
+      assert length(tree) == 3
+    end
+
+    test "find_agents_subtree/1 returns only subordinated agents" do
+      {:ok, parent} = PostgreSQLUserRepository.save(entities_helper_user())
+
+      {:ok, human_child} = save_child(parent, "humanchild@example.com", is_agent: false)
+
+      {:ok, agent_child} =
+        save_child(parent, "agentchild@example.com",
+          is_agent: true,
+          agent_config: %{"role" => "dev"}
+        )
+
+      {:ok, agent_grandchild} =
+        save_child(agent_child, "subagent@example.com",
+          is_agent: true,
+          agent_config: %{"role" => "tool"}
+        )
+
+      assert {:ok, agents} = PostgreSQLUserRepository.find_agents_subtree(parent.id)
+      agent_ids = Enum.map(agents, &extract_uuid(&1.id))
+
+      assert extract_uuid(agent_child.id) in agent_ids
+      assert extract_uuid(agent_grandchild.id) in agent_ids
+      refute extract_uuid(human_child.id) in agent_ids
+    end
+  end
+
   # --- Test Helpers ---
 
   defp create_user_entity(opts \\ []) do
@@ -618,5 +688,35 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLUserRepositoryTest do
       organization_id: org_id,
       failed_login_attempts: user.failed_login_attempts
     }
+  end
+
+  # Builds and persists a fresh top-level user entity (no parent).
+  defp entities_helper_user do
+    {:ok, user} = create_user_entity()
+    {:ok, saved} = PostgreSQLUserRepository.save(user)
+    saved
+  end
+
+  # Persists a child entity of +parent+ with the given attributes.
+  defp save_child(parent, email, opts \\ []) do
+    is_agent = Keyword.get(opts, :is_agent, false)
+    agent_config = Keyword.get(opts, :agent_config, %{})
+    {:ok, email_vo} = Email.new(email)
+    {:ok, password_hash} = PasswordHash.from_password("SecureP@ssw0rd123!")
+    {:ok, user_id} = UserId.generate()
+
+    base = %{
+      id: user_id,
+      email: email_vo,
+      name: "Child",
+      password_hash: password_hash,
+      parent_user_id: extract_uuid(parent.id),
+      is_agent: is_agent,
+      agent_config: agent_config
+    }
+
+    with {:ok, entity} <- User.new(base) do
+      PostgreSQLUserRepository.save(entity)
+    end
   end
 end

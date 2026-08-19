@@ -35,8 +35,12 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.UserSchema do
     field :is_agent, :boolean, default: false
     field :agent_config, :map, default: %{}
 
+    # Self-referencing hierarchy: a user may depend on another user/agent.
+    field :parent_user_id, :binary_id
+
     # Relationships
     belongs_to :organization, OrganizationSchema
+    belongs_to :parent, __MODULE__, foreign_key: :parent_user_id, define_field: false
 
     timestamps(type: :utc_datetime)
   end
@@ -63,7 +67,8 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.UserSchema do
       :locked_until,
       :mfa_methods,
       :is_agent,
-      :agent_config
+      :agent_config,
+      :parent_user_id
     ])
     |> validate_required([:email, :password_hash])
     |> validate_email()
@@ -89,7 +94,8 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.UserSchema do
       :mfa_methods,
       :organization_id,
       :is_agent,
-      :agent_config
+      :agent_config,
+      :parent_user_id
     ])
     |> validate_email()
     |> unique_constraint(:email)

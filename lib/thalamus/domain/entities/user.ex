@@ -17,6 +17,7 @@ defmodule Thalamus.Domain.Entities.User do
   @type t :: %__MODULE__{
           id: UserId.t(),
           organization_id: binary() | nil,
+          parent_user_id: binary() | nil,
           email: Email.t(),
           name: String.t() | nil,
           avatar_url: String.t() | nil,
@@ -37,6 +38,7 @@ defmodule Thalamus.Domain.Entities.User do
   defstruct [
     :id,
     :organization_id,
+    :parent_user_id,
     :email,
     :name,
     :avatar_url,
@@ -82,6 +84,7 @@ defmodule Thalamus.Domain.Entities.User do
     user = %__MODULE__{
       id: id,
       organization_id: Map.get(attrs, :organization_id),
+      parent_user_id: Map.get(attrs, :parent_user_id),
       email: email,
       name: Map.get(attrs, :name),
       avatar_url: Map.get(attrs, :avatar_url),
