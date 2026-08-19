@@ -45,18 +45,18 @@
 
 ### Fase 4 — Documentación
 
-- [ ] 4.1 Actualizar `docs/api/users.md` (parámetro `parent_user_id`, campo `reports` en userinfo)
-- [ ] 4.2 Actualizar `.wiki/log.md`
-- [ ] 4.3 Crear `.wiki/features/163-parent-user-id-hierarchy.md`
-- [ ] 4.4 Actualizar `.wiki/index.md`
+- [x] 4.1 Actualizar `docs/api/users.md` (parámetro `parent_user_id`, campo `reports` en userinfo)
+- [x] 4.2 Actualizar `.wiki/log.md`
+- [x] 4.3 Crear `.wiki/features/163-parent-user-id-hierarchy.md`
+- [x] 4.4 Actualizar `.wiki/index.md`
 
 ### Fase 5 — Quality checks & CI
 
-- [ ] 5.1 `mix format --check-formatted`
-- [ ] 5.2 `mix compile --warnings-as-errors`
-- [ ] 5.3 `mix credo --strict`
-- [ ] 5.4 `mix test` completo verde
-- [ ] 5.5 `mix ecto.migrations` aplicadas
+- [x] 5.1 `mix format --check-formatted`  ✓
+- [x] 5.2 `mix compile --warnings-as-errors`  ✓
+- [x] 5.3 `mix credo --strict`  ✓ (solo findings pre-existentes ajenos al scope)
+- [x] 5.4 `mix test` completo verde  ✓ (1903 tests / 0 failures)
+- [x] 5.5 `mix ecto.migrations` aplicadas  ✓ (up 20260606000000_add_parent_user_id_to_users)
 
 ### Fase 6 — Commit & PR
 
@@ -73,6 +73,6 @@
 - `role` de un agente se lee de `agent_config["role"]` si existe (omitir si no).
 - Resolución de árbol: CTE recursivo / BFS iterativo con guard contra ciclos, filtrando por `organization_id` cuando aplique.
 - Criterios de aceptación del issue:
-  1. [ ] Columna `parent_user_id` + FK a `users.id`
-  2. [ ] Consulta eficiente del árbol por organización y por usuario
-  3. [ ] `/oauth/userinfo` retorna usuarios/agentes con `parent_user_id = current_user.id`
+  1. [x] Columna `parent_user_id` + FK a `users.id`
+  2. [x] Consulta eficiente del árbol por organización y por usuario
+  3. [x] `/oauth/userinfo` retorna usuarios/agentes con `parent_user_id = current_user.id`

@@ -86,3 +86,13 @@ Release candidate con: Authorization Code + PKCE, Client Credentials, Refresh To
 - Fix: agregar Host header automáticamente al resolver .zea.localhost
 - Afectaba todos los endpoints .zea.localhost, no solo device login
 - PR: #129
+
+## [2026-07-27] feat | #163 Jerarquía Unificada de Usuarios vía parent_user_id
+- **Issue**: #163
+- **Rama**: feature/163-parent-user-id-hierarchy
+- Columna `parent_user_id` (FK self a `users.id`, nullable) + índices
+- `find_by_parent/1`, `find_tree/2` (BFS + guard ciclos + filtro org), `find_agents_subtree/1` en el puerto/repo
+- `/oauth/userinfo` ahora expone `reports` (dependientes directos con `role` desde `agent_config`)
+- API REST acepta `parent_user_id` en create/update
+- TDD: domain, repo (round-trip + tree) y controller. Suite completa: 1903 tests / 0 failures
+- Detalle en `.wiki/features/163-parent-user-id-hierarchy.md`
