@@ -1,0 +1,29 @@
+# ============================================================================
+# cloudbuild-npm.yaml — Publicación npm de @zea.cl/thalamus (GCP Cloud Build)
+# ============================================================================
+#
+# Migración completa a GCP (epic #35, issue #47). Reemplaza buildspec-npm.yml.
+#
+# Uso manual: gcloud builds submit --project=zea-platform --config=cloudbuild-npm.yaml .
+# ============================================================================
+
+steps:
+  - name: 'node:22'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        echo "//registry.npmjs.org/:_authToken=$$NPM_TOKEN" > ~/.npmrc
+        cd cli
+        npm install --no-audit --no-fund
+        npm publish --access public
+        rm -f ~/.npmrc
+    secretEnv: ['NPM_TOKEN']
+
+availableSecrets:
+  secretManager:
+    - versionName: 'projects/$PROJECT_ID/secrets/zea-npm-token/versions/latest'
+      env: 'NPM_TOKEN'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
