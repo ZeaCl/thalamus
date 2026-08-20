@@ -152,3 +152,9 @@ Release candidate con: Authorization Code + PKCE, Client Credentials, Refresh To
 - Causa: el backend de produccion corre una imagen anterior al merge del PR #164; falta re-deploy (Cloud Build → Artifact Registry → thalamus-gcp).
 - Reportado en ZeaCl/zea-cicd#47 (comentario): necesita deploy del backend + confirmar migracion parent_user_id en DB prod.
 - Se desactivaron los usuarios de prueba creados en prod.
+
+## [2026-08-20] ops | Reportado deploy pendiente de backend Thalamus en ZeaCl/zea-cicd#49
+- La feature #163 está mergeada y la CLI publicada (1.0.4), pero el backend de prod (auth.zea.cl) corre imagen vieja: no persiste parent_user_id ni devuelve reports.
+- Verificado comparando POST /api/users con parent en dev (OK) vs prod (omite el campo).
+- Creé issue ZeaCl/zea-cicd#49 para que disparen el deploy del backend + confirmen migracion parent_user_id en DB prod.
+- Cross-links: #47 (CLI) y #38 (migrar Thalamus GCP), dentro del epic #35.
