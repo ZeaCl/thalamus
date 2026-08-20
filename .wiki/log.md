@@ -141,3 +141,14 @@ Release candidate con: Authorization Code + PKCE, Client Credentials, Refresh To
 - Verificado: npm view → 1.0.4 (latest); npx @latest --version → 1.0.4; el tarball incluye auth.js con Reports y user.js con --parent-user-id.
 - CLI global actualizada a 1.0.4 (zea-thalamus --version → 1.0.4).
 - El equipo de zea-cicd resolvió el token/scope @zea.cl + endpoint del issue #47.
+
+## [2026-08-20] release | Jerarquia #163: CLI publicada OK; PROD necesita deploy del backend
+- @zea.cl/thalamus@1.0.4 publicado OK (CLI con --parent-user-id y Reports).
+- Prueba e2e contra `auth.zea.cl` (login device como c@zea.cl):
+  - `user create --agent --parent-user-id <c@zea.cl>` en PROD → NO persiste parent (parent_user_id null; whoami sin Reports).
+- Comparación dev vs prod (mismo POST /api/users con parent):
+  - Dev: guarda y devuelve parent_user_id ✓
+  - Prod: omite/opciona el campo → imagen vieja, deploy del PR #164 NO corrió.
+- Causa: el backend de produccion corre una imagen anterior al merge del PR #164; falta re-deploy (Cloud Build → Artifact Registry → thalamus-gcp).
+- Reportado en ZeaCl/zea-cicd#47 (comentario): necesita deploy del backend + confirmar migracion parent_user_id en DB prod.
+- Se desactivaron los usuarios de prueba creados en prod.
