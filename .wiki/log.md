@@ -127,3 +127,40 @@ Release candidate con: Authorization Code + PKCE, Client Credentials, Refresh To
 - Revisión crítica detectó inconsistencias: (1) describe pipeline AWS CodeBuild pero AWS se apaga → debe ser GCP; (2) lista `@zea.cl/create-cerebelum` pero el proyecto es `cerebelum`; (3) mezcla CLI vs SDK (soma se publica desde `cli/`, no `sdk/`); + otras (catálogo vs terraform npm_services, binario global `zea` no `zea-cli`).
 - Se documentó en issue para que el equipo verifique/corrija: ZeaCl/zea-cicd#48.
 - NO se editó la skill a mano (decisión del usuario) — se dejó la verificación al equipo.
+
+## [2026-08-19] release | Intento publicar @zea.cl/thalamus@1.0.4 con pipeline GCP — falló (E404)
+- PR #164 MERGED a main con bump a 1.0.4.
+- Se lanzó `gcloud builds submit --config=cloudbuild-npm.yaml .` (build 6d864965, zea-platform) → SUCCESS aparente, pero npm no publicó.
+- Causa: `npm publish` dio E404 "not in this registry" — el token `zea-npm-token` (GCP Secret Manager) no tiene acceso de escritura al scope `@zea.cl`.
+- Bug secundario: el cloudbuild no usa `set -e` → `npm publish` puede fallar y el build igual reporta SUCCESS.
+- Reportado en ZeaCl/zea-cicd#47 (comentario) para que el equipo corrija el token/scope y agregue set -e.
+- Registry npmjs sigue en 1.0.3 (latest); 1.0.4 bumpeado y en main pero sin publicar.
+
+## [2026-08-20] release | @zea.cl/thalamus@1.0.4 PUBLICADO ✔
+- Se publicó correctamente `@zea.cl/thalamus@1.0.4` (jerarquía #163: user create/update --parent-user-id, whoami con Reports).
+- Verificado: npm view → 1.0.4 (latest); npx @latest --version → 1.0.4; el tarball incluye auth.js con Reports y user.js con --parent-user-id.
+- CLI global actualizada a 1.0.4 (zea-thalamus --version → 1.0.4).
+- El equipo de zea-cicd resolvió el token/scope @zea.cl + endpoint del issue #47.
+
+## [2026-08-20] release | Jerarquia #163: CLI publicada OK; PROD necesita deploy del backend
+- @zea.cl/thalamus@1.0.4 publicado OK (CLI con --parent-user-id y Reports).
+- Prueba e2e contra `auth.zea.cl` (login device como c@zea.cl):
+  - `user create --agent --parent-user-id <c@zea.cl>` en PROD → NO persiste parent (parent_user_id null; whoami sin Reports).
+- Comparación dev vs prod (mismo POST /api/users con parent):
+  - Dev: guarda y devuelve parent_user_id ✓
+  - Prod: omite/opciona el campo → imagen vieja, deploy del PR #164 NO corrió.
+- Causa: el backend de produccion corre una imagen anterior al merge del PR #164; falta re-deploy (Cloud Build → Artifact Registry → thalamus-gcp).
+- Reportado en ZeaCl/zea-cicd#47 (comentario): necesita deploy del backend + confirmar migracion parent_user_id en DB prod.
+- Se desactivaron los usuarios de prueba creados en prod.
+
+## [2026-08-20] ops | Reportado deploy pendiente de backend Thalamus en ZeaCl/zea-cicd#49
+- La feature #163 está mergeada y la CLI publicada (1.0.4), pero el backend de prod (auth.zea.cl) corre imagen vieja: no persiste parent_user_id ni devuelve reports.
+- Verificado comparando POST /api/users con parent en dev (OK) vs prod (omite el campo).
+- Creé issue ZeaCl/zea-cicd#49 para que disparen el deploy del backend + confirmen migracion parent_user_id en DB prod.
+- Cross-links: #47 (CLI) y #38 (migrar Thalamus GCP), dentro del epic #35.
+
+## [2026-08-20] release | VERIFICADO: feature #163 desplegada en producción ✔
+- El equipo desplegó el backend de Thalamus (auth.zea.cl) con la feature #163.
+- Re-verificación: POST /api/users con parent_user_id devuelve/persiste el campo; whoami del padre muestra Reports con el agente; user show muestra Parent.
+- Feature completa de punta a punta en prod (backend + CLI @zea.cl/thalamus@1.0.4).
+- Cerré ZeaCl/zea-cicd#49 (comentario de verificación). Usuarios de prueba desactivados.
