@@ -164,3 +164,10 @@ Release candidate con: Authorization Code + PKCE, Client Credentials, Refresh To
 - Re-verificación: POST /api/users con parent_user_id devuelve/persiste el campo; whoami del padre muestra Reports con el agente; user show muestra Parent.
 - Feature completa de punta a punta en prod (backend + CLI @zea.cl/thalamus@1.0.4).
 - Cerré ZeaCl/zea-cicd#49 (comentario de verificación). Usuarios de prueba desactivados.
+
+## [2026-08-20] ops | Plan open source servidor OAuth2 + issue zea-cicd#51 (extraer CLI/SDK)
+- Objetivo: ZeaCl/thalamus queda como servidor OAuth2 open source genérico.
+- Verificado: ZeaCl/zea-cli depende de @zea.cl/thalamus (^1.0.3) y delega al binario zea-thalamus → NO se puede despublicar ni romper el contrato.
+- Creé issue ZeaCl/zea-cicd#51 para coordinar: repos propios para cli/ (thalamus-cli), sdk/ (thalamus-sdk), packages/thalamus-js (thalamus-js-sdk); pipeline de publicación GCP; garantizar no romper zea-cli.
+- Rambla: chore/cleanup-oauth2-oss. Plan: plan/cleanup-client-rastro-y-residuos.md (Sección 1 secretos críticos, 2 extraer consumidores, 3 wiki a privado...).
+- Hallazgo: JWT keys privadas en priv/jwt_*.pem → requieren refactor de jwt_signer (leer de ENV o generar al arranque).
