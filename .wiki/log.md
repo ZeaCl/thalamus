@@ -135,3 +135,9 @@ Release candidate con: Authorization Code + PKCE, Client Credentials, Refresh To
 - Bug secundario: el cloudbuild no usa `set -e` → `npm publish` puede fallar y el build igual reporta SUCCESS.
 - Reportado en ZeaCl/zea-cicd#47 (comentario) para que el equipo corrija el token/scope y agregue set -e.
 - Registry npmjs sigue en 1.0.3 (latest); 1.0.4 bumpeado y en main pero sin publicar.
+
+## [2026-08-20] release | @zea.cl/thalamus@1.0.4 PUBLICADO ✔
+- Se publicó correctamente `@zea.cl/thalamus@1.0.4` (jerarquía #163: user create/update --parent-user-id, whoami con Reports).
+- Verificado: npm view → 1.0.4 (latest); npx @latest --version → 1.0.4; el tarball incluye auth.js con Reports y user.js con --parent-user-id.
+- CLI global actualizada a 1.0.4 (zea-thalamus --version → 1.0.4).
+- El equipo de zea-cicd resolvió el token/scope @zea.cl + endpoint del issue #47.
