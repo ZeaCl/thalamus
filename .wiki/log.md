@@ -158,3 +158,9 @@ Release candidate con: Authorization Code + PKCE, Client Credentials, Refresh To
 - Verificado comparando POST /api/users con parent en dev (OK) vs prod (omite el campo).
 - Creé issue ZeaCl/zea-cicd#49 para que disparen el deploy del backend + confirmen migracion parent_user_id en DB prod.
 - Cross-links: #47 (CLI) y #38 (migrar Thalamus GCP), dentro del epic #35.
+
+## [2026-08-20] release | VERIFICADO: feature #163 desplegada en producción ✔
+- El equipo desplegó el backend de Thalamus (auth.zea.cl) con la feature #163.
+- Re-verificación: POST /api/users con parent_user_id devuelve/persiste el campo; whoami del padre muestra Reports con el agente; user show muestra Parent.
+- Feature completa de punta a punta en prod (backend + CLI @zea.cl/thalamus@1.0.4).
+- Cerré ZeaCl/zea-cicd#49 (comentario de verificación). Usuarios de prueba desactivados.
