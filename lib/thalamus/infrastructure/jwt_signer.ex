@@ -335,6 +335,19 @@ defmodule Thalamus.Infrastructure.JwtSigner do
   end
 
   defp read_key_file(filename) do
+    case env_key(filename) do
+      nil -> read_disk_key(filename)
+      env_pem when is_binary(env_pem) and env_pem != "" -> env_pem
+    end
+  end
+
+  # Allow keys via environment variables (open source friendly) so the
+  # private signing key never has to be committed to the repository.
+  defp env_key("jwt_private_key.pem"), do: System.get_env("JWT_PRIVATE_KEY")
+  defp env_key("jwt_public_key.pem"), do: System.get_env("JWT_PUBLIC_KEY")
+  defp env_key(_), do: nil
+
+  defp read_disk_key(filename) do
     priv_path = :code.priv_dir(:thalamus) |> List.to_string()
     File.read!(Path.join(priv_path, filename))
   end

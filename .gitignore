@@ -94,3 +94,7 @@ mix.lock.conflict
 
 # OpenSpecification framework documentation (private)
 docs/open_spec/
+
+# JWT signing keys — NEVER commit private key; set via JWT_* env vars
+priv/jwt_private_key.pem
+priv/jwt_public_key.pem
