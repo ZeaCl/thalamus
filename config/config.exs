@@ -95,11 +95,14 @@ config :samly,
   idle_timeout_ms: 15_000
 
 # Cloak Vault Configuration
+# ⚠️ The AES key is DEV-ONLY and NOT used in production.
+# For open source, the real encryption key is supplied via env (prod)
+# config :thalamus, Thalamus.Vault, ciphers: [{...}] — see runtime.exs.
 config :thalamus, Thalamus.Vault,
   ciphers: [
     default:
       {Cloak.Ciphers.AES.GCM,
-       tag: "AES.GCM.V1", key: Base.decode64!("x09jB24+l8J45jM83H+g/sT4uI0Hh88aA+1/c/J9gQk=")}
+       tag: "AES.GCM.V1", key: Base.decode64!("MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=")}
   ]
 
 # JWT Signing Configuration (RS256 asymmetric)
