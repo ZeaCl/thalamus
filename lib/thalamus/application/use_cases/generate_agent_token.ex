@@ -330,41 +330,43 @@ defmodule Thalamus.Application.UseCases.GenerateAgentToken do
   defp resolve_environment(%AgentTokenRequest{} = request, deps) do
     target_env = request.environment || request.environment_id
 
-    cond do
-      is_nil(target_env) ->
-        if Map.has_key?(deps, :environment_repository) and deps.environment_repository != nil do
-          case deps.environment_repository.get_default(request.organization_id) do
-            {:ok, env} -> {:ok, {env.id, env.slug}}
-            _ -> {:ok, {nil, "production"}}
-          end
-        else
-          {:ok, {nil, "production"}}
-        end
+    case Map.get(deps, :environment_repository) do
+      nil -> {:ok, {nil, target_env || "production"}}
+      repo -> do_resolve_agent_environment(request.organization_id, target_env, repo)
+    end
+  end
 
-      true ->
-        if Map.has_key?(deps, :environment_repository) and deps.environment_repository != nil do
-          case deps.environment_repository.get_by_slug(request.organization_id, target_env) do
-            {:ok, env} ->
+  defp do_resolve_agent_environment(nil, _target_env, _repo),
+    do: {:ok, {nil, "production"}}
+
+  defp do_resolve_agent_environment(org_id, nil, repo) do
+    case repo.get_default(to_string(org_id)) do
+      {:ok, env} -> {:ok, {env.id, env.slug}}
+      _ -> {:ok, {nil, "production"}}
+    end
+  end
+
+  defp do_resolve_agent_environment(org_id, target_env, repo) do
+    org_id_str = to_string(org_id)
+
+    case repo.get_by_slug(org_id_str, target_env) do
+      {:ok, env} ->
+        {:ok, {env.id, env.slug}}
+
+      {:error, :not_found} ->
+        case repo.get(target_env) do
+          {:ok, env} ->
+            norm_req = String.replace_prefix(org_id_str, "org_", "")
+            norm_env = String.replace_prefix(to_string(env.organization_id), "org_", "")
+
+            if norm_req == norm_env do
               {:ok, {env.id, env.slug}}
+            else
+              {:error, :environment_not_found}
+            end
 
-            {:error, :not_found} ->
-              case deps.environment_repository.get(target_env) do
-                {:ok, env} ->
-                  norm_req = String.replace_prefix(request.organization_id, "org_", "")
-                  norm_env = String.replace_prefix(to_string(env.organization_id), "org_", "")
-
-                  if norm_req == norm_env do
-                    {:ok, {env.id, env.slug}}
-                  else
-                    {:error, :environment_not_found}
-                  end
-
-                {:error, _} ->
-                  {:error, :environment_not_found}
-              end
-          end
-        else
-          {:ok, {nil, target_env}}
+          {:error, _} ->
+            {:error, :environment_not_found}
         end
     end
   end

@@ -108,15 +108,20 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLEnvironmentRepository d
   @impl true
   def get_by_slug(org_id, slug) when is_binary(slug) do
     norm_org_id = normalize_org_id(org_id)
-    norm_slug = String.downcase(String.trim(slug))
 
-    query =
-      from e in EnvironmentSchema,
-        where: e.organization_id == ^norm_org_id and e.slug == ^norm_slug
+    if valid_uuid?(norm_org_id) do
+      norm_slug = String.downcase(String.trim(slug))
 
-    case Repo.one(query) do
-      nil -> {:error, :not_found}
-      schema -> {:ok, schema_to_entity(schema)}
+      query =
+        from e in EnvironmentSchema,
+          where: e.organization_id == ^norm_org_id and e.slug == ^norm_slug
+
+      case Repo.one(query) do
+        nil -> {:error, :not_found}
+        schema -> {:ok, schema_to_entity(schema)}
+      end
+    else
+      {:error, :not_found}
     end
   end
 
@@ -124,73 +129,82 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLEnvironmentRepository d
   def get_default(org_id) do
     norm_org_id = normalize_org_id(org_id)
 
-    query =
-      from e in EnvironmentSchema,
-        where:
-          e.organization_id == ^norm_org_id and e.is_default == true and e.status != :archived,
-        limit: 1
+    if valid_uuid?(norm_org_id) do
+      query =
+        from e in EnvironmentSchema,
+          where:
+            e.organization_id == ^norm_org_id and e.is_default == true and e.status != :archived,
+          limit: 1
 
-    case Repo.one(query) do
-      nil ->
-        # Fallback to production slug if not marked default
-        fallback_query =
-          from e in EnvironmentSchema,
-            where:
-              e.organization_id == ^norm_org_id and e.slug == "production" and
-                e.status != :archived,
-            limit: 1
+      case Repo.one(query) do
+        nil ->
+          # Fallback to production slug if not marked default
+          fallback_query =
+            from e in EnvironmentSchema,
+              where:
+                e.organization_id == ^norm_org_id and e.slug == "production" and
+                  e.status != :archived,
+              limit: 1
 
-        case Repo.one(fallback_query) do
-          nil -> {:error, :not_found}
-          schema -> {:ok, schema_to_entity(schema)}
-        end
+          case Repo.one(fallback_query) do
+            nil -> {:error, :not_found}
+            schema -> {:ok, schema_to_entity(schema)}
+          end
 
-      schema ->
-        {:ok, schema_to_entity(schema)}
+        schema ->
+          {:ok, schema_to_entity(schema)}
+      end
+    else
+      {:error, :not_found}
     end
   end
 
   @impl true
   def list_by_organization(org_id, filters \\ %{}) do
     norm_org_id = normalize_org_id(org_id)
-    filters_map = if is_list(filters), do: Enum.into(filters, %{}), else: filters
 
-    include_archived =
-      case Map.get(filters_map, :include_archived) || Map.get(filters_map, "include_archived") do
-        true -> true
-        "true" -> true
-        _ -> false
-      end
+    if valid_uuid?(norm_org_id) do
+      filters_map = if is_list(filters), do: Enum.into(filters, %{}), else: filters
 
-    status_filter = Map.get(filters_map, :status) || Map.get(filters_map, "status")
+      include_archived =
+        case Map.get(filters_map, :include_archived) || Map.get(filters_map, "include_archived") do
+          true -> true
+          "true" -> true
+          _ -> false
+        end
 
-    query =
-      from e in EnvironmentSchema,
-        where: e.organization_id == ^norm_org_id,
-        order_by: [desc: e.is_default, asc: e.name]
+      status_filter = Map.get(filters_map, :status) || Map.get(filters_map, "status")
 
-    query =
-      cond do
-        status_filter != nil ->
-          s =
-            if is_binary(status_filter),
-              do: String.to_existing_atom(status_filter),
-              else: status_filter
+      query =
+        from e in EnvironmentSchema,
+          where: e.organization_id == ^norm_org_id,
+          order_by: [desc: e.is_default, asc: e.name]
 
-          from e in query, where: e.status == ^s
+      query =
+        cond do
+          status_filter != nil ->
+            s =
+              if is_binary(status_filter),
+                do: String.to_existing_atom(status_filter),
+                else: status_filter
 
-        not include_archived ->
-          from e in query, where: e.status != :archived
+            from e in query, where: e.status == ^s
 
-        true ->
-          query
-      end
+          not include_archived ->
+            from e in query, where: e.status != :archived
 
-    entities =
-      Repo.all(query)
-      |> Enum.map(&schema_to_entity/1)
+          true ->
+            query
+        end
 
-    {:ok, entities}
+      entities =
+        Repo.all(query)
+        |> Enum.map(&schema_to_entity/1)
+
+      {:ok, entities}
+    else
+      {:ok, []}
+    end
   end
 
   @impl true
@@ -288,4 +302,15 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLEnvironmentRepository d
       updated_at: schema.updated_at
     }
   end
+
+  defp valid_uuid?(nil), do: false
+
+  defp valid_uuid?(id) when is_binary(id) do
+    case Ecto.UUID.cast(id) do
+      {:ok, _} -> true
+      _ -> false
+    end
+  end
+
+  defp valid_uuid?(_), do: false
 end

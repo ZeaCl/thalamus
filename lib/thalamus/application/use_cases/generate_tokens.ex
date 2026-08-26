@@ -540,51 +540,32 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
   end
 
   defp resolve_environment(org_id, target_env, deps) do
-    repo =
-      Map.get(
-        deps,
-        :environment_repository,
-        Thalamus.Infrastructure.Repositories.PostgreSQLEnvironmentRepository
-      )
-
-    org_id_str = if org_id, do: to_string(org_id), else: nil
-
-    cond do
-      is_nil(org_id_str) ->
-        {nil, target_env || "production"}
-
-      is_nil(target_env) ->
-        if repo && function_exported?(repo, :get_default, 1) do
-          case repo.get_default(org_id_str) do
-            {:ok, env} -> {env.id, env.slug}
-            _ -> {nil, "production"}
-          end
-        else
-          {nil, "production"}
-        end
-
-      true ->
-        if repo && function_exported?(repo, :get_by_slug, 2) do
-          case repo.get_by_slug(org_id_str, target_env) do
-            {:ok, env} ->
-              {env.id, env.slug}
-
-            {:error, :not_found} ->
-              if function_exported?(repo, :get, 1) do
-                case repo.get(target_env) do
-                  {:ok, env} -> {env.id, env.slug}
-                  _ -> {nil, target_env}
-                end
-              else
-                {nil, target_env}
-              end
-          end
-        else
-          {nil, target_env}
-        end
+    case Map.get(deps, :environment_repository) do
+      nil -> {nil, target_env || "production"}
+      repo -> do_resolve_environment(org_id, target_env, repo)
     end
-  rescue
-    _ -> {nil, target_env || "production"}
+  end
+
+  defp do_resolve_environment(nil, target_env, _repo),
+    do: {nil, target_env || "production"}
+
+  defp do_resolve_environment(org_id, nil, repo) do
+    case repo.get_default(to_string(org_id)) do
+      {:ok, env} -> {env.id, env.slug}
+      _ -> {nil, "production"}
+    end
+  end
+
+  defp do_resolve_environment(org_id, target_env, repo) do
+    org_id_str = to_string(org_id)
+
+    with {:error, :not_found} <- repo.get_by_slug(org_id_str, target_env),
+         {:error, _} <- repo.get(target_env) do
+      {nil, target_env}
+    else
+      {:ok, env} -> {env.id, env.slug}
+      _ -> {nil, target_env}
+    end
   end
 
   defp log_token_generation(client, token_data, %{audit_logger: logger}) do
