@@ -117,6 +117,9 @@ defmodule ThalamusWeb.API.OrganizationController do
          {:ok, organization} <- Organization.new(name, owner_email_string),
          organization <- apply_plan_type(organization, params["plan_type"]),
          {:ok, saved_org} <- PostgreSQLOrganizationRepository.save(organization) do
+      # Automatically seed default environments (production, staging, development)
+      _ = Thalamus.Application.UseCases.ManageEnvironments.seed_default_environments(saved_org.id)
+
       conn
       |> put_status(:created)
       |> json(%{

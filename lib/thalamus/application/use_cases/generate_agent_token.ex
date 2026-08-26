@@ -76,13 +76,23 @@ defmodule Thalamus.Application.UseCases.GenerateAgentToken do
          {:ok, client} <- authenticate_client(request, deps),
          {:ok, delegator} <- validate_delegator(request, deps),
          {:ok, _organization} <- validate_organization(request, deps),
+         {:ok, {env_id, env_slug}} <- resolve_environment(request, deps),
          :ok <- validate_scopes_subset(request.scopes, client.allowed_scopes),
          :ok <- validate_scope_narrowing(request, deps),
          {:ok, agent_type} <- AgentType.new(request.agent_type),
          {:ok, task_id} <- parse_or_generate_task_id(request.task_id),
          {:ok, delegation_chain} <- build_delegation_chain(request, deps),
          {:ok, agent_token} <-
-           create_agent_token(request, client, delegator, agent_type, task_id, delegation_chain),
+           create_agent_token(
+             request,
+             client,
+             delegator,
+             agent_type,
+             task_id,
+             delegation_chain,
+             env_id,
+             env_slug
+           ),
          {:ok, access_token} <- generate_access_token(),
          {:ok, saved_token} <- save_token_with_access_token(agent_token, access_token, deps),
          :ok <- log_token_creation(saved_token, request, deps) do
@@ -317,8 +327,59 @@ defmodule Thalamus.Application.UseCases.GenerateAgentToken do
     end
   end
 
+  defp resolve_environment(%AgentTokenRequest{} = request, deps) do
+    target_env = request.environment || request.environment_id
+
+    cond do
+      is_nil(target_env) ->
+        if Map.has_key?(deps, :environment_repository) and deps.environment_repository != nil do
+          case deps.environment_repository.get_default(request.organization_id) do
+            {:ok, env} -> {:ok, {env.id, env.slug}}
+            _ -> {:ok, {nil, "production"}}
+          end
+        else
+          {:ok, {nil, "production"}}
+        end
+
+      true ->
+        if Map.has_key?(deps, :environment_repository) and deps.environment_repository != nil do
+          case deps.environment_repository.get_by_slug(request.organization_id, target_env) do
+            {:ok, env} ->
+              {:ok, {env.id, env.slug}}
+
+            {:error, :not_found} ->
+              case deps.environment_repository.get(target_env) do
+                {:ok, env} ->
+                  norm_req = String.replace_prefix(request.organization_id, "org_", "")
+                  norm_env = String.replace_prefix(to_string(env.organization_id), "org_", "")
+
+                  if norm_req == norm_env do
+                    {:ok, {env.id, env.slug}}
+                  else
+                    {:error, :environment_not_found}
+                  end
+
+                {:error, _} ->
+                  {:error, :environment_not_found}
+              end
+          end
+        else
+          {:ok, {nil, target_env}}
+        end
+    end
+  end
+
   # Creates AgentToken domain entity
-  defp create_agent_token(request, client, delegator, agent_type, task_id, delegation_chain) do
+  defp create_agent_token(
+         request,
+         client,
+         delegator,
+         agent_type,
+         task_id,
+         delegation_chain,
+         env_id,
+         env_slug
+       ) do
     params = %{
       client_id: to_string(client.id),
       organization_id: request.organization_id,
@@ -329,7 +390,9 @@ defmodule Thalamus.Application.UseCases.GenerateAgentToken do
       delegation_chain: delegation_chain,
       delegator_user_id: to_string(delegator.id),
       expires_in: AgentTokenRequest.get_expires_in(request),
-      reason: InputSanitizer.sanitize_text(request.reason)
+      reason: InputSanitizer.sanitize_text(request.reason),
+      environment_id: env_id,
+      environment_slug: env_slug
     }
 
     AgentToken.create(params)

@@ -16,6 +16,7 @@ defmodule ThalamusWeb.API.SecretJSON do
       owner_id: secret.owner_id,
       provider: secret.provider,
       name: secret.name,
+      environment_id: secret.environment_id,
       # Never return the value!
       inserted_at: secret.inserted_at
     }

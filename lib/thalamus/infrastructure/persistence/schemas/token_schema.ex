@@ -59,6 +59,9 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.TokenSchema do
     belongs_to :client, OAuth2ClientSchema, foreign_key: :client_id
     belongs_to :organization, Thalamus.Infrastructure.Persistence.Schemas.OrganizationSchema
 
+    belongs_to :environment_record, Thalamus.Infrastructure.Persistence.Schemas.EnvironmentSchema,
+      foreign_key: :environment_id
+
     timestamps(type: :utc_datetime, updated_at: false)
   end
 
@@ -101,6 +104,7 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.TokenSchema do
       :intent_description,
       :orchestrator_id,
       :environment,
+      :environment_id,
       :inserted_at
     ])
     |> validate_required([:token, :type, :client_id, :expires_at])

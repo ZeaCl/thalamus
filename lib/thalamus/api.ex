@@ -328,6 +328,52 @@ defmodule Thalamus.API do
     {:error, :not_implemented}
   end
 
+  # Environment Management
+
+  @doc """
+  Lists environments for an organization.
+  """
+  def list_environments(org_id, filters \\ %{}) do
+    Thalamus.Application.UseCases.ManageEnvironments.list_environments(org_id, filters)
+  end
+
+  @doc """
+  Gets an environment by slug or ID within an organization.
+  """
+  def get_environment(org_id, slug_or_id) do
+    Thalamus.Application.UseCases.ManageEnvironments.get_environment(org_id, slug_or_id)
+  end
+
+  @doc """
+  Creates a new environment for an organization.
+  """
+  def create_environment(org_id, attrs) do
+    Thalamus.Application.UseCases.ManageEnvironments.create_environment(org_id, attrs)
+  end
+
+  @doc """
+  Updates an existing environment.
+  """
+  def update_environment(org_id, slug_or_id, attrs) do
+    Thalamus.Application.UseCases.ManageEnvironments.update_environment(org_id, slug_or_id, attrs)
+  end
+
+  @doc """
+  Deletes or archives an environment.
+  """
+  def delete_environment(org_id, slug_or_id, opts \\ []) do
+    Thalamus.Application.UseCases.ManageEnvironments.delete_environment(org_id, slug_or_id, opts)
+  end
+
+  @doc """
+  Sets an environment as default.
+  """
+  def set_default_environment(org_id, slug_or_id) do
+    Thalamus.Application.UseCases.ManageEnvironments.update_environment(org_id, slug_or_id, %{
+      is_default: true
+    })
+  end
+
   # Private Functions
 
   @spec build_agent_token_request(map()) :: {:ok, AgentTokenRequest.t()} | {:error, atom()}

@@ -133,7 +133,8 @@ c_user =
   end
 
 member_user =
-  case Repo.get(UserSchema, member_user_id) || Repo.get_by(UserSchema, email: "member@example.com") do
+  case Repo.get(UserSchema, member_user_id) ||
+         Repo.get_by(UserSchema, email: "member@example.com") do
     nil ->
       user_attrs = %{
         id: member_user_id,

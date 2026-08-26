@@ -14,6 +14,9 @@ defmodule Thalamus.Domain.Entities.Secret do
     field :provider, :string
     field :name, :string
 
+    # Optional scoping to an environment
+    field :environment_id, :binary_id
+
     # We use our Cloak Encrypted Binary field for transparent encryption
     field :value, Thalamus.Encrypted.Binary, source: :encrypted_value
 
@@ -23,7 +26,7 @@ defmodule Thalamus.Domain.Entities.Secret do
   @doc false
   def changeset(secret, attrs) do
     secret
-    |> cast(attrs, [:owner_type, :owner_id, :provider, :name, :value])
+    |> cast(attrs, [:owner_type, :owner_id, :provider, :name, :value, :environment_id])
     |> validate_required([:owner_type, :owner_id, :provider, :name, :value])
     |> validate_inclusion(:owner_type, ["user", "organization"])
   end

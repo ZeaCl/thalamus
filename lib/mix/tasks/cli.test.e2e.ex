@@ -29,42 +29,42 @@ defmodule Mix.Tasks.Cli.Test.E2e do
   end
 
   defp run_e2e do
-    unless docker_available?() do
+    if docker_available?() do
+      Mix.shell().info("═══ CLI E2E Tests ═══")
+
+      try do
+        start_postgres!()
+        setup_database!()
+        start_thalamus_subprocess!()
+        Process.put(:e2e_started, true)
+        wait_for_healthy!()
+
+        script = Path.expand("scripts/test-cli.sh", File.cwd!())
+        env = [{"THALAMUS_API_URL", "http://localhost:#{@app_port}"}]
+
+        Mix.shell().info("Running E2E tests...")
+        Mix.shell().info("")
+
+        {_output, exit_code} =
+          System.cmd("bash", [script], env: env, into: IO.stream(:stdio, :line))
+
+        Mix.shell().info("")
+
+        if exit_code != 0 do
+          Mix.raise("E2E tests FAILED (exit #{exit_code})")
+        else
+          Mix.shell().info("All E2E tests passed ✅")
+        end
+      after
+        if Process.get(:e2e_started) do
+          stop_thalamus_subprocess()
+        end
+
+        cleanup_docker()
+      end
+    else
       Mix.shell().info("[cli.test.e2e] Docker not available — skipping E2E tests")
-      return_ok()
-    end
-
-    Mix.shell().info("═══ CLI E2E Tests ═══")
-
-    try do
-      start_postgres!()
-      setup_database!()
-      start_thalamus_subprocess!()
-      Process.put(:e2e_started, true)
-      wait_for_healthy!()
-
-      script = Path.expand("scripts/test-cli.sh", File.cwd!())
-      env = [{"THALAMUS_API_URL", "http://localhost:#{@app_port}"}]
-
-      Mix.shell().info("Running E2E tests...")
-      Mix.shell().info("")
-
-      {_output, exit_code} =
-        System.cmd("bash", [script], env: env, into: IO.stream(:stdio, :line))
-
-      Mix.shell().info("")
-
-      if exit_code != 0 do
-        Mix.raise("E2E tests FAILED (exit #{exit_code})")
-      else
-        Mix.shell().info("All E2E tests passed ✅")
-      end
-    after
-      if Process.get(:e2e_started) do
-        stop_thalamus_subprocess()
-      end
-
-      cleanup_docker()
+      :ok
     end
   end
 
@@ -236,9 +236,5 @@ defmodule Mix.Tasks.Cli.Test.E2e do
   defp cleanup do
     stop_thalamus_subprocess()
     cleanup_docker()
-  end
-
-  defp return_ok do
-    # No-op: just return without raising
   end
 end

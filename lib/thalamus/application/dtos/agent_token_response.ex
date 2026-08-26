@@ -21,7 +21,9 @@ defmodule Thalamus.Application.DTOs.AgentTokenResponse do
           task_id: String.t(),
           task_description: String.t(),
           delegation_depth: non_neg_integer(),
-          reason: String.t() | nil
+          reason: String.t() | nil,
+          environment: String.t() | nil,
+          environment_id: String.t() | nil
         }
 
   defstruct [
@@ -33,6 +35,8 @@ defmodule Thalamus.Application.DTOs.AgentTokenResponse do
     :task_description,
     :delegation_depth,
     :reason,
+    :environment,
+    :environment_id,
     token_type: "Bearer"
   ]
 
@@ -57,7 +61,9 @@ defmodule Thalamus.Application.DTOs.AgentTokenResponse do
       task_id: Thalamus.Domain.ValueObjects.TaskId.to_string(token.task_id),
       task_description: token.task_description,
       delegation_depth: token.delegation_chain.depth,
-      reason: token.reason
+      reason: token.reason,
+      environment: token.environment_slug,
+      environment_id: token.environment_id
     }
   end
 
@@ -73,7 +79,9 @@ defmodule Thalamus.Application.DTOs.AgentTokenResponse do
       task_id: response.task_id,
       task_description: response.task_description,
       delegation_depth: response.delegation_depth,
-      reason: response.reason
+      reason: response.reason,
+      environment: response.environment,
+      environment_id: response.environment_id
     }
     |> Enum.reject(fn {_k, v} -> is_nil(v) end)
     |> Map.new()

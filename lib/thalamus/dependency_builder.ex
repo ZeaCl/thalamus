@@ -33,7 +33,8 @@ defmodule Thalamus.DependencyBuilder do
     PostgresqlAgentTokenRepository,
     PostgreSQLOAuth2ClientRepository,
     PostgreSQLOrganizationRepository,
-    PostgreSQLUserRepository
+    PostgreSQLUserRepository,
+    PostgreSQLEnvironmentRepository
   }
 
   alias Thalamus.Infrastructure.Adapters.AuditLoggerImpl
@@ -44,6 +45,7 @@ defmodule Thalamus.DependencyBuilder do
           required(:agent_token_repository) => module(),
           required(:organization_repository) => module(),
           required(:audit_logger) => module(),
+          optional(:environment_repository) => module(),
           optional(:context) => map()
         }
 
@@ -66,6 +68,7 @@ defmodule Thalamus.DependencyBuilder do
       user_repository: PostgreSQLUserRepository,
       agent_token_repository: PostgresqlAgentTokenRepository,
       organization_repository: PostgreSQLOrganizationRepository,
+      environment_repository: PostgreSQLEnvironmentRepository,
       audit_logger: AuditLoggerImpl
     }
   end

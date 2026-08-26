@@ -7,10 +7,11 @@ defmodule ThalamusWeb.API.SecretController do
   @doc """
   Lists secrets for the current user or an organization (if user is member).
   """
-  def index(conn, %{"owner_type" => owner_type, "owner_id" => owner_id}) do
+  def index(conn, %{"owner_type" => owner_type, "owner_id" => owner_id} = params) do
     # Here we would normally verify that conn.assigns.current_user has access to owner_id
     # For now, we just list them.
-    secrets = ManageSecrets.list_by_owner(owner_type, owner_id)
+    environment_id = Map.get(params, "environment_id") || Map.get(params, "env")
+    secrets = ManageSecrets.list_by_owner(owner_type, owner_id, environment_id)
     render(conn, :index, secrets: secrets)
   end
 
@@ -58,9 +59,18 @@ defmodule ThalamusWeb.API.SecretController do
         id -> id
       end
 
+    environment_id =
+      case Map.get(params, "environment_id") || Map.get(params, "env") do
+        "" -> nil
+        env -> env
+      end
+
     prefer_user = Map.get(params, "prefer_user", "false") == "true"
 
-    case ResolveAgentSecret.execute(provider, org_id, user_id, prefer_user: prefer_user) do
+    case ResolveAgentSecret.execute(provider, org_id, user_id,
+           prefer_user: prefer_user,
+           environment_id: environment_id
+         ) do
       {:ok, secret} ->
         # We render the secret AND its decrypted value here because it's requested by an internal service (Glia)
         # In a real microservices architecture, this endpoint would be protected by mTLS or an internal Agent API Key.
@@ -71,6 +81,7 @@ defmodule ThalamusWeb.API.SecretController do
           owner_type: secret.owner_type,
           owner_id: secret.owner_id,
           name: secret.name,
+          environment_id: secret.environment_id,
           # decrypted thanks to cloak!
           value: secret.value
         })

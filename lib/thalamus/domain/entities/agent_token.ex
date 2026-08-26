@@ -30,6 +30,8 @@ defmodule Thalamus.Domain.Entities.AgentToken do
           revoked_at: DateTime.t() | nil,
           revoke_reason: String.t() | nil,
           reason: String.t() | nil,
+          environment_id: String.t() | nil,
+          environment_slug: String.t() | nil,
           created_at: DateTime.t()
         }
 
@@ -48,6 +50,8 @@ defmodule Thalamus.Domain.Entities.AgentToken do
     :revoked_at,
     :revoke_reason,
     :reason,
+    :environment_id,
+    :environment_slug,
     :created_at
   ]
 
@@ -109,6 +113,8 @@ defmodule Thalamus.Domain.Entities.AgentToken do
         revoked_at: nil,
         revoke_reason: nil,
         reason: Map.get(params, :reason),
+        environment_id: Map.get(params, :environment_id),
+        environment_slug: Map.get(params, :environment_slug),
         created_at: DateTime.utc_now()
       }
 
