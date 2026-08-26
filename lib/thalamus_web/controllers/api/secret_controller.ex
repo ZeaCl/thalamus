@@ -10,7 +10,10 @@ defmodule ThalamusWeb.API.SecretController do
   def index(conn, %{"owner_type" => owner_type, "owner_id" => owner_id} = params) do
     # Here we would normally verify that conn.assigns.current_user has access to owner_id
     # For now, we just list them.
-    environment_id = Map.get(params, "environment_id") || Map.get(params, "env")
+    raw_env = Map.get(params, "environment_id") || Map.get(params, "env")
+    org_id = if owner_type == "organization", do: owner_id, else: nil
+    environment_id = resolve_env_id(org_id, raw_env)
+
     secrets = ManageSecrets.list_by_owner(owner_type, owner_id, environment_id)
     render(conn, :index, secrets: secrets)
   end
@@ -59,11 +62,13 @@ defmodule ThalamusWeb.API.SecretController do
         id -> id
       end
 
-    environment_id =
+    raw_env =
       case Map.get(params, "environment_id") || Map.get(params, "env") do
         "" -> nil
         env -> env
       end
+
+    environment_id = resolve_env_id(org_id, raw_env)
 
     prefer_user = Map.get(params, "prefer_user", "false") == "true"
 
@@ -90,6 +95,22 @@ defmodule ThalamusWeb.API.SecretController do
         conn
         |> put_status(:not_found)
         |> json(%{error: "Secret not found"})
+    end
+  end
+
+  defp resolve_env_id(nil, env), do: env
+  defp resolve_env_id(_org_id, nil), do: nil
+
+  defp resolve_env_id(org_id, env) do
+    case Ecto.UUID.cast(env) do
+      {:ok, uuid} ->
+        uuid
+
+      :error ->
+        case Thalamus.Application.UseCases.ManageEnvironments.get_environment(org_id, env) do
+          {:ok, %{id: env_id}} -> env_id
+          _ -> nil
+        end
     end
   end
 end

@@ -138,5 +138,25 @@ defmodule Thalamus.Application.UseCases.ResolveAgentSecretEnvironmentTest do
 
       assert org_res.value == "sk-ant-org-staging"
     end
+
+    test "handles non-UUID environment safely without raising CastError", ctx do
+      {:ok, _} =
+        PostgreSQLSecretRepository.create(%{
+          owner_type: "organization",
+          owner_id: ctx.org_id,
+          provider: "mistral",
+          name: "Global Mistral Key",
+          value: "sk-global-mistral",
+          environment_id: nil
+        })
+
+      # Passing slug or invalid UUID doesn't crash, falls back to global
+      assert {:ok, secret} =
+               ResolveAgentSecret.execute("mistral", ctx.org_id, ctx.user_id,
+                 environment_id: "production"
+               )
+
+      assert secret.value == "sk-global-mistral"
+    end
   end
 end

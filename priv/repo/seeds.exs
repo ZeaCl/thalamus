@@ -96,6 +96,10 @@ secondary_org =
       existing
   end
 
+# Seed dynamic environments for organizations
+Thalamus.Application.UseCases.ManageEnvironments.seed_default_environments(zea_org.id)
+Thalamus.Application.UseCases.ManageEnvironments.seed_default_environments(secondary_org.id)
+
 # 2. Users
 c_user_id = "c0000000-852c-44e5-aee1-a761ec76eaea"
 member_user_id = "c0000001-852c-44e5-aee1-a761ec76eaea"

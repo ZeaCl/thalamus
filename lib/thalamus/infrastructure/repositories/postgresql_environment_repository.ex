@@ -99,9 +99,13 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLEnvironmentRepository d
 
   @impl true
   def get(id) when is_binary(id) do
-    case Repo.get(EnvironmentSchema, id) do
-      nil -> {:error, :not_found}
-      schema -> {:ok, schema_to_entity(schema)}
+    if valid_uuid?(id) do
+      case Repo.get(EnvironmentSchema, id) do
+        nil -> {:error, :not_found}
+        schema -> {:ok, schema_to_entity(schema)}
+      end
+    else
+      {:error, :not_found}
     end
   end
 
@@ -211,66 +215,78 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLEnvironmentRepository d
   def set_default(org_id, environment_id) when is_binary(environment_id) do
     norm_org_id = normalize_org_id(org_id)
 
-    Ecto.Multi.new()
-    |> Ecto.Multi.update_all(
-      :unset_all,
-      from(e in EnvironmentSchema, where: e.organization_id == ^norm_org_id),
-      set: [is_default: false]
-    )
-    |> Ecto.Multi.update(
-      :set_new_default,
-      fn _ ->
-        case Repo.get_by(EnvironmentSchema, id: environment_id, organization_id: norm_org_id) do
-          nil ->
-            EnvironmentSchema.update_changeset(%EnvironmentSchema{}, %{})
-            |> Ecto.Changeset.add_error(:id, "environment not found in organization")
+    if valid_uuid?(norm_org_id) and valid_uuid?(environment_id) do
+      Ecto.Multi.new()
+      |> Ecto.Multi.update_all(
+        :unset_all,
+        from(e in EnvironmentSchema, where: e.organization_id == ^norm_org_id),
+        set: [is_default: false]
+      )
+      |> Ecto.Multi.update(
+        :set_new_default,
+        fn _ ->
+          case Repo.get_by(EnvironmentSchema, id: environment_id, organization_id: norm_org_id) do
+            nil ->
+              EnvironmentSchema.update_changeset(%EnvironmentSchema{}, %{})
+              |> Ecto.Changeset.add_error(:id, "environment not found in organization")
 
-          schema ->
-            EnvironmentSchema.update_changeset(schema, %{is_default: true, status: :active})
+            schema ->
+              EnvironmentSchema.update_changeset(schema, %{is_default: true, status: :active})
+          end
         end
+      )
+      |> Repo.transaction()
+      |> case do
+        {:ok, %{set_new_default: updated_schema}} ->
+          {:ok, schema_to_entity(updated_schema)}
+
+        {:error, :set_new_default, changeset, _} ->
+          {:error, changeset}
+
+        {:error, _step, reason, _} ->
+          {:error, reason}
       end
-    )
-    |> Repo.transaction()
-    |> case do
-      {:ok, %{set_new_default: updated_schema}} ->
-        {:ok, schema_to_entity(updated_schema)}
-
-      {:error, :set_new_default, changeset, _} ->
-        {:error, changeset}
-
-      {:error, _step, reason, _} ->
-        {:error, reason}
+    else
+      {:error, :not_found}
     end
   end
 
   @impl true
   def delete(id) when is_binary(id) do
-    case Repo.get(EnvironmentSchema, id) do
-      nil ->
-        {:error, :not_found}
+    if valid_uuid?(id) do
+      case Repo.get(EnvironmentSchema, id) do
+        nil ->
+          {:error, :not_found}
 
-      schema ->
-        case Repo.delete(schema) do
-          {:ok, _} -> :ok
-          {:error, changeset} -> {:error, changeset}
-        end
+        schema ->
+          case Repo.delete(schema) do
+            {:ok, _} -> :ok
+            {:error, changeset} -> {:error, changeset}
+          end
+      end
+    else
+      {:error, :not_found}
     end
   end
 
   @impl true
   def archive(id) when is_binary(id) do
-    case Repo.get(EnvironmentSchema, id) do
-      nil ->
-        {:error, :not_found}
+    if valid_uuid?(id) do
+      case Repo.get(EnvironmentSchema, id) do
+        nil ->
+          {:error, :not_found}
 
-      schema ->
-        schema
-        |> EnvironmentSchema.update_changeset(%{status: :archived, is_default: false})
-        |> Repo.update()
-        |> case do
-          {:ok, updated} -> {:ok, schema_to_entity(updated)}
-          {:error, changeset} -> {:error, changeset}
-        end
+        schema ->
+          schema
+          |> EnvironmentSchema.update_changeset(%{status: :archived, is_default: false})
+          |> Repo.update()
+          |> case do
+            {:ok, updated} -> {:ok, schema_to_entity(updated)}
+            {:error, changeset} -> {:error, changeset}
+          end
+      end
+    else
+      {:error, :not_found}
     end
   end
 

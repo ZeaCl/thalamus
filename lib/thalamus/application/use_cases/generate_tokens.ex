@@ -557,16 +557,36 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
   end
 
   defp do_resolve_environment(org_id, target_env, repo) do
-    org_id_str = to_string(org_id)
+    norm_org = normalize_org_id(org_id)
 
-    with {:error, :not_found} <- repo.get_by_slug(org_id_str, target_env),
-         {:error, _} <- repo.get(target_env) do
-      {nil, target_env}
-    else
-      {:ok, env} -> {env.id, env.slug}
-      _ -> {nil, target_env}
+    case repo.get_by_slug(norm_org, target_env) do
+      {:ok, env} ->
+        {env.id, env.slug}
+
+      {:error, :not_found} ->
+        case repo.get(target_env) do
+          {:ok, env} ->
+            if normalize_org_id(env.organization_id) == norm_org do
+              {env.id, env.slug}
+            else
+              {nil, target_env}
+            end
+
+          _ ->
+            {nil, target_env}
+        end
     end
   end
+
+  defp normalize_org_id(nil), do: nil
+
+  defp normalize_org_id(org_id) when is_binary(org_id),
+    do: String.replace_prefix(org_id, "org_", "")
+
+  defp normalize_org_id(%Thalamus.Domain.ValueObjects.OrganizationId{} = id),
+    do: to_string(id) |> String.replace_prefix("org_", "")
+
+  defp normalize_org_id(other), do: to_string(other)
 
   defp log_token_generation(client, token_data, %{audit_logger: logger}) do
     if token_data.user_id do

@@ -145,4 +145,22 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLEnvironmentRepositoryTe
       assert "archived-test" in slugs_all
     end
   end
+
+  describe "safe non-UUID handling" do
+    test "get/1 returns not_found instead of raising CastError when passed invalid UUID" do
+      assert {:error, :not_found} = PostgreSQLEnvironmentRepository.get("production")
+      assert {:error, :not_found} = PostgreSQLEnvironmentRepository.get("invalid-slug")
+      assert {:error, :not_found} = PostgreSQLEnvironmentRepository.get("123")
+    end
+
+    test "delete/1 and archive/1 return not_found when passed invalid UUID" do
+      assert {:error, :not_found} = PostgreSQLEnvironmentRepository.delete("production")
+      assert {:error, :not_found} = PostgreSQLEnvironmentRepository.archive("production")
+    end
+
+    test "set_default/2 returns not_found when org_id or env_id are invalid UUIDs" do
+      assert {:error, :not_found} =
+               PostgreSQLEnvironmentRepository.set_default("invalid-org", "invalid-env")
+    end
+  end
 end

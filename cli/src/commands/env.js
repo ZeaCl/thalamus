@@ -106,6 +106,7 @@ export function register(program) {
     .option('--force', 'Force delete production environment', false)
     .action(async (orgId, idOrSlug, options) => {
       try {
+        const client = await getClient();
         let url = `${client.apiUrl}/api/organizations/${orgId}/environments/${idOrSlug}`;
         if (options.force) url += '?force=true';
         const response = await zeaFetch(url, {

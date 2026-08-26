@@ -34,9 +34,9 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLSecretRepository do
   end
 
   def get_by_owner_provider_and_env(owner_type, owner_id, provider, environment_id) do
-    # 1. If environment_id is provided, try environment-specific secret first
+    # 1. If environment_id is provided and is a valid UUID, try environment-specific secret first
     result =
-      if environment_id do
+      if environment_id && valid_uuid?(environment_id) do
         query =
           from s in Secret,
             where:
@@ -75,7 +75,7 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLSecretRepository do
         order_by: [desc: s.inserted_at]
 
     query =
-      if environment_id do
+      if environment_id && valid_uuid?(environment_id) do
         from s in query, where: s.environment_id == ^environment_id or is_nil(s.environment_id)
       else
         query
@@ -91,4 +91,15 @@ defmodule Thalamus.Infrastructure.Repositories.PostgreSQLSecretRepository do
       error -> error
     end
   end
+
+  defp valid_uuid?(nil), do: false
+
+  defp valid_uuid?(id) when is_binary(id) do
+    case Ecto.UUID.cast(id) do
+      {:ok, _} -> true
+      _ -> false
+    end
+  end
+
+  defp valid_uuid?(_), do: false
 end
