@@ -93,6 +93,38 @@ defmodule Thalamus.Domain.Entities.Environment do
   end
 
   @doc """
+  Updates mutable fields of an environment entity.
+  """
+  def update(%__MODULE__{} = env, attrs) when is_map(attrs) do
+    name = Map.get(attrs, :name) || Map.get(attrs, "name") || env.name
+    raw_type = Map.get(attrs, :type) || Map.get(attrs, "type") || env.type
+    type = parse_type(raw_type)
+
+    raw_status = Map.get(attrs, :status) || Map.get(attrs, "status") || env.status
+    status = parse_status(raw_status)
+
+    description =
+      case Map.fetch(attrs, :description) do
+        {:ok, desc} -> desc
+        :error -> Map.get(attrs, "description", env.description)
+      end
+
+    updated = %{
+      env
+      | name: name,
+        type: type,
+        status: status,
+        description: description,
+        updated_at: DateTime.utc_now()
+    }
+
+    case validate_environment(updated) do
+      :ok -> {:ok, updated}
+      error -> error
+    end
+  end
+
+  @doc """
   Validates if an environment can be safely deleted.
   Production and default environments are protected against accidental deletion.
   """

@@ -4,24 +4,47 @@ defmodule Thalamus.Application.UseCases.ManageEnvironments do
 
   SOLID Principles Applied:
   - Single Responsibility: Manages organization environment workflows
-  - Dependency Inversion: Relies on EnvironmentRepository and OrganizationRepository ports
+  - Dependency Inversion: Relies on EnvironmentRepository port
   """
 
   alias Thalamus.Domain.Entities.Environment
-
-  alias Thalamus.Infrastructure.Repositories.{
-    PostgreSQLEnvironmentRepository,
-    PostgreSQLOrganizationRepository
-  }
+  alias Thalamus.Infrastructure.Repositories.PostgreSQLEnvironmentRepository
 
   @type deps :: %{
-          optional(:env_repo) => module(),
-          optional(:org_repo) => module()
+          optional(:env_repo) => module()
         }
+
+  @default_environment_templates [
+    %{
+      slug: "production",
+      name: "Producción",
+      type: :production,
+      is_default: true,
+      status: :active,
+      description: "Ambiente de producción por defecto"
+    },
+    %{
+      slug: "staging",
+      name: "Staging QA",
+      type: :staging,
+      is_default: false,
+      status: :active,
+      description: "Ambiente de pruebas y pre-entrega"
+    },
+    %{
+      slug: "development",
+      name: "Desarrollo",
+      type: :development,
+      is_default: false,
+      status: :active,
+      description: "Ambiente de desarrollo local y pruebas de integración"
+    }
+  ]
 
   @doc """
   Lists all environments for an organization.
   """
+  @spec list_environments(term(), map(), deps()) :: {:ok, [Environment.t()]} | {:error, term()}
   def list_environments(org_id, filters \\ %{}, deps \\ default_deps()) do
     repo = get_env_repo(deps)
     repo.list_by_organization(org_id, filters)
@@ -30,47 +53,33 @@ defmodule Thalamus.Application.UseCases.ManageEnvironments do
   @doc """
   Gets an environment by slug or ID within an organization.
   """
+  @spec get_environment(term(), String.t(), deps()) ::
+          {:ok, Environment.t()} | {:error, :not_found}
   def get_environment(org_id, slug_or_id, deps \\ default_deps()) do
     repo = get_env_repo(deps)
+    norm_org_id = normalize_org_id(org_id)
 
-    case repo.get_by_slug(org_id, slug_or_id) do
-      {:ok, env} ->
-        {:ok, env}
-
-      {:error, :not_found} ->
-        # If not found by slug, try by ID if it's a valid UUID
-        case Ecto.UUID.cast(slug_or_id) do
-          {:ok, uuid} ->
-            case repo.get(uuid) do
-              {:ok, %Environment{organization_id: env_org_id} = env} ->
-                norm_org_id = normalize_org_id(org_id)
-                norm_env_org_id = normalize_org_id(env_org_id)
-
-                if norm_org_id == norm_env_org_id do
-                  {:ok, env}
-                else
-                  {:error, :not_found}
-                end
-
-              {:error, _} ->
-                {:error, :not_found}
-            end
-
-          :error ->
-            {:error, :not_found}
-        end
+    with {:error, :not_found} <- repo.get_by_slug(norm_org_id, slug_or_id),
+         {:ok, uuid} <- Ecto.UUID.cast(slug_or_id),
+         {:ok, %Environment{organization_id: env_org_id} = env} <- repo.get(uuid),
+         true <- norm_org_id == normalize_org_id(env_org_id) do
+      {:ok, env}
+    else
+      {:ok, env} -> {:ok, env}
+      _ -> {:error, :not_found}
     end
   end
 
   @doc """
   Creates a new dynamic environment for an organization.
   """
+  @spec create_environment(term(), map(), deps()) :: {:ok, Environment.t()} | {:error, term()}
   def create_environment(org_id, attrs, deps \\ default_deps()) do
     repo = get_env_repo(deps)
 
     attrs =
       attrs
-      |> atomize_keys()
+      |> normalize_attrs()
       |> Map.put(:organization_id, normalize_org_id(org_id))
 
     repo.create(attrs)
@@ -79,69 +88,31 @@ defmodule Thalamus.Application.UseCases.ManageEnvironments do
   @doc """
   Updates an existing environment.
   """
+  @spec update_environment(term(), String.t(), map(), deps()) ::
+          {:ok, Environment.t()} | {:error, term()}
   def update_environment(org_id, slug_or_id, attrs, deps \\ default_deps()) do
     repo = get_env_repo(deps)
-    attrs = atomize_keys(attrs)
+    attrs_map = normalize_attrs(attrs)
 
-    with {:ok, env} <- get_environment(org_id, slug_or_id, deps) do
-      # If setting is_default to true, use set_default repository method
-      is_default = Map.get(attrs, :is_default)
-
-      if is_default == true and not env.is_default do
-        case repo.set_default(org_id, env.id) do
-          {:ok, default_env} ->
-            # Apply other field updates if present
-            other_attrs = Map.drop(attrs, [:is_default])
-
-            if other_attrs != %{} do
-              updated_env = %{
-                default_env
-                | name: Map.get(other_attrs, :name, default_env.name),
-                  type: Map.get(other_attrs, :type, default_env.type),
-                  status: Map.get(other_attrs, :status, default_env.status),
-                  description: Map.get(other_attrs, :description, default_env.description)
-              }
-
-              repo.save(updated_env)
-            else
-              {:ok, default_env}
-            end
-
-          error ->
-            error
-        end
-      else
-        updated_env = %{
-          env
-          | name: Map.get(attrs, :name, env.name),
-            type: Map.get(attrs, :type, env.type),
-            status: Map.get(attrs, :status, env.status),
-            description: Map.get(attrs, :description, env.description)
-        }
-
-        repo.save(updated_env)
-      end
+    with {:ok, env} <- get_environment(org_id, slug_or_id, deps),
+         {:ok, env} <- maybe_set_default(env, org_id, attrs_map, repo),
+         {:ok, updated_env} <- Environment.update(env, attrs_map) do
+      repo.save(updated_env)
     end
   end
 
   @doc """
   Deletes or archives an environment (with guard checks).
   """
+  @spec delete_environment(term(), String.t(), keyword(), deps()) ::
+          {:ok, Environment.t()} | {:error, term()}
   def delete_environment(org_id, slug_or_id, opts \\ [], deps \\ default_deps()) do
     repo = get_env_repo(deps)
-    force = Keyword.get(opts, :force, false)
+    force? = Keyword.get(opts, :force, false)
 
-    with {:ok, env} <- get_environment(org_id, slug_or_id, deps) do
-      cond do
-        env.is_default ->
-          {:error, :cannot_delete_default_environment}
-
-        env.type == :production and not force ->
-          {:error, :cannot_delete_production_environment}
-
-        true ->
-          repo.archive(env.id)
-      end
+    with {:ok, env} <- get_environment(org_id, slug_or_id, deps),
+         :ok <- validate_deletable(env, force?) do
+      repo.archive(env.id)
     end
   end
 
@@ -149,45 +120,18 @@ defmodule Thalamus.Application.UseCases.ManageEnvironments do
   Seeds the default base environments for a new organization.
   Creates 'production' (default), 'staging', and 'development'.
   """
+  @spec seed_default_environments(term(), deps()) :: {:ok, list()} | {:error, term()}
   def seed_default_environments(org_id, deps \\ default_deps()) do
     repo = get_env_repo(deps)
     norm_org_id = normalize_org_id(org_id)
 
-    base_envs = [
-      %{
-        organization_id: norm_org_id,
-        slug: "production",
-        name: "Producción",
-        type: :production,
-        is_default: true,
-        status: :active,
-        description: "Ambiente de producción por defecto"
-      },
-      %{
-        organization_id: norm_org_id,
-        slug: "staging",
-        name: "Staging QA",
-        type: :staging,
-        is_default: false,
-        status: :active,
-        description: "Ambiente de pruebas y pre-entrega"
-      },
-      %{
-        organization_id: norm_org_id,
-        slug: "development",
-        name: "Desarrollo",
-        type: :development,
-        is_default: false,
-        status: :active,
-        description: "Ambiente de desarrollo local y pruebas de integración"
-      }
-    ]
-
     results =
-      Enum.map(base_envs, fn env_attrs ->
-        case repo.get_by_slug(norm_org_id, env_attrs.slug) do
+      Enum.map(@default_environment_templates, fn template ->
+        attrs = Map.put(template, :organization_id, norm_org_id)
+
+        case repo.get_by_slug(norm_org_id, template.slug) do
           {:ok, existing} -> {:ok, existing}
-          {:error, :not_found} -> repo.create(env_attrs)
+          {:error, :not_found} -> repo.create(attrs)
         end
       end)
 
@@ -198,12 +142,25 @@ defmodule Thalamus.Application.UseCases.ManageEnvironments do
 
   defp default_deps do
     %{
-      env_repo: PostgreSQLEnvironmentRepository,
-      org_repo: PostgreSQLOrganizationRepository
+      env_repo: PostgreSQLEnvironmentRepository
     }
   end
 
   defp get_env_repo(deps), do: Map.get(deps, :env_repo, PostgreSQLEnvironmentRepository)
+
+  defp maybe_set_default(env, org_id, %{is_default: true}, repo) when not env.is_default do
+    repo.set_default(org_id, env.id)
+  end
+
+  defp maybe_set_default(env, _org_id, _attrs, _repo), do: {:ok, env}
+
+  defp validate_deletable(%Environment{is_default: true}, _force),
+    do: {:error, :cannot_delete_default_environment}
+
+  defp validate_deletable(%Environment{type: :production}, false),
+    do: {:error, :cannot_delete_production_environment}
+
+  defp validate_deletable(%Environment{}, _force), do: :ok
 
   defp normalize_org_id(nil), do: nil
 
@@ -217,10 +174,19 @@ defmodule Thalamus.Application.UseCases.ManageEnvironments do
 
   defp normalize_org_id(other), do: to_string(other)
 
-  defp atomize_keys(map) when is_map(map) do
-    Map.new(map, fn
-      {key, value} when is_binary(key) -> {String.to_atom(key), value}
-      {key, value} -> {key, value}
+  defp normalize_attrs(attrs) when is_map(attrs) do
+    Map.new(attrs, fn
+      {k, v} when is_binary(k) ->
+        try do
+          {String.to_existing_atom(k), v}
+        rescue
+          ArgumentError -> {k, v}
+        end
+
+      {k, v} ->
+        {k, v}
     end)
   end
+
+  defp normalize_attrs(other), do: other
 end
