@@ -34,10 +34,10 @@ defmodule Thalamus.Application.UseCases.ManageSecrets do
   end
 
   @doc """
-  Lists secrets by owner (user or org).
+  Lists secrets by owner (user or org) with optional environment filter.
   """
-  def list_by_owner(owner_type, owner_id, deps \\ default_deps()) do
-    deps.secret_repo.list_by_owner(owner_type, owner_id)
+  def list_by_owner(owner_type, owner_id, environment_id \\ nil, deps \\ default_deps()) do
+    deps.secret_repo.list_by_owner(owner_type, owner_id, environment_id)
   end
 
   @doc """

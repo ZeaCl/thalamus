@@ -276,6 +276,18 @@ defmodule ThalamusWeb.Router do
     get "/organizations/:id/saml-config", OrganizationController, :show_saml_config
     put "/organizations/:id/saml-config", OrganizationController, :update_saml_config
     delete "/organizations/:id/saml-config", OrganizationController, :delete_saml_config
+
+    # Organization environments
+    get "/organizations/:organization_id/environments", EnvironmentController, :index
+    post "/organizations/:organization_id/environments", EnvironmentController, :create
+    get "/organizations/:organization_id/environments/:id", EnvironmentController, :show
+    put "/organizations/:organization_id/environments/:id", EnvironmentController, :update
+    patch "/organizations/:organization_id/environments/:id", EnvironmentController, :update
+    delete "/organizations/:organization_id/environments/:id", EnvironmentController, :delete
+
+    post "/organizations/:organization_id/environments/:id/default",
+         EnvironmentController,
+         :set_default
   end
 
   # Admin API - requires super_admin role

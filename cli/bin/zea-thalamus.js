@@ -24,6 +24,7 @@ import { register as registerRole } from '../src/commands/role.js';
 import { register as registerAuthorization } from '../src/commands/authorization.js';
 import { register as registerInternal } from '../src/commands/internal.js';
 import { register as registerOauth } from '../src/commands/oauth.js';
+import { register as registerEnv } from '../src/commands/env.js';
 
 // ═══ Program ════════════════════════════════════════════
 const program = new Command();
@@ -42,6 +43,7 @@ program
 registerConfig(program);
 registerAuth(program);
 registerOrg(program);
+registerEnv(program);
 registerToken(program);
 registerHealth(program);
 registerDoctor(program);

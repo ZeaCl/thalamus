@@ -41,7 +41,11 @@ defmodule Thalamus.Application.DTOs.AgentTokenRequest do
 
           # Attestation Fields (OPTIONAL)
           # Human-readable reason/intent
-          reason: String.t() | nil
+          reason: String.t() | nil,
+
+          # Environment Scoping (OPTIONAL)
+          environment: String.t() | nil,
+          environment_id: String.t() | nil
         }
 
   defstruct [
@@ -55,6 +59,8 @@ defmodule Thalamus.Application.DTOs.AgentTokenRequest do
     :parent_agent_id,
     :expires_in,
     :reason,
+    :environment,
+    :environment_id,
     scopes: []
   ]
 

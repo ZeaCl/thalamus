@@ -19,7 +19,8 @@ defmodule Thalamus.Application.DTOs.TokenRequest do
           password: String.t() | nil,
           scope: String.t() | nil,
           code_verifier: String.t() | nil,
-          device_code: String.t() | nil
+          device_code: String.t() | nil,
+          environment: String.t() | nil
         }
 
   defstruct [
@@ -33,7 +34,8 @@ defmodule Thalamus.Application.DTOs.TokenRequest do
     :password,
     :scope,
     :code_verifier,
-    :device_code
+    :device_code,
+    :environment
   ]
 
   @doc """
@@ -67,7 +69,9 @@ defmodule Thalamus.Application.DTOs.TokenRequest do
             password: params["password"] || params[:password],
             scope: params["scope"] || params[:scope],
             code_verifier: params["code_verifier"] || params[:code_verifier],
-            device_code: params["device_code"] || params[:device_code]
+            device_code: params["device_code"] || params[:device_code],
+            environment:
+              params["environment"] || params["env"] || params[:environment] || params[:env]
           }
 
           case validate(request) do

@@ -64,6 +64,20 @@ if config_env() == :prod do
       You can generate one by calling: mix phx.gen.secret
       """
 
+  # Vault encryption key (Cloak AES-GCM) — supplied via env in prod, NOT committed.
+  # Generate with: mix run -e 'IO.puts(Base.encode64(:crypto.strong_rand_bytes(32)))'
+  if vault_key = System.get_env("VAULT_ENCRYPTION_KEY") do
+    config :thalamus, Thalamus.Vault,
+      ciphers: [
+        default: {Cloak.Ciphers.AES.GCM, tag: "AES.GCM.V1", key: Base.decode64!(vault_key)}
+      ]
+  else
+    raise """
+    environment variable VAULT_ENCRYPTION_KEY is missing in production.
+    Generate one with: mix run -e 'IO.puts(Base.encode64(:crypto.strong_rand_bytes(32)))'
+    """
+  end
+
   host = System.get_env("PHX_HOST") || "example.com"
   port = String.to_integer(System.get_env("PORT") || "4000")
   public_port = String.to_integer(System.get_env("PUBLIC_PORT") || "0")

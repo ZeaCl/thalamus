@@ -13,7 +13,11 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.OrganizationSchema do
   use Ecto.Schema
   import Ecto.Changeset
 
-  alias Thalamus.Infrastructure.Persistence.Schemas.{UserSchema, OAuth2ClientSchema}
+  alias Thalamus.Infrastructure.Persistence.Schemas.{
+    UserSchema,
+    OAuth2ClientSchema,
+    EnvironmentSchema
+  }
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
@@ -56,6 +60,7 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.OrganizationSchema do
     # Relationships
     has_many :users, UserSchema, foreign_key: :organization_id
     has_many :oauth2_clients, OAuth2ClientSchema, foreign_key: :organization_id
+    has_many :environments, EnvironmentSchema, foreign_key: :organization_id
 
     timestamps(type: :utc_datetime)
   end

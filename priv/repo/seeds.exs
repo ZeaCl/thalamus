@@ -10,11 +10,11 @@ alias Thalamus.Infrastructure.Persistence.Schemas.{
 import Ecto.Query
 require Logger
 
-Logger.info("Starting ZEA database seeding...")
+Logger.info("Starting Thalamus database seeding...")
 
 # 1. Organizations
 zea_org_id = "ea7b11ea-852c-44e5-aee1-a761ec76eaea"
-sudlich_org_id = "5fd11ea0-852c-44e5-aee1-a761ec76eaea"
+secondary_org_id = "5fd11ea0-852c-44e5-aee1-a761ec76eaea"
 
 # Create zea org
 zea_org =
@@ -22,7 +22,7 @@ zea_org =
     nil ->
       org_attrs = %{
         id: zea_org_id,
-        name: "ZEA",
+        name: "Default Org",
         plan_type: :enterprise,
         status: :active,
         verified: true,
@@ -56,13 +56,13 @@ zea_org =
       existing
   end
 
-# Create sudlich org
-sudlich_org =
-  case Repo.get(OrganizationSchema, sudlich_org_id) do
+# Create secondary org
+secondary_org =
+  case Repo.get(OrganizationSchema, secondary_org_id) do
     nil ->
       org_attrs = %{
-        id: sudlich_org_id,
-        name: "Südlich",
+        id: secondary_org_id,
+        name: "Example Org",
         plan_type: :enterprise,
         status: :active,
         verified: true,
@@ -96,20 +96,24 @@ sudlich_org =
       existing
   end
 
+# Seed dynamic environments for organizations
+Thalamus.Application.UseCases.ManageEnvironments.seed_default_environments(zea_org.id)
+Thalamus.Application.UseCases.ManageEnvironments.seed_default_environments(secondary_org.id)
+
 # 2. Users
 c_user_id = "c0000000-852c-44e5-aee1-a761ec76eaea"
-ccerda_user_id = "c0000001-852c-44e5-aee1-a761ec76eaea"
+member_user_id = "c0000001-852c-44e5-aee1-a761ec76eaea"
 
-c_pass_hash = Bcrypt.hash_pwd_salt("GusVicentAnto1.")
-ccerda_pass_hash = Bcrypt.hash_pwd_salt("GusVicentAnto1.")
+c_pass_hash = Bcrypt.hash_pwd_salt("ExamplePass123!")
+member_pass_hash = Bcrypt.hash_pwd_salt("ExamplePass123!")
 
 c_user =
-  case Repo.get(UserSchema, c_user_id) || Repo.get_by(UserSchema, email: "c@zea.cl") do
+  case Repo.get(UserSchema, c_user_id) || Repo.get_by(UserSchema, email: "owner@example.com") do
     nil ->
       user_attrs = %{
         id: c_user_id,
-        email: "c@zea.cl",
-        name: "Carlos Hinostroza",
+        email: "owner@example.com",
+        name: "Example User",
         password_hash: c_pass_hash,
         organization_id: zea_org_id,
         status: :active,
@@ -132,15 +136,16 @@ c_user =
       existing
   end
 
-ccerda_user =
-  case Repo.get(UserSchema, ccerda_user_id) || Repo.get_by(UserSchema, email: "ccerda@sudlich.cl") do
+member_user =
+  case Repo.get(UserSchema, member_user_id) ||
+         Repo.get_by(UserSchema, email: "member@example.com") do
     nil ->
       user_attrs = %{
-        id: ccerda_user_id,
-        email: "ccerda@sudlich.cl",
-        name: "Camila Cerda",
-        password_hash: ccerda_pass_hash,
-        organization_id: sudlich_org_id,
+        id: member_user_id,
+        email: "member@example.com",
+        name: "Example User 2",
+        password_hash: member_pass_hash,
+        organization_id: secondary_org_id,
         status: :active,
         verified_at: DateTime.truncate(DateTime.utc_now(), :second)
       }
@@ -171,7 +176,7 @@ _admin_user =
       user_attrs = %{
         id: admin_user_id,
         email: "admin@zea.local",
-        name: "Admin Local",
+        name: "Local Admin",
         password_hash: admin_pass_hash,
         organization_id: zea_org_id,
         status: :active,
@@ -199,7 +204,7 @@ if is_nil(zea_org.members) or zea_org.members == [] do
   zea_members = [
     %{
       "user_id" => c_user_id,
-      "email" => "c@zea.cl",
+      "email" => "owner@example.com",
       "role" => "owner",
       "joined_at" => DateTime.to_iso8601(DateTime.utc_now())
     },
@@ -216,24 +221,24 @@ if is_nil(zea_org.members) or zea_org.members == [] do
   |> Repo.update!()
 end
 
-if is_nil(sudlich_org.members) or sudlich_org.members == [] do
-  sudlich_members = [
+if is_nil(secondary_org.members) or secondary_org.members == [] do
+  secondary_members = [
     %{
-      "user_id" => ccerda_user_id,
-      "email" => "ccerda@sudlich.cl",
+      "user_id" => member_user_id,
+      "email" => "member@example.com",
       "role" => "owner",
       "joined_at" => DateTime.to_iso8601(DateTime.utc_now())
     },
     %{
       "user_id" => c_user_id,
-      "email" => "c@zea.cl",
+      "email" => "owner@example.com",
       "role" => "admin",
       "joined_at" => DateTime.to_iso8601(DateTime.utc_now())
     }
   ]
 
-  sudlich_org
-  |> Ecto.Changeset.change(%{members: sudlich_members, current_user_count: 2})
+  secondary_org
+  |> Ecto.Changeset.change(%{members: secondary_members, current_user_count: 2})
   |> Repo.update!()
 end
 
@@ -244,33 +249,33 @@ thalamus_cli_client_id = "c1111111-852c-44e5-aee1-a761ec76eaea"
 platform_web_uris = [
   "http://localhost:4000/auth/callback",
   "http://localhost:4001/auth/callback",
-  "http://zea.localhost/auth/callback",
-  "http://zea.localhost:3000/auth/callback",
-  "http://sudlich.zea.localhost/auth/callback",
-  "http://sudlich-soma.zea.localhost/auth/callback",
-  "http://zea.localhost:4001/auth/callback",
-  "http://sudlich.zea.localhost:4001/auth/callback",
-  "https://zea.cl/auth/callback",
-  "https://sudlich.zea.cl/auth/callback",
+  "http://example.localhost/auth/callback",
+  "http://example.localhost:3000/auth/callback",
+  "http://client.localhost/auth/callback",
+  "http://client-soma.localhost/auth/callback",
+  "http://example.localhost:4001/auth/callback",
+  "http://client.localhost:4001/auth/callback",
+  "https://example.com/auth/callback",
+  "https://client.example.com/auth/callback",
   # NextAuth callback URLs (provider-specific path)
   "http://localhost:3000/api/auth/callback/thalamus",
-  "http://app.zea.localhost/api/auth/callback/thalamus",
+  "http://app.example.localhost/api/auth/callback/thalamus",
   # Puertos :8080 (docker compose local)
-  "http://zea.localhost:8080/auth/callback",
-  "http://sudlich.zea.localhost:8080/auth/callback",
-  "http://sudlich-soma.zea.localhost:8080/auth/callback",
-  "http://app.zea.localhost:8080/api/auth/callback/thalamus"
+  "http://example.localhost:8080/auth/callback",
+  "http://client.localhost:8080/auth/callback",
+  "http://client-soma.localhost:8080/auth/callback",
+  "http://app.example.localhost:8080/api/auth/callback/thalamus"
 ]
 
 case Repo.get(OAuth2ClientSchema, platform_web_client_id) ||
        Repo.get_by(OAuth2ClientSchema, client_id_string: "platform_web") do
   nil ->
-    hashed_secret = Bcrypt.hash_pwd_salt("sq3Wafxd70wpqqVNrecK6zAYOYXggwb_kFgpuEWi4lE")
+    hashed_secret = Bcrypt.hash_pwd_salt("example_client_secret_change_me")
 
     client_attrs = %{
       id: platform_web_client_id,
       client_id_string: "platform_web",
-      name: "ZEA Platform",
+      name: "Web Platform",
       client_type: :public,
       client_secret: hashed_secret,
       organization_id: zea_org_id,
@@ -411,24 +416,24 @@ case Repo.get(OAuth2ClientSchema, internal_client_id) ||
     |> Repo.update!()
 end
 
-# Südlich Capital client 1 (prod)
-sudlich_client_1_id = "04b857b6-8298-47a4-b93b-b7c4e0d01b14"
+# Example client 1
+client_1_id = "04b857b6-8298-47a4-b93b-b7c4e0d01b14"
 
-case Repo.get(OAuth2ClientSchema, sudlich_client_1_id) do
+case Repo.get(OAuth2ClientSchema, client_1_id) do
   nil ->
     %OAuth2ClientSchema{}
     |> Ecto.Changeset.cast(
       %{
-        id: sudlich_client_1_id,
-        client_id_string: "sudlich_capital_1",
-        name: "Südlich Capital",
+        id: client_1_id,
+        client_id_string: "example_client_1",
+        name: "Example Client",
         client_type: :public,
         client_secret: nil,
-        organization_id: sudlich_org_id,
+        organization_id: secondary_org_id,
         redirect_uris: [
-          "https://sudlich.zea.cl/auth/callback",
+          "https://client.example.com/auth/callback",
           "http://localhost:5173/auth/callback",
-          "http://sudlich.zea.localhost:8080/auth/callback"
+          "http://client.localhost:8080/auth/callback"
         ],
         allowed_grant_types: ["authorization_code", "refresh_token"],
         allowed_scopes: ["openid", "profile", "email"],
@@ -453,24 +458,24 @@ case Repo.get(OAuth2ClientSchema, sudlich_client_1_id) do
     :ok
 end
 
-# Südlich Capital client 2 (prod)
-sudlich_client_2_id = "7ad26658-3099-4f2e-b4e4-128dc93d92ba"
+# Example client 2
+client_2_id = "7ad26658-3099-4f2e-b4e4-128dc93d92ba"
 
-case Repo.get(OAuth2ClientSchema, sudlich_client_2_id) do
+case Repo.get(OAuth2ClientSchema, client_2_id) do
   nil ->
     %OAuth2ClientSchema{}
     |> Ecto.Changeset.cast(
       %{
-        id: sudlich_client_2_id,
-        client_id_string: "sudlich_capital_2",
-        name: "Südlich Capital",
+        id: client_2_id,
+        client_id_string: "example_client_2",
+        name: "Example Client",
         client_type: :public,
         client_secret: nil,
-        organization_id: sudlich_org_id,
+        organization_id: secondary_org_id,
         redirect_uris: [
-          "https://sudlich.zea.cl/auth/callback",
+          "https://client.example.com/auth/callback",
           "http://localhost:5173/auth/callback",
-          "http://sudlich.zea.localhost:8080/auth/callback"
+          "http://client.localhost:8080/auth/callback"
         ],
         allowed_grant_types: ["authorization_code", "refresh_token"],
         allowed_scopes: [],
@@ -548,12 +553,12 @@ case Repo.get(OAuth2ClientSchema, cerebelum_service_id) ||
     :ok
 end
 
-# 4. Domain Roles (required by subdomain services: fm_funds, fm_investors, fm_commitments, fm_capital_calls)
+# 4. Domain Roles (for subdomain finance services — validates JWT domain_roles)
 # Services validate JWT claims.expect non-empty domain_roles
 # Without these, all real-mode services return 401
 
 domain_roles = [
-  # c@zea.cl — GP admin on ZEA org
+  # owner@example.com — admin on default org
   %{
     user_id: c_user_id,
     organization_id: zea_org_id,
@@ -561,18 +566,18 @@ domain_roles = [
     role: "gp_admin",
     scopes: ["read", "write"]
   },
-  # c@zea.cl — also admin on Südlich org (cross-org access)
+  # owner@example.com — also on secondary org (cross-org access)
   %{
     user_id: c_user_id,
-    organization_id: sudlich_org_id,
+    organization_id: secondary_org_id,
     domain: "fund_management",
     role: "gp_admin",
     scopes: ["read", "write"]
   },
-  # ccerda@sudlich.cl — GP admin on Südlich org
+  # member@example.com — on secondary org
   %{
-    user_id: ccerda_user_id,
-    organization_id: sudlich_org_id,
+    user_id: member_user_id,
+    organization_id: secondary_org_id,
     domain: "fund_management",
     role: "gp_admin",
     scopes: ["read", "write"]
@@ -594,4 +599,4 @@ Enum.each(domain_roles, fn attrs ->
   end
 end)
 
-Logger.info("ZEA database seeding completed successfully!")
+Logger.info("Thalamus database seeding completed successfully!")

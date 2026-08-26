@@ -22,6 +22,8 @@ defmodule Mix.Tasks.Cli.Coverage do
   @cli_dir Path.expand("cli", File.cwd!())
 
   def run(_args) do
+    compile_path = Mix.Project.compile_path()
+    :code.add_pathz(String.to_charlist(compile_path))
     cli_routes = extract_cli_coverage()
     router_routes = extract_router_routes()
 
@@ -67,6 +69,10 @@ defmodule Mix.Tasks.Cli.Coverage do
   # ── router route extraction ───────────────────────────────────
 
   defp extract_router_routes do
+    compile_path = Mix.Project.compile_path()
+    :code.add_pathz(String.to_charlist(compile_path))
+    Code.ensure_loaded!(Router)
+
     Router.__routes__()
     |> Enum.map(fn route ->
       verb = route.verb |> to_string() |> String.upcase()

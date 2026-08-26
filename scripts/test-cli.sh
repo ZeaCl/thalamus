@@ -216,6 +216,51 @@ test_org_members() {
   fi
 }
 
+# ── Environment ───────────────────────────────
+test_env_list() {
+  local org_id
+  org_id=$(zea thalamus org list --output json 2>/dev/null | jq -r '.[] | select(.name=="ZEA") | .id' 2>/dev/null || echo "")
+  if [ -n "$org_id" ] && [ "$org_id" != "null" ]; then
+    run_test "env list" \
+      "zea thalamus env list $org_id" \
+      "production|staging|development|Environments"
+
+    run_test "env show" \
+      "zea thalamus env get $org_id production" \
+      "production|Producción"
+  else
+    echo -n "── env list... "
+    echo "⚠️  skipping (ZEA org not found)"
+  fi
+}
+
+test_env_crud() {
+  local org_id
+  org_id=$(zea thalamus org list --output json 2>/dev/null | jq -r '.[] | select(.name=="ZEA") | .id' 2>/dev/null || echo "")
+  if [ -n "$org_id" ] && [ "$org_id" != "null" ]; then
+    local ENV_SLUG="cli-test-env-$$"
+    local output
+    output=$(zea thalamus env create "$org_id" "$ENV_SLUG" --name "CLI Test Env" --type custom 2>&1) || true
+    echo -n "── env create... "
+    if echo "$output" | grep -qE "created|Created|$ENV_SLUG"; then
+      pass "env create"
+
+      run_test "env update" \
+        "zea thalamus env update $org_id $ENV_SLUG --name 'CLI Updated Env'" \
+        "updated|Updated|CLI Updated Env"
+
+      run_test "env delete" \
+        "zea thalamus env delete $org_id $ENV_SLUG" \
+        "deleted|Deleted"
+    else
+      echo "⚠️  skipping env crud (output: $output)"
+    fi
+  else
+    echo -n "── env crud... "
+    echo "⚠️  skipping (ZEA org not found)"
+  fi
+}
+
 # ── Secret (read-only) ─────────────────────────
 test_secret_list() {
   # Secrets endpoints use :api_auth pipeline (API Key, not JWT)
@@ -457,7 +502,7 @@ test_token_crud() {
 }
 
 # ── Main ──────────────────────────────────────
-ALL_TESTS=(health whoami_unauth login setup_oauth whoami_auth org org_show org_members token token_crud client client_show client_crud secret_list secret_crud user_list user_show user_scopes user_crud domain role_list role_crud admin audit debug oidc 404)
+ALL_TESTS=(health whoami_unauth login setup_oauth whoami_auth org org_show org_members env_list env_crud token token_crud client client_show client_crud secret_list secret_crud user_list user_show user_scopes user_crud domain role_list role_crud admin audit debug oidc 404)
 
 run_all() {
   echo "═══ CLI E2E Tests ═══"

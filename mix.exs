@@ -148,17 +148,22 @@ defmodule Thalamus.MixProject do
   #
   # See the documentation for `Mix` for more info on aliases.
   defp aliases do
-    [
+    base_aliases = [
       setup: ["deps.get", "ecto.setup", "assets.setup", "assets.build"],
       "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
-      test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
+      test: ["compile", "ecto.create --quiet", "ecto.migrate --quiet", "test"],
       # Unit tests without database setup
       "test.unit": ["test"],
-      "test.integration": ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
+      "test.integration": ["compile", "ecto.create --quiet", "ecto.migrate --quiet", "test"],
       # Test coverage
-      "test.coverage": ["ecto.create --quiet", "ecto.migrate --quiet", "coveralls.html"],
-      "test.coverage.ci": ["ecto.create --quiet", "ecto.migrate --quiet", "coveralls"],
+      "test.coverage": [
+        "compile",
+        "ecto.create --quiet",
+        "ecto.migrate --quiet",
+        "coveralls.html"
+      ],
+      "test.coverage.ci": ["compile", "ecto.create --quiet", "ecto.migrate --quiet", "coveralls"],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
       "assets.build": ["tailwind thalamus", "esbuild thalamus"],
       "assets.deploy": [
@@ -166,14 +171,6 @@ defmodule Thalamus.MixProject do
         "esbuild thalamus --minify",
         "phx.digest"
       ],
-      # CLI coverage: every route must have a command.
-      # Runs only in dev/test — skips if Node.js is not available.
-      compile:
-        if Mix.env() in [:dev, :test] do
-          ["compile", "cli.coverage"]
-        else
-          ["compile"]
-        end,
       # Precommit: full validation including E2E tests (Docker required).
       # Skips E2E gracefully if Docker is not available.
       precommit: [
@@ -184,5 +181,21 @@ defmodule Thalamus.MixProject do
         "cli.test.e2e"
       ]
     ]
+
+    if Mix.env() == :dev do
+      Keyword.put(base_aliases, :compile, ["compile --all-compilers", &run_cli_coverage/1])
+    else
+      base_aliases
+    end
+  end
+
+  defp run_cli_coverage(_) do
+    compile_path = Mix.Project.compile_path()
+    :code.add_pathz(String.to_charlist(compile_path))
+    Mix.Task.load_tasks([compile_path])
+
+    if Code.ensure_loaded?(Mix.Tasks.Cli.Coverage) do
+      Mix.Tasks.Cli.Coverage.run([])
+    end
   end
 end

@@ -102,7 +102,7 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
   defp generate_for_grant_type(
          %TokenRequest{grant_type: :client_credentials} = request,
          client,
-         _deps
+         deps
        ) do
     # Machine-to-machine flow - no user involved
     scopes = parse_scopes(request.scope)
@@ -111,13 +111,18 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
     unless OAuth2Client.valid_scopes?(client, scopes) do
       {:error, :invalid_scope}
     else
+      {env_id, env_slug} = resolve_environment(client.organization_id, request.environment, deps)
+
       access_token =
         generate_jwt_access_token(%{
           user_id: nil,
           client_id: client_id_string(client),
           scope: Enum.join(scopes, " "),
           expires_in: ttl,
-          aud: client_id_string(client)
+          aud: client_id_string(client),
+          organization_id: client.organization_id,
+          env: env_slug,
+          env_id: env_id
         })
 
       {:ok,
@@ -128,7 +133,10 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
          refresh_token: nil,
          scope: Enum.join(scopes, " "),
          user_id: nil,
-         client_id: client.id
+         client_id: client.id,
+         organization_id: client.organization_id,
+         env: env_slug,
+         env_id: env_id
        }}
     end
   end
@@ -145,6 +153,8 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
          {:ok, user} <- get_user(auth_code_data.user_id, deps) do
       scopes = auth_code_data.scopes
       refresh_token = generate_refresh_token()
+      org_id = (user && user.organization_id) || client.organization_id
+      {env_id, env_slug} = resolve_environment(org_id, request.environment, deps)
 
       access_token =
         generate_jwt_access_token(%{
@@ -156,7 +166,10 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
           sub: UserId.to_string(user.id),
           name: user.name,
           email: Email.to_string(user.email),
-          is_agent: user.is_agent
+          is_agent: user.is_agent,
+          organization_id: org_id,
+          env: env_slug,
+          env_id: env_id
         })
 
       # Revoke authorization code
@@ -170,7 +183,10 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
          refresh_token: refresh_token,
          scope: Enum.join(scopes, " "),
          user_id: user.id,
-         client_id: client.id
+         client_id: client.id,
+         organization_id: org_id,
+         env: env_slug,
+         env_id: env_id
        }}
     end
   end
@@ -186,6 +202,8 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
       # Generate new tokens
       scopes_list = stored_token.scopes || []
       new_refresh_token = generate_refresh_token()
+      org_id = (user && user.organization_id) || client.organization_id
+      {env_id, env_slug} = resolve_environment(org_id, request.environment, deps)
 
       access_token =
         generate_jwt_access_token(%{
@@ -197,7 +215,10 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
           sub: UserId.to_string(user.id),
           name: user.name,
           email: Email.to_string(user.email),
-          is_agent: user.is_agent
+          is_agent: user.is_agent,
+          organization_id: org_id,
+          env: env_slug,
+          env_id: env_id
         })
 
       # Revoke old refresh token (rotation)
@@ -211,7 +232,10 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
          refresh_token: new_refresh_token,
          scope: Enum.join(stored_token.scopes || [], " "),
          user_id: user.id,
-         client_id: client.id
+         client_id: client.id,
+         organization_id: org_id,
+         env: env_slug,
+         env_id: env_id
        }}
     end
   end
@@ -226,6 +250,7 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
       # If no scopes requested, default to openid profile email
       scopes = if scopes == [], do: ["openid", "profile", "email"], else: scopes
       refresh_token = generate_refresh_token()
+      {env_id, env_slug} = resolve_environment(user.organization_id, request.environment, deps)
 
       access_token =
         generate_jwt_access_token(%{
@@ -238,7 +263,9 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
           name: user.name,
           email: Email.to_string(user.email),
           is_agent: user.is_agent,
-          organization_id: user.organization_id
+          organization_id: user.organization_id,
+          env: env_slug,
+          env_id: env_id
         })
 
       {:ok,
@@ -250,7 +277,9 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
          scope: Enum.join(scopes, " "),
          user_id: user.id,
          client_id: client_id_string(client),
-         organization_id: user.organization_id
+         organization_id: user.organization_id,
+         env: env_slug,
+         env_id: env_id
        }}
     end
   end
@@ -273,6 +302,8 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
             else
               with {:ok, user} <- get_user(da.user_id, deps) do
                 refresh_token = generate_refresh_token()
+                org_id = (user && user.organization_id) || client.organization_id
+                {env_id, env_slug} = resolve_environment(org_id, request.environment, deps)
 
                 access_token =
                   generate_jwt_access_token(%{
@@ -285,7 +316,9 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
                     name: user.name,
                     email: Email.to_string(user.email),
                     is_agent: user.is_agent,
-                    organization_id: user.organization_id
+                    organization_id: org_id,
+                    env: env_slug,
+                    env_id: env_id
                   })
 
                 # Only expire the device code AFTER successfully generating the token
@@ -300,7 +333,9 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
                    scope: Enum.join(scopes, " "),
                    user_id: user.id,
                    client_id: client_id_string(client),
-                   organization_id: user.organization_id
+                   organization_id: org_id,
+                   env: env_slug,
+                   env_id: env_id
                  }}
               end
             end
@@ -470,6 +505,9 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
              type: :access_token,
              user_id: token_data.user_id,
              client_id: client_uuid,
+             organization_id: token_data[:organization_id],
+             environment: token_data[:env],
+             environment_id: token_data[:env_id],
              scopes: parse_scopes(token_data.scope),
              expires_at: DateTime.add(DateTime.utc_now(), token_data.expires_in),
              revoked: false,
@@ -482,6 +520,9 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
           type: :refresh_token,
           user_id: token_data.user_id,
           client_id: client_uuid,
+          organization_id: token_data[:organization_id],
+          environment: token_data[:env],
+          environment_id: token_data[:env_id],
           scopes: parse_scopes(token_data.scope),
           expires_at: DateTime.add(DateTime.utc_now(), @refresh_token_ttl),
           revoked: false,
@@ -497,6 +538,55 @@ defmodule Thalamus.Application.UseCases.GenerateTokens do
         {:error, :token_storage_failed}
     end
   end
+
+  defp resolve_environment(org_id, target_env, deps) do
+    case Map.get(deps, :environment_repository) do
+      nil -> {nil, target_env || "production"}
+      repo -> do_resolve_environment(org_id, target_env, repo)
+    end
+  end
+
+  defp do_resolve_environment(nil, target_env, _repo),
+    do: {nil, target_env || "production"}
+
+  defp do_resolve_environment(org_id, nil, repo) do
+    case repo.get_default(to_string(org_id)) do
+      {:ok, env} -> {env.id, env.slug}
+      _ -> {nil, "production"}
+    end
+  end
+
+  defp do_resolve_environment(org_id, target_env, repo) do
+    norm_org = normalize_org_id(org_id)
+
+    case repo.get_by_slug(norm_org, target_env) do
+      {:ok, env} ->
+        {env.id, env.slug}
+
+      {:error, :not_found} ->
+        case repo.get(target_env) do
+          {:ok, env} ->
+            if normalize_org_id(env.organization_id) == norm_org do
+              {env.id, env.slug}
+            else
+              {nil, target_env}
+            end
+
+          _ ->
+            {nil, target_env}
+        end
+    end
+  end
+
+  defp normalize_org_id(nil), do: nil
+
+  defp normalize_org_id(org_id) when is_binary(org_id),
+    do: String.replace_prefix(org_id, "org_", "")
+
+  defp normalize_org_id(%Thalamus.Domain.ValueObjects.OrganizationId{} = id),
+    do: to_string(id) |> String.replace_prefix("org_", "")
+
+  defp normalize_org_id(other), do: to_string(other)
 
   defp log_token_generation(client, token_data, %{audit_logger: logger}) do
     if token_data.user_id do

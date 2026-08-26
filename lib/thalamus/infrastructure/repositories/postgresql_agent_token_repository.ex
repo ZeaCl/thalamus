@@ -190,7 +190,9 @@ defmodule Thalamus.Infrastructure.Repositories.PostgresqlAgentTokenRepository do
       expires_at: DateTime.truncate(AgentToken.expires_at(token), :second),
       revoked_at: truncate_datetime(token.revoked_at),
       revoke_reason: token.revoke_reason,
-      reason: token.reason
+      reason: token.reason,
+      environment_id: token.environment_id,
+      environment_slug: token.environment_slug
     }
 
     # Set the ID on the struct itself, not in attrs
@@ -239,6 +241,8 @@ defmodule Thalamus.Infrastructure.Repositories.PostgresqlAgentTokenRepository do
       revoked_at: schema.revoked_at,
       revoke_reason: schema.revoke_reason,
       reason: schema.reason,
+      environment_id: schema.environment_id,
+      environment_slug: schema.environment_slug,
       created_at: schema.inserted_at
     }
   end

@@ -9,7 +9,8 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.AgentTokenSchema do
 
   alias Thalamus.Infrastructure.Persistence.Schemas.{
     OAuth2ClientSchema,
-    OrganizationSchema
+    OrganizationSchema,
+    EnvironmentSchema
   }
 
   @type t :: %__MODULE__{}
@@ -21,6 +22,9 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.AgentTokenSchema do
     # OAuth2 and multi-tenancy
     belongs_to :client, OAuth2ClientSchema, foreign_key: :client_id
     belongs_to :organization, OrganizationSchema, foreign_key: :organization_id
+    belongs_to :environment, EnvironmentSchema, foreign_key: :environment_id
+
+    field :environment_slug, :string
 
     # Token data
     field :access_token, :string
@@ -87,7 +91,9 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.AgentTokenSchema do
       :delegator_user_id,
       :expires_in,
       :expires_at,
-      :reason
+      :reason,
+      :environment_id,
+      :environment_slug
     ])
     |> validate_required([
       :client_id,
@@ -112,6 +118,7 @@ defmodule Thalamus.Infrastructure.Persistence.Schemas.AgentTokenSchema do
     |> foreign_key_constraint(:client_id)
     |> foreign_key_constraint(:organization_id)
     |> foreign_key_constraint(:parent_agent_id)
+    |> foreign_key_constraint(:environment_id)
     |> check_constraint(:agent_type, name: :valid_agent_type)
     |> check_constraint(:delegation_depth, name: :valid_delegation_depth)
   end

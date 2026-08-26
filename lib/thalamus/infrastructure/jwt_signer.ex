@@ -71,6 +71,26 @@ defmodule Thalamus.Infrastructure.JwtSigner do
         is_agent -> Map.put(extra, "is_agent", is_agent)
       end
 
+    extra =
+      case Map.get(claims_map, :organization_id) || Map.get(claims_map, "organization_id") do
+        nil -> extra
+        org_id -> Map.put(extra, "organization_id", to_string(org_id))
+      end
+
+    extra =
+      case Map.get(claims_map, :env) || Map.get(claims_map, :environment) ||
+             Map.get(claims_map, "env") || Map.get(claims_map, "environment") do
+        nil -> extra
+        env -> Map.put(extra, "env", to_string(env))
+      end
+
+    extra =
+      case Map.get(claims_map, :env_id) || Map.get(claims_map, :environment_id) ||
+             Map.get(claims_map, "env_id") || Map.get(claims_map, "environment_id") do
+        nil -> extra
+        env_id -> Map.put(extra, "env_id", to_string(env_id))
+      end
+
     claims = Map.merge(base_claims, extra)
 
     user_id = Map.get(claims_map, :user_id)
@@ -335,6 +355,19 @@ defmodule Thalamus.Infrastructure.JwtSigner do
   end
 
   defp read_key_file(filename) do
+    case env_key(filename) do
+      nil -> read_disk_key(filename)
+      env_pem when is_binary(env_pem) and env_pem != "" -> env_pem
+    end
+  end
+
+  # Allow keys via environment variables (open source friendly) so the
+  # private signing key never has to be committed to the repository.
+  defp env_key("jwt_private_key.pem"), do: System.get_env("JWT_PRIVATE_KEY")
+  defp env_key("jwt_public_key.pem"), do: System.get_env("JWT_PUBLIC_KEY")
+  defp env_key(_), do: nil
+
+  defp read_disk_key(filename) do
     priv_path = :code.priv_dir(:thalamus) |> List.to_string()
     File.read!(Path.join(priv_path, filename))
   end
