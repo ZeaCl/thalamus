@@ -32,10 +32,7 @@
       <div class="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-purple-500/10 rounded-full blur-[120px] pointer-events-none">
       </div>
 
-      <% home_url =
-        if String.contains?(@conn.host, "localhost"),
-          do: "http://zea.localhost",
-          else: "https://zea.cl" %>
+      <% home_url = ThalamusWeb.URLHelpers.home_url(@conn) %>
 
       <div class="w-full max-w-md relative z-10 flex flex-col items-center">
         <%!-- Logo and Header --%>

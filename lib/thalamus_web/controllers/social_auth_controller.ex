@@ -12,6 +12,7 @@ defmodule ThalamusWeb.SocialAuthController do
 
   alias Thalamus.Application.UseCases.AuthenticateUserViaSocial
   alias Thalamus.Infrastructure.Adapters.SocialAuth.{GoogleAdapter, GitHubAdapter, AppleAdapter}
+  alias ThalamusWeb.URLHelpers
 
   require Logger
 
@@ -25,6 +26,7 @@ defmodule ThalamusWeb.SocialAuthController do
 
     if provider_str in @supported_providers do
       state = UUID.uuid4()
+      redirect_uri = URLHelpers.resolve_social_redirect_uri(conn, provider_str)
 
       conn =
         conn
@@ -33,7 +35,7 @@ defmodule ThalamusWeb.SocialAuthController do
 
       adapter = get_adapter(provider_str)
 
-      case adapter.get_authorization_url(state) do
+      case adapter.get_authorization_url(state, redirect_uri: redirect_uri) do
         {:ok, auth_url} ->
           redirect(conn, external: auth_url)
 
@@ -84,9 +86,10 @@ defmodule ThalamusWeb.SocialAuthController do
           |> redirect(to: "/login")
         else
           code = params["code"]
+          redirect_uri = URLHelpers.resolve_social_redirect_uri(conn, provider_str)
           adapter = get_adapter(provider_str)
 
-          case adapter.exchange_code(code) do
+          case adapter.exchange_code(code, redirect_uri: redirect_uri) do
             {:ok, profile} ->
               handle_authenticated_profile(conn, profile, provider_str)
 
@@ -119,10 +122,11 @@ defmodule ThalamusWeb.SocialAuthController do
       |> redirect(to: "/login")
     else
       code = params["code"]
+      redirect_uri = URLHelpers.resolve_social_redirect_uri(conn, "apple")
       adapter = get_adapter("apple")
       user_param = params["user"]
 
-      case adapter.exchange_code(code, user_param: user_param) do
+      case adapter.exchange_code(code, redirect_uri: redirect_uri, user_param: user_param) do
         {:ok, profile} ->
           handle_authenticated_profile(conn, profile, "apple")
 
@@ -204,6 +208,6 @@ defmodule ThalamusWeb.SocialAuthController do
 
   defp get_return_to(conn) do
     get_session(conn, :return_to) || conn.params["return_to"] ||
-      System.get_env("DEFAULT_REDIRECT_URL") || "http://zea.localhost/dashboard"
+      URLHelpers.default_return_to(conn)
   end
 end

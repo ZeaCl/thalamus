@@ -182,6 +182,9 @@ defmodule Thalamus.Infrastructure.Adapters.SocialAuth.AppleAdapter do
   defp env_var_name(:redirect_uri), do: "APPLE_REDIRECT_URI"
   defp env_var_name(_), do: ""
 
-  defp default_config(:redirect_uri), do: "https://auth.zea.cl/auth/social/apple/callback"
+  defp default_config(:redirect_uri) do
+    ThalamusWeb.URLHelpers.resolve_social_redirect_uri(nil, "apple")
+  end
+
   defp default_config(_), do: nil
 end

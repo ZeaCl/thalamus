@@ -116,6 +116,9 @@ defmodule Thalamus.Infrastructure.Adapters.SocialAuth.GoogleAdapter do
   defp env_var_name(:redirect_uri), do: "GOOGLE_REDIRECT_URI"
   defp env_var_name(_), do: ""
 
-  defp default_config(:redirect_uri), do: "https://auth.zea.cl/auth/social/google/callback"
+  defp default_config(:redirect_uri) do
+    ThalamusWeb.URLHelpers.resolve_social_redirect_uri(nil, "google")
+  end
+
   defp default_config(_), do: nil
 end

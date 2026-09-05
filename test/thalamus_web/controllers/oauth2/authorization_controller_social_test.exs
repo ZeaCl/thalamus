@@ -18,7 +18,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerSocialTest do
         "Social Client",
         org.id,
         ["openid", "profile", "email"],
-        redirect_uris: ["https://app.zea.cl/callback"],
+        redirect_uris: ["http://localhost:3000/callback"],
         grant_types: [:authorization_code]
       )
 
@@ -39,7 +39,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerSocialTest do
       params = %{
         "response_type" => "code",
         "client_id" => client_id,
-        "redirect_uri" => "https://app.zea.cl/callback",
+        "redirect_uri" => "http://localhost:3000/callback",
         "scope" => "openid profile",
         "state" => "client_state_123",
         "provider" => "google"
@@ -63,7 +63,7 @@ defmodule ThalamusWeb.OAuth2.AuthorizationControllerSocialTest do
       params = %{
         "response_type" => "code",
         "client_id" => client_id,
-        "redirect_uri" => "https://app.zea.cl/callback",
+        "redirect_uri" => "http://localhost:3000/callback",
         "scope" => "openid profile",
         "connection" => "github"
       }

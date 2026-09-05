@@ -161,7 +161,7 @@ defmodule ThalamusWeb.SocialAuthControllerTest do
           "state" => "apple_state_abc"
         })
 
-      assert redirected_to(conn) =~ "/dashboard"
+      assert redirected_to(conn) == "/"
       assert get_session(conn, :user_id) != nil
     end
   end

@@ -146,6 +146,9 @@ defmodule Thalamus.Infrastructure.Adapters.SocialAuth.GitHubAdapter do
   defp env_var_name(:redirect_uri), do: "GITHUB_REDIRECT_URI"
   defp env_var_name(_), do: ""
 
-  defp default_config(:redirect_uri), do: "https://auth.zea.cl/auth/social/github/callback"
+  defp default_config(:redirect_uri) do
+    ThalamusWeb.URLHelpers.resolve_social_redirect_uri(nil, "github")
+  end
+
   defp default_config(_), do: nil
 end
