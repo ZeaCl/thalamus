@@ -101,12 +101,21 @@ defmodule ThalamusWeb.OAuth2.AuthorizationController do
           end
 
         {:error, :not_authenticated} ->
-          # User not authenticated (or deleted from DB) - redirect to login
-          # Store authorization request in session for after login
-          conn
-          |> clear_session()
-          |> put_session(:authorization_request, params)
-          |> redirect(to: "/login?return_to=" <> URI.encode_www_form("/oauth/authorize"))
+          # User not authenticated (or deleted from DB) - redirect to login or delegate to social provider
+          # Store authorization request in session for after authentication
+          conn =
+            conn
+            |> clear_session()
+            |> put_session(:authorization_request, params)
+
+          provider = params["provider"] || params["connection"]
+          provider_str = if is_binary(provider), do: String.downcase(provider), else: nil
+
+          if provider_str in ["google", "apple", "github"] do
+            redirect(conn, to: "/auth/social/#{provider_str}/init")
+          else
+            redirect(conn, to: "/login?return_to=" <> URI.encode_www_form("/oauth/authorize"))
+          end
       end
     else
       {:error, error_code, description} ->

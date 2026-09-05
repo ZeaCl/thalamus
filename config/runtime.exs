@@ -34,6 +34,27 @@ if cors_origins = System.get_env("CORS_ORIGINS") do
     expose_headers: ["x-ratelimit-limit", "x-ratelimit-remaining", "x-ratelimit-reset"]
 end
 
+# Social Identity Federation (Google, GitHub, Apple)
+config :thalamus, :google_auth,
+  client_id: System.get_env("GOOGLE_CLIENT_ID"),
+  client_secret: System.get_env("GOOGLE_CLIENT_SECRET"),
+  redirect_uri:
+    System.get_env("GOOGLE_REDIRECT_URI") || "https://auth.zea.cl/auth/social/google/callback"
+
+config :thalamus, :github_auth,
+  client_id: System.get_env("GITHUB_CLIENT_ID"),
+  client_secret: System.get_env("GITHUB_CLIENT_SECRET"),
+  redirect_uri:
+    System.get_env("GITHUB_REDIRECT_URI") || "https://auth.zea.cl/auth/social/github/callback"
+
+config :thalamus, :apple_auth,
+  client_id: System.get_env("APPLE_CLIENT_ID"),
+  team_id: System.get_env("APPLE_TEAM_ID"),
+  key_id: System.get_env("APPLE_KEY_ID"),
+  private_key: System.get_env("APPLE_PRIVATE_KEY"),
+  redirect_uri:
+    System.get_env("APPLE_REDIRECT_URI") || "https://auth.zea.cl/auth/social/apple/callback"
+
 if config_env() == :prod do
   database_url =
     System.get_env("DATABASE_URL") ||
