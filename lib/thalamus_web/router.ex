@@ -45,6 +45,15 @@ defmodule ThalamusWeb.Router do
     plug ThalamusWeb.Plugs.RateLimiter, limit: 1000, window: 60_000, key: :ip_address
   end
 
+  # External form-post callback pipeline (for Apple Sign In form_post, session enabled, no CSRF plug)
+  pipeline :external_form_post_callback do
+    plug :accepts, ["html", "json"]
+    plug :fetch_session
+    plug :fetch_live_flash
+    plug :put_secure_browser_headers
+    plug ThalamusWeb.Plugs.SecurityHeaders
+  end
+
   # Authenticated API pipeline (JWT only)
   pipeline :authenticated_api do
     plug :accepts, ["json"]
@@ -174,6 +183,20 @@ defmodule ThalamusWeb.Router do
     get "/init", SamlController, :init
     post "/acs", SamlController, :acs
     get "/metadata/:id", SamlController, :metadata
+  end
+
+  # Social Identity Federation (Google, GitHub, Apple)
+  scope "/auth/social", ThalamusWeb do
+    pipe_through :browser
+
+    get "/:provider/init", SocialAuthController, :init
+    get "/:provider/callback", SocialAuthController, :callback
+  end
+
+  scope "/auth/social", ThalamusWeb do
+    pipe_through :external_form_post_callback
+
+    post "/apple/callback", SocialAuthController, :apple_callback
   end
 
   # Public API - no authentication required
