@@ -13,11 +13,13 @@ defmodule ThalamusWeb.API.RegistrationController do
 
   alias Thalamus.Infrastructure.Repositories.{
     PostgreSQLUserRepository,
-    PostgreSQLOrganizationRepository
+    PostgreSQLOrganizationRepository,
+    PostgreSQLOAuth2ClientRepository
   }
 
   alias Thalamus.Domain.Entities.{User, Organization}
   alias Thalamus.Domain.ValueObjects.{UserId, Email, OrganizationId}
+  alias Thalamus.Infrastructure.Persistence.Schemas.UserSchema
 
   # TODO: Inject EmailService dependency
   # For now, we'll skip email sending
@@ -74,14 +76,18 @@ defmodule ThalamusWeb.API.RegistrationController do
              :ok <- validate_password_confirmation(password, password_confirmation),
              {:ok, email_vo} <- Email.new(email_string),
              {:ok, nil} <- check_email_available(email_vo),
-             # Create user first (without organization)
+             {:ok, organization} <- resolve_or_create_organization(params, email_string),
+             # Create user
              {:ok, user} <- create_user(email_string, password, params),
              {:ok, saved_user} <- PostgreSQLUserRepository.save(user),
-             # Now create organization with user as owner (if organization_name provided)
-             {:ok, organization} <- create_organization_if_provided(params, saved_user),
-             # Associate user with organization if created
-             :ok <- associate_user_with_organization(saved_user, organization) do
-          saved_user
+             # Auto-verify user so account is active immediately
+             {:ok, verified_user} <- User.verify_email(saved_user),
+             {:ok, final_user} <- PostgreSQLUserRepository.save(verified_user),
+             # Associate user with organization at schema level
+             :ok <- associate_user_with_organization(final_user, organization),
+             # Add user as member if organization exists and user is not owner
+             {:ok, _org} <- add_user_to_organization_members(organization, final_user) do
+          {final_user, organization}
         else
           {:error, :missing_parameter, param} ->
             Thalamus.Repo.rollback({:missing_parameter, param})
@@ -92,12 +98,9 @@ defmodule ThalamusWeb.API.RegistrationController do
       end)
 
     case result do
-      {:ok, saved_user} ->
-        # Generate verification token
+      {:ok, {saved_user, organization}} ->
+        # Generate verification token (kept for backwards compatibility / dev token)
         verification_token = generate_verification_token(saved_user.id)
-
-        # TODO: Send verification email
-        # EmailService.send_verification_email(saved_user.email, verification_token)
 
         # Build response
         conn
@@ -106,12 +109,13 @@ defmodule ThalamusWeb.API.RegistrationController do
           data: %{
             id: UserId.to_string(saved_user.id),
             email: Email.to_string(saved_user.email),
-            status: "pending_verification",
-            verified: false
+            name: saved_user.name,
+            status: "active",
+            verified: true,
+            organization_id: OrganizationId.to_string(organization.id)
           },
-          message:
-            "Registration successful. Please check your email for verification instructions.",
-          # DEVELOPMENT ONLY - remove in production
+          message: "Registration successful.",
+          # DEVELOPMENT / BACKWARDS COMPATIBILITY ONLY
           verification_token: verification_token
         })
 
@@ -119,6 +123,21 @@ defmodule ThalamusWeb.API.RegistrationController do
         conn
         |> put_status(:bad_request)
         |> json(%{error: "Missing required parameter: #{param}"})
+
+      {:error, :organization_not_found} ->
+        conn
+        |> put_status(:bad_request)
+        |> json(%{error: "Organization not found"})
+
+      {:error, :client_not_found} ->
+        conn
+        |> put_status(:bad_request)
+        |> json(%{error: "OAuth2 client not found"})
+
+      {:error, :client_has_no_organization} ->
+        conn
+        |> put_status(:bad_request)
+        |> json(%{error: "OAuth2 client does not belong to an organization"})
 
       {:error, :password_mismatch} ->
         conn
@@ -194,15 +213,31 @@ defmodule ThalamusWeb.API.RegistrationController do
          {:ok, token} <- get_required_param(params, "token"),
          {:ok, email_vo} <- Email.new(email_string),
          {:ok, user} <- PostgreSQLUserRepository.find_by_email(email_vo),
-         :ok <- validate_verification_token(user.id, token),
-         {:ok, verified_user} <- User.verify_email(user),
-         {:ok, saved_user} <- PostgreSQLUserRepository.save(verified_user) do
-      conn
-      |> put_status(:ok)
-      |> json(%{
-        data: user_to_json(saved_user),
-        message: "Email verified successfully. You can now sign in."
-      })
+         :ok <- validate_verification_token(user.id, token) do
+      case User.verify_email(user) do
+        {:ok, verified_user} ->
+          {:ok, saved_user} = PostgreSQLUserRepository.save(verified_user)
+
+          conn
+          |> put_status(:ok)
+          |> json(%{
+            data: user_to_json(saved_user),
+            message: "Email verified successfully. You can now sign in."
+          })
+
+        {:error, :already_verified} ->
+          conn
+          |> put_status(:ok)
+          |> json(%{
+            data: user_to_json(user),
+            message: "Email address already verified."
+          })
+
+        {:error, reason} ->
+          conn
+          |> put_status(:bad_request)
+          |> json(%{error: "Invalid user state", details: to_string(reason)})
+      end
     else
       {:error, :missing_parameter, param} ->
         conn
@@ -428,39 +463,76 @@ defmodule ThalamusWeb.API.RegistrationController do
     end
   end
 
-  defp create_organization_if_provided(params, user) do
-    require Logger
+  defp resolve_or_create_organization(params, email_string) do
+    cond do
+      is_binary(params["organization_id"]) and params["organization_id"] != "" ->
+        resolve_organization_by_id(params["organization_id"])
 
-    Logger.debug(
-      "create_organization_if_provided called with params: #{inspect(params)}, user_id: #{inspect(user.id)}"
-    )
+      is_binary(params["client_id"]) and params["client_id"] != "" ->
+        resolve_organization_by_client_id(params["client_id"])
 
-    case params["organization_name"] do
-      nil ->
-        Logger.debug("No organization_name provided")
-        {:ok, nil}
+      is_binary(params["organization_name"]) and params["organization_name"] != "" ->
+        create_new_organization(params["organization_name"], email_string)
 
-      "" ->
-        Logger.debug("Empty organization_name provided")
-        {:ok, nil}
-
-      org_name when is_binary(org_name) ->
-        Logger.debug(
-          "Creating organization with name: #{org_name}, owner_email: #{inspect(user.email)}"
-        )
-
-        # Create new organization with user as owner
-        # Use the convenience function that takes strings
-        with {:ok, organization} <- Organization.new(org_name, Email.to_string(user.email)),
-             {:ok, saved_org} <- PostgreSQLOrganizationRepository.save(organization) do
-          Logger.debug("Organization created successfully: #{inspect(saved_org)}")
-          {:ok, saved_org}
-        else
-          {:error, reason} = error ->
-            Logger.error("Failed to create organization: #{inspect(reason)}")
-            error
-        end
+      true ->
+        create_default_personal_organization(params, email_string)
     end
+  end
+
+  defp resolve_organization_by_id(org_id_string) do
+    case OrganizationId.from_string(org_id_string) do
+      {:ok, org_id} ->
+        case PostgreSQLOrganizationRepository.find_by_id(org_id) do
+          {:ok, org} -> {:ok, org}
+          {:error, :not_found} -> {:error, :organization_not_found}
+          {:error, reason} -> {:error, reason}
+        end
+
+      {:error, _} ->
+        {:error, :organization_not_found}
+    end
+  end
+
+  defp resolve_organization_by_client_id(client_id_string) do
+    case PostgreSQLOAuth2ClientRepository.find_by_client_id(client_id_string) do
+      {:ok, client} ->
+        if client.organization_id do
+          case PostgreSQLOrganizationRepository.find_by_id(client.organization_id) do
+            {:ok, org} -> {:ok, org}
+            {:error, :not_found} -> {:error, :organization_not_found}
+            {:error, reason} -> {:error, reason}
+          end
+        else
+          {:error, :client_has_no_organization}
+        end
+
+      {:error, :not_found} ->
+        {:error, :client_not_found}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp create_new_organization(org_name, email_string) do
+    with {:ok, organization} <- Organization.new(org_name, email_string, :free),
+         {:ok, saved_org} <- PostgreSQLOrganizationRepository.save(organization) do
+      {:ok, saved_org}
+    end
+  end
+
+  defp create_default_personal_organization(params, email_string) do
+    name = params["name"]
+
+    org_name =
+      if is_binary(name) and String.trim(name) != "" do
+        "#{String.trim(name)}'s Organization"
+      else
+        [prefix | _] = String.split(email_string, "@")
+        "#{prefix}'s Organization"
+      end
+
+    create_new_organization(org_name, email_string)
   end
 
   defp create_user(email_string, password, params) do
@@ -506,12 +578,11 @@ defmodule ThalamusWeb.API.RegistrationController do
   defp associate_user_with_organization(_user, nil), do: :ok
 
   defp associate_user_with_organization(user, organization) do
-    alias Thalamus.Infrastructure.Persistence.Schemas.UserSchema
-
-    # Get the UUID without prefix
+    # Get the UUIDs without prefix
     user_id_string = UserId.to_string(user.id)
     user_uuid = String.replace_prefix(user_id_string, "user_", "")
     org_id_string = OrganizationId.to_string(organization.id)
+    org_uuid = String.replace_prefix(org_id_string, "org_", "")
 
     # Update the user schema directly with organization_id
     case Thalamus.Repo.get(UserSchema, user_uuid) do
@@ -520,11 +591,48 @@ defmodule ThalamusWeb.API.RegistrationController do
 
       user_schema ->
         user_schema
-        |> Ecto.Changeset.change(%{organization_id: org_id_string})
+        |> Ecto.Changeset.change(%{organization_id: org_uuid})
         |> Thalamus.Repo.update()
         |> case do
           {:ok, _} -> :ok
           {:error, reason} -> {:error, reason}
+        end
+    end
+  end
+
+  defp add_user_to_organization_members(organization, user) do
+    user_email_str = Email.to_string(user.email)
+    owner_email_str = organization.owner_email && Email.to_string(organization.owner_email)
+
+    cond do
+      owner_email_str == user_email_str ->
+        # User is the owner of this organization.
+        # Ensure owner member in organization.members has user_id set
+        updated_members =
+          Enum.map(organization.members, fn member ->
+            if member.role == :owner and (is_nil(member.user_id) or member.user_id == user.id) do
+              %{member | user_id: user.id}
+            else
+              member
+            end
+          end)
+
+        updated_org = %{organization | members: updated_members}
+        PostgreSQLOrganizationRepository.save(updated_org)
+
+      Enum.any?(organization.members, fn m -> m.user_id == user.id end) ->
+        {:ok, organization}
+
+      true ->
+        case Organization.add_member(organization, user.id, user.email, :member) do
+          {:ok, updated_org} ->
+            PostgreSQLOrganizationRepository.save(updated_org)
+
+          {:error, :member_already_exists} ->
+            {:ok, organization}
+
+          {:error, reason} ->
+            {:error, reason}
         end
     end
   end
@@ -534,6 +642,7 @@ defmodule ThalamusWeb.API.RegistrationController do
       id: UserId.to_string(user.id),
       email: Email.to_string(user.email),
       name: user.name,
+      status: to_string(user.status),
       verified: !is_nil(user.verified_at),
       created_at: user.created_at
     }
