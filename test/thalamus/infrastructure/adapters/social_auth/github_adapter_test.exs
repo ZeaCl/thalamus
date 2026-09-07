@@ -97,5 +97,46 @@ defmodule Thalamus.Infrastructure.Adapters.SocialAuth.GitHubAdapterTest do
 
       assert {:error, :token_exchange_failed} = GitHubAdapter.exchange_code("invalid_code", opts)
     end
+
+    test "prefers verified email when primary email is unverified" do
+      defmodule MockUnverifiedPrimaryHttpClient do
+        def post("https://github.com/login/oauth/access_token", form: _, headers: _) do
+          {:ok, %{status: 200, body: %{"access_token" => "gh_token_456"}}}
+        end
+
+        def get("https://api.github.com/user", headers: _) do
+          {:ok, %{status: 200, body: %{"id" => 999, "login" => "testdev", "name" => "Dev"}}}
+        end
+
+        def get("https://api.github.com/user/emails", headers: _) do
+          {:ok,
+           %{
+             status: 200,
+             body: [
+               %{
+                 "email" => "unverified_primary@example.com",
+                 "primary" => true,
+                 "verified" => false
+               },
+               %{
+                 "email" => "verified_secondary@example.com",
+                 "primary" => false,
+                 "verified" => true
+               }
+             ]
+           }}
+        end
+      end
+
+      opts = [
+        client_id: "test_id",
+        client_secret: "test_secret",
+        http_client: MockUnverifiedPrimaryHttpClient
+      ]
+
+      assert {:ok, profile} = GitHubAdapter.exchange_code("valid_code", opts)
+      assert profile.email == "verified_secondary@example.com"
+      assert profile.email_verified == true
+    end
   end
 end

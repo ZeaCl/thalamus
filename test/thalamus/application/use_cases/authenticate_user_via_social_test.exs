@@ -166,5 +166,84 @@ defmodule Thalamus.Application.UseCases.AuthenticateUserViaSocialTest do
 
       assert {:error, :account_suspended} = AuthenticateUserViaSocial.execute(profile)
     end
+
+    test "authenticates existing Apple identity on recurring login when email is nil", %{
+      user: user,
+      raw_uuid: raw_uuid
+    } do
+      {:ok, identity} =
+        UserIdentity.new(%{
+          user_id: raw_uuid,
+          provider: "apple",
+          provider_uid: "apple_recurring_sub_123",
+          email: user.email.value
+        })
+
+      {:ok, _} = PostgreSQLUserIdentityRepository.save(identity)
+
+      # Apple omits email and sets email_verified to false/nil on recurring logins
+      profile = %{
+        provider: "apple",
+        provider_uid: "apple_recurring_sub_123",
+        email: nil,
+        email_verified: false,
+        name: nil,
+        avatar_url: nil,
+        raw: %{}
+      }
+
+      assert {:ok, resp} = AuthenticateUserViaSocial.execute(profile)
+      assert resp.authenticated == true
+      assert resp.user_id == user.id.value
+      assert resp.email == user.email.value
+    end
+
+    test "rejects new identity creation when email is nil or missing" do
+      profile = %{
+        provider: "apple",
+        provider_uid: "apple_new_unknown_sub",
+        email: nil,
+        email_verified: false,
+        name: nil,
+        avatar_url: nil,
+        raw: %{}
+      }
+
+      assert {:error, :missing_social_email} = AuthenticateUserViaSocial.execute(profile)
+    end
+
+    test "strips sensitive tokens from identity metadata upon linking", %{
+      user: user,
+      raw_uuid: raw_uuid
+    } do
+      profile = %{
+        provider: "github",
+        provider_uid: "gh_uid_sensitive_tokens",
+        email: user.email.value,
+        email_verified: true,
+        name: "Security Conscious",
+        avatar_url: nil,
+        raw: %{
+          "login" => "secuser",
+          "access_token" => "gho_secret_access_token_123",
+          "refresh_token" => "ghr_secret_refresh_token_123",
+          "id_token" => "ey.secret_id_token.sig"
+        }
+      }
+
+      assert {:ok, _resp} = AuthenticateUserViaSocial.execute(profile)
+
+      assert {:ok, identity} =
+               PostgreSQLUserIdentityRepository.find_by_provider_and_uid(
+                 "github",
+                 "gh_uid_sensitive_tokens"
+               )
+
+      assert identity.user_id == raw_uuid
+      assert identity.metadata["login"] == "secuser"
+      refute Map.has_key?(identity.metadata, "access_token")
+      refute Map.has_key?(identity.metadata, "refresh_token")
+      refute Map.has_key?(identity.metadata, "id_token")
+    end
   end
 end

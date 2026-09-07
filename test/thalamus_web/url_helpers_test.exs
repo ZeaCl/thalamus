@@ -38,6 +38,17 @@ defmodule ThalamusWeb.URLHelpersTest do
       assert URLHelpers.base_url(conn) == "https://auth.enterprise.com"
     end
 
+    test "ignores malformed or malicious x-forwarded-host header", %{conn: conn} do
+      conn =
+        conn
+        |> Plug.Conn.put_req_header("x-forwarded-proto", "https")
+        |> Plug.Conn.put_req_header("x-forwarded-host", "evil.com/attacker\r\ninjection")
+        |> Plug.Conn.put_req_header("x-forwarded-port", "443")
+
+      # Should fall back to conn.host ("sso.mycompany.org") and ignore injection
+      assert URLHelpers.base_url(conn) == "https://sso.mycompany.org"
+    end
+
     test "falls back to Endpoint.url() when conn is nil" do
       assert is_binary(URLHelpers.base_url(nil))
     end

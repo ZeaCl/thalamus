@@ -25,13 +25,25 @@ defmodule ThalamusWeb.SocialAuthController do
     provider_str = String.downcase(provider)
 
     if provider_str in @supported_providers do
-      state = UUID.uuid4()
+      csrf = UUID.uuid4()
+      return_to = safe_return_target(params["return_to"])
+      auth_req = get_session(conn, :authorization_request)
+
+      token_payload = %{
+        csrf: csrf,
+        provider: provider_str,
+        return_to: return_to,
+        auth_req: auth_req
+      }
+
+      state = Phoenix.Token.sign(ThalamusWeb.Endpoint, "social_auth_state", token_payload)
       redirect_uri = URLHelpers.resolve_social_redirect_uri(conn, provider_str)
 
       conn =
         conn
+        |> put_session(:social_auth_csrf, csrf)
         |> put_session(:social_auth_state, state)
-        |> maybe_store_return_to(params["return_to"])
+        |> maybe_store_return_to(return_to)
 
       adapter = get_adapter(provider_str)
 
@@ -74,33 +86,37 @@ defmodule ThalamusWeb.SocialAuthController do
         |> redirect(to: "/login")
 
       true ->
-        expected_state = get_session(conn, :social_auth_state)
         provided_state = params["state"]
 
-        if is_nil(expected_state) or expected_state != provided_state do
-          Logger.warning("CSRF state mismatch in social auth callback")
+        case verify_social_state(conn, provided_state, provider_str) do
+          {:ok, state_data} ->
+            code = params["code"]
+            redirect_uri = URLHelpers.resolve_social_redirect_uri(conn, provider_str)
+            adapter = get_adapter(provider_str)
 
-          conn
-          |> delete_session(:social_auth_state)
-          |> put_flash(:error, "Invalid authentication request. Please try again.")
-          |> redirect(to: "/login")
-        else
-          code = params["code"]
-          redirect_uri = URLHelpers.resolve_social_redirect_uri(conn, provider_str)
-          adapter = get_adapter(provider_str)
+            case adapter.exchange_code(code, redirect_uri: redirect_uri) do
+              {:ok, profile} ->
+                handle_authenticated_profile(conn, profile, provider_str, state_data)
 
-          case adapter.exchange_code(code, redirect_uri: redirect_uri) do
-            {:ok, profile} ->
-              handle_authenticated_profile(conn, profile, provider_str)
+              {:error, reason} ->
+                Logger.error("Social token exchange failed for #{provider}: #{inspect(reason)}")
 
-            {:error, reason} ->
-              Logger.error("Social token exchange failed for #{provider}: #{inspect(reason)}")
+                conn
+                |> clear_social_session()
+                |> put_flash(
+                  :error,
+                  "Failed to authenticate with #{String.capitalize(provider)}."
+                )
+                |> redirect(to: "/login")
+            end
 
-              conn
-              |> delete_session(:social_auth_state)
-              |> put_flash(:error, "Failed to authenticate with #{String.capitalize(provider)}.")
-              |> redirect(to: "/login")
-          end
+          {:error, _reason} ->
+            Logger.warning("Invalid or mismatched social auth state")
+
+            conn
+            |> clear_social_session()
+            |> put_flash(:error, "Invalid authentication request. Please try again.")
+            |> redirect(to: "/login")
         end
     end
   end
@@ -110,54 +126,84 @@ defmodule ThalamusWeb.SocialAuthController do
   Form-post callback for Sign in with Apple.
   """
   def apple_callback(conn, params) do
-    expected_state = get_session(conn, :social_auth_state)
     provided_state = params["state"]
 
-    if is_nil(expected_state) or expected_state != provided_state do
-      Logger.warning("CSRF state mismatch in Apple social auth callback")
+    case verify_social_state(conn, provided_state, "apple") do
+      {:ok, state_data} ->
+        code = params["code"]
+        redirect_uri = URLHelpers.resolve_social_redirect_uri(conn, "apple")
+        adapter = get_adapter("apple")
+        user_param = params["user"]
 
-      conn
-      |> delete_session(:social_auth_state)
-      |> put_flash(:error, "Invalid authentication request. Please try again.")
-      |> redirect(to: "/login")
-    else
-      code = params["code"]
-      redirect_uri = URLHelpers.resolve_social_redirect_uri(conn, "apple")
-      adapter = get_adapter("apple")
-      user_param = params["user"]
+        case adapter.exchange_code(code, redirect_uri: redirect_uri, user_param: user_param) do
+          {:ok, profile} ->
+            handle_authenticated_profile(conn, profile, "apple", state_data)
 
-      case adapter.exchange_code(code, redirect_uri: redirect_uri, user_param: user_param) do
-        {:ok, profile} ->
-          handle_authenticated_profile(conn, profile, "apple")
+          {:error, reason} ->
+            Logger.error("Apple token exchange failed: #{inspect(reason)}")
 
-        {:error, reason} ->
-          Logger.error("Apple token exchange failed: #{inspect(reason)}")
+            conn
+            |> clear_social_session()
+            |> put_flash(:error, "Failed to authenticate with Apple.")
+            |> redirect(to: "/login")
+        end
 
-          conn
-          |> delete_session(:social_auth_state)
-          |> put_flash(:error, "Failed to authenticate with Apple.")
-          |> redirect(to: "/login")
-      end
+      {:error, _reason} ->
+        Logger.warning("Invalid or mismatched social auth state for Apple")
+
+        conn
+        |> clear_social_session()
+        |> put_flash(:error, "Invalid authentication request. Please try again.")
+        |> redirect(to: "/login")
     end
   end
 
-  defp handle_authenticated_profile(conn, profile, provider_str) do
+  defp verify_social_state(conn, state, expected_provider) when is_binary(state) do
+    case Phoenix.Token.verify(ThalamusWeb.Endpoint, "social_auth_state", state, max_age: 600) do
+      {:ok, %{provider: ^expected_provider} = state_data} ->
+        session_csrf = get_session(conn, :social_auth_csrf)
+
+        if is_nil(session_csrf) or session_csrf == state_data[:csrf] do
+          {:ok, state_data}
+        else
+          {:error, :csrf_mismatch}
+        end
+
+      _ ->
+        expected_state = get_session(conn, :social_auth_state)
+
+        if not is_nil(expected_state) and expected_state == state do
+          {:ok,
+           %{
+             provider: expected_provider,
+             return_to: get_session(conn, :return_to),
+             auth_req: get_session(conn, :authorization_request)
+           }}
+        else
+          {:error, :invalid_state}
+        end
+    end
+  end
+
+  defp verify_social_state(_conn, _state, _provider), do: {:error, :missing_state}
+
+  defp handle_authenticated_profile(conn, profile, provider_str, state_data) do
     case AuthenticateUserViaSocial.execute(profile) do
       {:ok, auth_response} ->
-        authorization_request = get_session(conn, :authorization_request)
-        return_to = get_session(conn, :return_to)
+        authorization_request =
+          get_session(conn, :authorization_request) || state_data[:auth_req]
+
+        return_to = safe_return_target(get_session(conn, :return_to) || state_data[:return_to])
 
         conn
         |> put_flash(:info, "Successfully authenticated with #{String.capitalize(provider_str)}!")
         |> put_session(:user_id, auth_response.user_id)
-        |> delete_session(:social_auth_state)
-        |> delete_session(:authorization_request)
-        |> delete_session(:return_to)
+        |> clear_social_session()
         |> redirect_after_login(authorization_request, return_to)
 
       {:error, :unverified_social_email} ->
         conn
-        |> delete_session(:social_auth_state)
+        |> clear_social_session()
         |> put_flash(
           :error,
           "Your email with #{String.capitalize(provider_str)} is not verified."
@@ -168,10 +214,18 @@ defmodule ThalamusWeb.SocialAuthController do
         Logger.error("AuthenticateUserViaSocial failed: #{inspect(reason)}")
 
         conn
-        |> delete_session(:social_auth_state)
+        |> clear_social_session()
         |> put_flash(:error, "Authentication failed. Please contact support.")
         |> redirect(to: "/login")
     end
+  end
+
+  defp clear_social_session(conn) do
+    conn
+    |> delete_session(:social_auth_state)
+    |> delete_session(:social_auth_csrf)
+    |> delete_session(:authorization_request)
+    |> delete_session(:return_to)
   end
 
   defp maybe_store_return_to(conn, nil), do: conn
@@ -186,8 +240,14 @@ defmodule ThalamusWeb.SocialAuthController do
   defp get_adapter("apple"),
     do: Application.get_env(:thalamus, :apple_adapter, AppleAdapter)
 
-  defp redirect_after_login(conn, nil, return_to) do
-    target = return_to || get_return_to(conn)
+  defp redirect_after_login(conn, authorization_request, _return_to)
+       when is_map(authorization_request) and map_size(authorization_request) > 0 do
+    query_string = URI.encode_query(authorization_request)
+    redirect(conn, to: "/oauth/authorize?" <> query_string)
+  end
+
+  defp redirect_after_login(conn, _authorization_request, return_to) do
+    target = safe_return_target(return_to) || URLHelpers.default_return_to(conn)
 
     if String.starts_with?(target, "http://") or String.starts_with?(target, "https://") do
       redirect(conn, external: target)
@@ -196,18 +256,28 @@ defmodule ThalamusWeb.SocialAuthController do
     end
   end
 
-  defp redirect_after_login(conn, authorization_request, _return_to)
-       when is_map(authorization_request) and map_size(authorization_request) > 0 do
-    query_string = URI.encode_query(authorization_request)
-    redirect(conn, to: "/oauth/authorize?" <> query_string)
+  @doc """
+  Sanitizes a return_to parameter to ensure it is a safe relative path,
+  preventing Open Redirect attacks.
+  """
+  def safe_return_target(nil), do: nil
+  def safe_return_target(""), do: nil
+
+  def safe_return_target(target) when is_binary(target) do
+    target = String.trim(target)
+
+    if String.starts_with?(target, "/") and not String.starts_with?(target, ["//", "/\\"]) do
+      case URI.parse(target) do
+        %URI{scheme: nil, host: nil, path: path} when is_binary(path) ->
+          target
+
+        _ ->
+          nil
+      end
+    else
+      nil
+    end
   end
 
-  defp redirect_after_login(conn, _, return_to) do
-    redirect_after_login(conn, nil, return_to)
-  end
-
-  defp get_return_to(conn) do
-    get_session(conn, :return_to) || conn.params["return_to"] ||
-      URLHelpers.default_return_to(conn)
-  end
+  def safe_return_target(_), do: nil
 end

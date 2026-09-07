@@ -24,8 +24,17 @@ defmodule ThalamusWeb.URLHelpers do
 
     host =
       case Plug.Conn.get_req_header(conn, "x-forwarded-host") do
-        [forwarded_host | _] -> forwarded_host
-        _ -> Application.get_env(:thalamus, :host) || conn.host
+        [forwarded_host | _] ->
+          first_host = forwarded_host |> String.split(",") |> List.first() |> String.trim()
+
+          if Regex.match?(~r/^[a-zA-Z0-9.-]+(:[0-9]+)?$/, first_host) do
+            first_host
+          else
+            Application.get_env(:thalamus, :host) || conn.host
+          end
+
+        _ ->
+          Application.get_env(:thalamus, :host) || conn.host
       end
 
     if String.contains?(host, ":") do

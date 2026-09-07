@@ -88,6 +88,8 @@ defmodule Thalamus.Infrastructure.Adapters.SocialAuth.GitHubAdapter do
       name = user_data["name"] || user_data["login"]
       avatar = user_data["avatar_url"]
 
+      clean_raw = Map.drop(user_data, ["access_token", "token", "refresh_token", "id_token"])
+
       {:ok,
        %{
          provider: "github",
@@ -96,7 +98,7 @@ defmodule Thalamus.Infrastructure.Adapters.SocialAuth.GitHubAdapter do
          email_verified: email_verified,
          name: name,
          avatar_url: avatar,
-         raw: user_data
+         raw: clean_raw
        }}
     else
       {:ok, %{status: status, body: body}} ->
@@ -118,9 +120,13 @@ defmodule Thalamus.Infrastructure.Adapters.SocialAuth.GitHubAdapter do
 
     case http_client.get(@emails_url, headers: headers) do
       {:ok, %{status: 200, body: emails}} when is_list(emails) ->
+        primary_verified = Enum.find(emails, &(&1["primary"] == true and &1["verified"] == true))
+        any_verified = Enum.find(emails, &(&1["verified"] == true))
+
         primary =
-          Enum.find(emails, &(&1["primary"] == true)) ||
-            Enum.find(emails, &(&1["verified"] == true)) ||
+          primary_verified ||
+            any_verified ||
+            Enum.find(emails, &(&1["primary"] == true)) ||
             List.first(emails)
 
         if primary do

@@ -3,16 +3,18 @@ defmodule Thalamus.Application.UseCases.AuthenticateUserViaSocial do
   Use Case for authenticating a user via a federated social identity provider (Google, Apple, GitHub).
 
   Flow:
-  1. Validate incoming profile (provider, provider_uid, email, email_verified).
+  1. Validate incoming profile format (provider, provider_uid).
   2. If identity already exists:
      - Load associated user.
      - Ensure user is active.
      - Record successful login.
      - Return AuthenticationResponse.
+     (Note: Apple only sends email/name on first login. Recurring logins return email: nil,
+      which is fully supported if the identity is already linked).
   3. If identity does not exist:
-     - Check if existing user has matching verified email.
-     - If user exists: link new UserIdentity to that user.
-     - If user does not exist: JIT provision new User and link UserIdentity.
+     - Validate that profile has a verified email.
+     - If existing user has matching verified email: link new UserIdentity to that user.
+     - If user does not exist: JIT provision new User and link UserIdentity in a transaction.
      - Record login and return AuthenticationResponse.
 
   SOLID:
@@ -33,6 +35,19 @@ defmodule Thalamus.Application.UseCases.AuthenticateUserViaSocial do
     audit_logger: Thalamus.Infrastructure.Adapters.AuditLoggerImpl
   }
 
+  @sensitive_keys [
+    "access_token",
+    "refresh_token",
+    "id_token",
+    "token",
+    "code",
+    :access_token,
+    :refresh_token,
+    :id_token,
+    :token,
+    :code
+  ]
+
   @doc """
   Executes the social authentication flow.
   """
@@ -40,7 +55,7 @@ defmodule Thalamus.Application.UseCases.AuthenticateUserViaSocial do
   def execute(profile, custom_deps \\ %{}) do
     deps = Map.merge(@default_deps, custom_deps)
 
-    with :ok <- validate_profile(profile),
+    with :ok <- validate_provider_and_uid(profile),
          {:ok, user} <- resolve_or_provision_user(profile, deps),
          {:ok, logged_in_user} <- record_login(user, deps) do
       log_success(logged_in_user, profile[:provider], deps)
@@ -52,42 +67,49 @@ defmodule Thalamus.Application.UseCases.AuthenticateUserViaSocial do
     end
   end
 
-  defp validate_profile(%{
-         provider: provider,
-         provider_uid: uid,
-         email_verified: true,
-         email: email
-       })
-       when is_binary(provider) and is_binary(uid) and is_binary(email) and email != "" do
-    :ok
+  defp validate_provider_and_uid(%{provider: provider, provider_uid: uid})
+       when is_binary(provider) and is_binary(uid) and provider != "" and uid != "" do
+    if UserIdentity.valid_provider?(provider) do
+      :ok
+    else
+      {:error, {:invalid_provider, provider}}
+    end
   end
 
-  defp validate_profile(%{email_verified: false}) do
-    {:error, :unverified_social_email}
-  end
-
-  defp validate_profile(%{email: nil}) do
-    {:error, :missing_social_email}
-  end
-
-  defp validate_profile(%{email: ""}) do
-    {:error, :missing_social_email}
-  end
-
-  defp validate_profile(_) do
+  defp validate_provider_and_uid(_) do
     {:error, :invalid_social_profile}
   end
 
   defp resolve_or_provision_user(%{provider: provider, provider_uid: uid} = profile, deps) do
     case deps.user_identity_repository.find_by_provider_and_uid(provider, uid) do
       {:ok, %UserIdentity{user_id: user_uuid}} ->
-        # Existing identity found -> fetch user
+        # Existing identity found -> load user.
+        # Apple recurring logins do not send email, so we skip email validation here!
         load_and_validate_user(user_uuid, profile, deps)
 
       {:error, :not_found} ->
-        # Identity not found -> link to existing user by email or JIT provision
-        link_or_create_user(profile, deps)
+        # New identity -> MUST have verified email from IdP for JIT provisioning or account linking!
+        with :ok <- validate_new_identity_email(profile) do
+          link_or_create_user(profile, deps)
+        end
     end
+  end
+
+  defp validate_new_identity_email(%{email: email, email_verified: true})
+       when is_binary(email) and email != "" do
+    :ok
+  end
+
+  defp validate_new_identity_email(%{email: email}) when is_nil(email) or email == "" do
+    {:error, :missing_social_email}
+  end
+
+  defp validate_new_identity_email(%{email_verified: verified}) when verified != true do
+    {:error, :unverified_social_email}
+  end
+
+  defp validate_new_identity_email(_) do
+    {:error, :missing_social_email}
   end
 
   defp load_and_validate_user(user_uuid, profile, deps) do
@@ -118,11 +140,11 @@ defmodule Thalamus.Application.UseCases.AuthenticateUserViaSocial do
     with {:ok, email_vo} <- Email.new(String.downcase(email_str)) do
       case deps.user_repository.find_by_email(email_vo) do
         {:ok, existing_user} ->
-          # Link identity to existing user
+          # Link identity to existing user in a transaction
           link_identity(existing_user, profile, deps)
 
         {:error, :not_found} ->
-          # Provision new user JIT
+          # Provision new user JIT in a transaction
           provision_new_user(email_vo, profile, deps)
       end
     end
@@ -136,14 +158,18 @@ defmodule Thalamus.Application.UseCases.AuthenticateUserViaSocial do
       provider: profile[:provider],
       provider_uid: profile[:provider_uid],
       email: profile[:email],
-      metadata: profile[:raw] || %{}
+      metadata: sanitize_metadata(profile[:raw])
     }
 
-    with {:ok, identity} <- UserIdentity.new(identity_attrs),
-         {:ok, _saved_identity} <- deps.user_identity_repository.save(identity),
-         {:ok, updated_user} <- maybe_update_user_profile(user, profile, deps) do
-      {:ok, updated_user}
-    end
+    Thalamus.Repo.transaction(fn ->
+      with {:ok, identity} <- UserIdentity.new(identity_attrs),
+           {:ok, _saved_identity} <- deps.user_identity_repository.save(identity),
+           {:ok, updated_user} <- maybe_update_user_profile(user, profile, deps) do
+        updated_user
+      else
+        {:error, reason} -> Thalamus.Repo.rollback(reason)
+      end
+    end)
   end
 
   defp provision_new_user(email_vo, profile, deps) do
@@ -153,35 +179,40 @@ defmodule Thalamus.Application.UseCases.AuthenticateUserViaSocial do
       (:crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false)) <> "!@1aA"
 
     {:ok, password_hash} = PasswordHash.from_password(random_password)
-
     now = DateTime.truncate(DateTime.utc_now(), :second)
 
-    with {:ok, user} <-
-           User.new(%{
-             id: user_id,
-             email: email_vo,
-             name: clean_name(profile[:name]),
-             avatar_url: profile[:avatar_url],
-             password_hash: password_hash,
-             status: :active,
-             verified_at: now
-           }),
-         {:ok, saved_user} <- deps.user_repository.save(user) do
-      raw_user_uuid = extract_raw_uuid(saved_user.id)
+    Thalamus.Repo.transaction(fn ->
+      with {:ok, user} <-
+             User.new(%{
+               id: user_id,
+               email: email_vo,
+               name: clean_name(profile[:name]),
+               avatar_url: profile[:avatar_url],
+               password_hash: password_hash,
+               status: :active,
+               verified_at: now
+             }),
+           {:ok, saved_user} <- deps.user_repository.save(user) do
+        raw_user_uuid = extract_raw_uuid(saved_user.id)
 
-      identity_attrs = %{
-        user_id: raw_user_uuid,
-        provider: profile[:provider],
-        provider_uid: profile[:provider_uid],
-        email: profile[:email],
-        metadata: profile[:raw] || %{}
-      }
+        identity_attrs = %{
+          user_id: raw_user_uuid,
+          provider: profile[:provider],
+          provider_uid: profile[:provider_uid],
+          email: profile[:email],
+          metadata: sanitize_metadata(profile[:raw])
+        }
 
-      with {:ok, identity} <- UserIdentity.new(identity_attrs),
-           {:ok, _saved_identity} <- deps.user_identity_repository.save(identity) do
-        {:ok, saved_user}
+        with {:ok, identity} <- UserIdentity.new(identity_attrs),
+             {:ok, _saved_identity} <- deps.user_identity_repository.save(identity) do
+          saved_user
+        else
+          {:error, reason} -> Thalamus.Repo.rollback(reason)
+        end
+      else
+        {:error, reason} -> Thalamus.Repo.rollback(reason)
       end
-    end
+    end)
   end
 
   defp maybe_update_user_profile(user, profile, deps) do
@@ -213,6 +244,14 @@ defmodule Thalamus.Application.UseCases.AuthenticateUserViaSocial do
         {:error, reason}
     end
   end
+
+  defp sanitize_metadata(nil), do: %{}
+
+  defp sanitize_metadata(raw) when is_map(raw) do
+    Map.drop(raw, @sensitive_keys)
+  end
+
+  defp sanitize_metadata(_), do: %{}
 
   defp log_success(user, provider, deps) do
     deps.audit_logger.log_authentication_success(user.id, %{

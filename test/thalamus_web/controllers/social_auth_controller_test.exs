@@ -149,10 +149,41 @@ defmodule ThalamusWeb.SocialAuthControllerTest do
       assert redirected_to(conn) == ~p"/login"
       assert Phoenix.Flash.get(conn.assigns.flash, :error) =~ "not verified"
     end
+
+    test "prevents Open Redirect attacks with external URL", %{conn: conn} do
+      conn =
+        conn
+        |> Plug.Test.init_test_session(%{
+          social_auth_state: "state_or",
+          return_to: "https://evil.com/steal-credentials"
+        })
+        |> get(~p"/auth/social/google/callback", %{
+          "code" => "valid_code",
+          "state" => "state_or"
+        })
+
+      # Must not redirect to evil.com
+      assert redirected_to(conn) == "/"
+    end
+
+    test "prevents Open Redirect attacks with protocol-relative URL", %{conn: conn} do
+      conn =
+        conn
+        |> Plug.Test.init_test_session(%{
+          social_auth_state: "state_pr",
+          return_to: "//evil.com"
+        })
+        |> get(~p"/auth/social/google/callback", %{
+          "code" => "valid_code",
+          "state" => "state_pr"
+        })
+
+      assert redirected_to(conn) == "/"
+    end
   end
 
   describe "POST /auth/social/apple/callback" do
-    test "authenticates successfully via form-post", %{conn: conn} do
+    test "authenticates successfully via form-post with session state", %{conn: conn} do
       conn =
         conn
         |> Plug.Test.init_test_session(%{social_auth_state: "apple_state_abc"})
@@ -163,6 +194,78 @@ defmodule ThalamusWeb.SocialAuthControllerTest do
 
       assert redirected_to(conn) == "/"
       assert get_session(conn, :user_id) != nil
+    end
+
+    test "authenticates successfully stateless when SameSite=Lax omits session cookie", %{
+      conn: conn
+    } do
+      # Generate HMAC signed state using Phoenix.Token
+      token_payload = %{
+        csrf: UUID.uuid4(),
+        provider: "apple",
+        return_to: "/settings/security",
+        auth_req: nil
+      }
+
+      signed_state =
+        Phoenix.Token.sign(ThalamusWeb.Endpoint, "social_auth_state", token_payload)
+
+      # Request with completely empty session (no cookies sent by browser)
+      conn =
+        post(conn, ~p"/auth/social/apple/callback", %{
+          "code" => "valid_code",
+          "state" => signed_state
+        })
+
+      assert redirected_to(conn) == "/settings/security"
+      assert get_session(conn, :user_id) != nil
+    end
+
+    test "rejects signed state if provider does not match", %{conn: conn} do
+      token_payload = %{
+        csrf: UUID.uuid4(),
+        provider: "google",
+        return_to: "/dashboard",
+        auth_req: nil
+      }
+
+      google_token =
+        Phoenix.Token.sign(ThalamusWeb.Endpoint, "social_auth_state", token_payload)
+
+      conn =
+        post(conn, ~p"/auth/social/apple/callback", %{
+          "code" => "valid_code",
+          "state" => google_token
+        })
+
+      assert redirected_to(conn) == ~p"/login"
+      assert Phoenix.Flash.get(conn.assigns.flash, :error) =~ "Invalid authentication request"
+    end
+  end
+
+  describe "safe_return_target/1" do
+    test "accepts valid relative paths" do
+      assert ThalamusWeb.SocialAuthController.safe_return_target("/dashboard") == "/dashboard"
+
+      assert ThalamusWeb.SocialAuthController.safe_return_target(
+               "/oauth/authorize?client_id=123&response_type=code"
+             ) == "/oauth/authorize?client_id=123&response_type=code"
+    end
+
+    test "rejects external URLs and malicious schemes" do
+      assert is_nil(
+               ThalamusWeb.SocialAuthController.safe_return_target("https://attacker.com/steal")
+             )
+
+      assert is_nil(
+               ThalamusWeb.SocialAuthController.safe_return_target("http://attacker.com/steal")
+             )
+
+      assert is_nil(ThalamusWeb.SocialAuthController.safe_return_target("//attacker.com"))
+      assert is_nil(ThalamusWeb.SocialAuthController.safe_return_target("/\\attacker.com"))
+      assert is_nil(ThalamusWeb.SocialAuthController.safe_return_target("javascript:alert(1)"))
+      assert is_nil(ThalamusWeb.SocialAuthController.safe_return_target(""))
+      assert is_nil(ThalamusWeb.SocialAuthController.safe_return_target(nil))
     end
   end
 end

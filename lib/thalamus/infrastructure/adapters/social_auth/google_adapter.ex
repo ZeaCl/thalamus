@@ -83,6 +83,8 @@ defmodule Thalamus.Infrastructure.Adapters.SocialAuth.GoogleAdapter do
         name = info["name"]
         avatar = info["picture"]
 
+        clean_raw = Map.drop(info, ["access_token", "refresh_token", "id_token"])
+
         {:ok,
          %{
            provider: "google",
@@ -91,7 +93,7 @@ defmodule Thalamus.Infrastructure.Adapters.SocialAuth.GoogleAdapter do
            email_verified: email_verified,
            name: name,
            avatar_url: avatar,
-           raw: info
+           raw: clean_raw
          }}
 
       {:ok, %{status: status, body: body}} ->

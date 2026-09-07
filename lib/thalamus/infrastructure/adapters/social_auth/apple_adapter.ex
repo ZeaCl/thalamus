@@ -54,7 +54,7 @@ defmodule Thalamus.Infrastructure.Adapters.SocialAuth.AppleAdapter do
 
       case http_client.post(@token_url, form: token_payload) do
         {:ok, %{status: 200, body: %{"id_token" => id_token} = token_resp}} ->
-          parse_apple_id_token(id_token, user_param, token_resp)
+          parse_apple_id_token(id_token, user_param, token_resp, client_id)
 
         {:ok, %{status: status, body: body}} ->
           Logger.error("Apple token exchange failed (#{status}): #{inspect(body)}")
@@ -104,25 +104,52 @@ defmodule Thalamus.Infrastructure.Adapters.SocialAuth.AppleAdapter do
     end
   end
 
-  defp parse_apple_id_token(id_token, user_param, token_resp) do
+  defp parse_apple_id_token(id_token, user_param, token_resp, expected_client_id) do
+    now = System.system_time(:second)
+
     case JOSE.JWT.peek_payload(id_token) do
       %JOSE.JWT{fields: claims} ->
-        uid = claims["sub"]
-        email = claims["email"]
-        email_verified = claims["email_verified"] in [true, "true", "TRUE", nil]
+        iss = claims["iss"]
+        aud = claims["aud"]
+        exp = claims["exp"]
 
-        name = parse_apple_name(user_param)
+        cond do
+          iss != "https://appleid.apple.com" ->
+            Logger.error("Apple id_token invalid issuer: #{inspect(iss)}")
+            {:error, :invalid_apple_issuer}
 
-        {:ok,
-         %{
-           provider: "apple",
-           provider_uid: to_string(uid),
-           email: email,
-           email_verified: email_verified,
-           name: name,
-           avatar_url: nil,
-           raw: Map.put(token_resp, "claims", claims)
-         }}
+          aud != expected_client_id and not (is_list(aud) and expected_client_id in aud) ->
+            Logger.error("Apple id_token invalid audience: #{inspect(aud)}")
+            {:error, :invalid_apple_audience}
+
+          is_integer(exp) and exp < now ->
+            Logger.error("Apple id_token has expired")
+            {:error, :expired_apple_id_token}
+
+          true ->
+            uid = claims["sub"]
+            email = claims["email"]
+            email_verified = claims["email_verified"] in [true, "true", "TRUE"]
+
+            name = parse_apple_name(user_param)
+
+            # Purge sensitive tokens from metadata (GDPR Art. 5 / Privacy)
+            safe_raw =
+              token_resp
+              |> Map.drop(["access_token", "refresh_token", "id_token"])
+              |> Map.put("claims", claims)
+
+            {:ok,
+             %{
+               provider: "apple",
+               provider_uid: to_string(uid),
+               email: email,
+               email_verified: email_verified,
+               name: name,
+               avatar_url: nil,
+               raw: safe_raw
+             }}
+        end
 
       _ ->
         {:error, :invalid_apple_id_token}
